@@ -1,0 +1,69 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  icon        String   @default("folder")
+  color       String   @default("#6366f1")
+  createdAt   DateTime @default(now())
+  topics      Topic[]
+}
+
+model Topic {
+  id           String     @id @default(cuid())
+  title        String
+  slug         String     @unique
+  description  String
+  evidence     String?
+  imageUrl     String?
+  status       String     @default("UPCOMING") // UPCOMING | ACTIVE | CONCLUDED
+  durationDays Int        @default(7)
+  createdAt    DateTime   @default(now())
+  endsAt       DateTime
+  verdict      String?    // BUSTED | TRUE | INCONCLUSIVE | null
+  summary      String?
+  createdBy    String?
+  categoryId   String
+  category     Category   @relation(fields: [categoryId], references: [id])
+  comments     Comment[]
+  votes        Vote[]
+
+  @@index([status])
+  @@index([slug])
+  @@index([categoryId])
+}
+
+model Comment {
+  id           String   @id @default(cuid())
+  topicId      String
+  topic        Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  anonymousId  String
+  displayName  String
+  content      String
+  isFlagged    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  @@index([topicId])
+  @@index([anonymousId])
+}
+
+model Vote {
+  id          String   @id @default(cuid())
+  topicId     String
+  topic       Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  anonymousId String
+  createdAt   DateTime @default(now())
+
+  @@unique([topicId, anonymousId])
+  @@index([topicId])
+  @@index([anonymousId])
+}
