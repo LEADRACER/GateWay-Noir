@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/get-current-user";
 import { revalidatePath } from "next/cache";
 
 export async function POST(request: NextRequest) {
   try {
+    const caller = await getCurrentUser();
+    if (!caller || caller.role !== "BUREAU") {
+      return NextResponse.json({ error: "Unauthorized — Bureau access required" }, { status: 403 });
+    }
+
     const formData = await request.formData();
     const id = formData.get("id") as string;
 

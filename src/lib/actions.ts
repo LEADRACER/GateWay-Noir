@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "./prisma";
 import { generateSlug } from "./utils";
 import { deleteEvidenceFile } from "./supabase-storage";
+import { getCurrentUser } from "./get-current-user";
 
 // ─── Topic Actions ───
 
@@ -125,6 +126,8 @@ export async function getUserVotes(anonymousId: string) {
 // ─── Promote Upcoming → Active ───
 
 export async function promoteToActive(formData: FormData) {
+  const caller = await getCurrentUser();
+  if (!caller || caller.role !== "BUREAU") return { error: "Unauthorized" };
   const id = formData.get("id") as string;
   const durationDays = parseInt(formData.get("durationDays") as string) || 7;
 
@@ -240,6 +243,8 @@ export async function getComments(topicId: string) {
 // ─── Admin Actions ───
 
 export async function createTopic(formData: FormData) {
+  const caller = await getCurrentUser();
+  if (!caller || caller.role !== "BUREAU") return { error: "Unauthorized" };
   const title = formData.get("title") as string;
   const description = formData.get("description") as string;
   const evidence = formData.get("evidence") as string;
@@ -279,6 +284,8 @@ export async function createTopic(formData: FormData) {
 }
 
 export async function concludeTopic(formData: FormData) {
+  const caller = await getCurrentUser();
+  if (!caller || caller.role !== "BUREAU") return { error: "Unauthorized" };
   const id = formData.get("id") as string;
   const verdict = formData.get("verdict") as string;
   const summary = formData.get("summary") as string;
@@ -342,6 +349,8 @@ export async function concludeTopic(formData: FormData) {
 }
 
 export async function deleteComment(formData: FormData) {
+  const caller = await getCurrentUser();
+  if (!caller || caller.role !== "BUREAU") return { error: "Unauthorized" };
   const id = formData.get("id") as string;
   if (!id) return { error: "Missing comment ID" };
 
@@ -367,6 +376,8 @@ export async function deleteComment(formData: FormData) {
 }
 
 export async function toggleFlagComment(formData: FormData) {
+  const caller = await getCurrentUser();
+  if (!caller || caller.role !== "BUREAU") return { error: "Unauthorized" };
   const id = formData.get("id") as string;
   if (!id) return { error: "Missing comment ID" };
   const comment = await prisma.comment.findUnique({ where: { id } });

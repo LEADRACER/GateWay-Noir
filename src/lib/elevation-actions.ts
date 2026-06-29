@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { generateBadgeCode, reprefixBadgeCode } from "@/lib/badge";
+import { getCurrentUser } from "@/lib/get-current-user";
 
 export async function requestElevation(userId: string, message?: string) {
   if (!userId) return { error: "Missing user ID" };
@@ -67,6 +68,8 @@ export async function getMyElevationStatus(userId: string) {
  * Preserves the user's existing badge suffix (DET-XXXX → AGT-XXXX).
  */
 export async function approveElevation(requestId: string, adminId: string) {
+  const caller = await getCurrentUser();
+  if (!caller || caller.role !== "BUREAU") return { error: "Unauthorized" };
   if (!requestId) return { error: "Missing request ID" };
 
   const request = await prisma.elevationRequest.findUnique({
@@ -97,6 +100,8 @@ export async function approveElevation(requestId: string, adminId: string) {
 }
 
 export async function rejectElevation(requestId: string, adminNote?: string) {
+  const caller = await getCurrentUser();
+  if (!caller || caller.role !== "BUREAU") return { error: "Unauthorized" };
   if (!requestId) return { error: "Missing request ID" };
 
   const request = await prisma.elevationRequest.findUnique({

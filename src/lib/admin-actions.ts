@@ -3,13 +3,16 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { generateBadgeCode, getBadgePrefix } from "@/lib/badge";
+import { getCurrentUser } from "@/lib/get-current-user";
 
 /**
  * Promote an AGENT user to BUREAU.
  * Only existing BUREAU users can call this.
- * Preserves the user's badge suffix (AGT-XXXX → BRU-XXXX).
+ * Preserves the user's badge suffix (AGT-XXXX XXXX).
  */
 export async function promoteToBureau(agentUserId: string, bureauUserId?: string) {
+  const caller = await getCurrentUser();
+  if (!caller || caller.role !== "BUREAU") return { error: "Unauthorized" };
   if (!agentUserId) return { error: "Missing user ID" };
 
   const user = await prisma.user.findUnique({ where: { id: agentUserId } });
@@ -44,6 +47,8 @@ export async function promoteToBureau(agentUserId: string, bureauUserId?: string
  * Get all AGENT users for the BRU admin panel.
  */
 export async function getAllAgents() {
+  const caller = await getCurrentUser();
+  if (!caller || caller.role !== "BUREAU") return [];
   return prisma.user.findMany({
     where: { role: "AGENT" },
     select: {
@@ -64,6 +69,8 @@ export async function getAllAgents() {
  * Generates a fresh BRU badge code that can be shared.
  */
 export async function createBureauUser(displayName: string, creatorBadgeCode?: string) {
+  const caller = await getCurrentUser();
+  if (!caller || caller.role !== "BUREAU") return { error: "Unauthorized" };
   if (!displayName?.trim()) return { error: "Display name is required" };
 
   const badgeCode = await generateBadgeCode("BUREAU");
@@ -124,6 +131,8 @@ export async function promoteSelfToBureau(badgeCode: string) {
  * Get all users grouped by role.
  */
 export async function getAllUsers() {
+  const caller = await getCurrentUser();
+  if (!caller || caller.role !== "BUREAU") return { detectives: [], agents: [], bureau: [] };
   const users = await prisma.user.findMany({
     select: {
       id: true,
