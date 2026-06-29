@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "./prisma";
 import { generateSlug } from "./utils";
+import { deleteEvidenceFile } from "./supabase-storage";
 
 // ─── Topic Actions ───
 
@@ -285,6 +286,43 @@ export async function concludeTopic(formData: FormData) {
   if (!id || !verdict) return { error: "Missing required fields" };
   if (!["SOLVED", "CONFIRMED", "UNSOLVED"].includes(verdict)) {
     return { error: "Invalid verdict" };
+  }
+
+  // Fetch all comments with evidence on this topic
+  const comments = await prisma.comment.findMany({
+    where: { topicId: id, evidenceUrls: { not: null } },
+    select: { id: true, evidenceUrls: true },
+  });
+
+  // Delete evidence files and clear URLs from comments
+  const evidenceCommentIds: string[] = [];
+  const deletePromises: Promise<void>[] = [];
+
+  for (const comment of comments) {
+    if (!comment.evidenceUrls) continue;
+
+    try {
+      const urls: string[] = JSON.parse(comment.evidenceUrls as string);
+      if (!Array.isArray(urls) || urls.length === 0) continue;
+
+      evidenceCommentIds.push(comment.id);
+      for (const url of urls) {
+        deletePromises.push(deleteEvidenceFile(url));
+      }
+    } catch {
+      // malformed JSON — skip
+    }
+  }
+
+  // Run all deletes in parallel
+  await Promise.allSettled(deletePromises);
+
+  // Clear evidenceUrls from comments that had them
+  if (evidenceCommentIds.length > 0) {
+    await prisma.comment.updateMany({
+      where: { id: { in: evidenceCommentIds } },
+      data: { evidenceUrls: null },
+    });
   }
 
   const topic = await prisma.topic.update({

@@ -35,6 +35,61 @@ export async function uploadEvidence(buffer: Buffer): Promise<string> {
   return `/uploads/evidence/${filename}`;
 }
 
+/**
+ * Delete an evidence file from wherever it's stored (Supabase or local).
+ * Accepts the full URL (Supabase public URL or local path).
+ * Silently succeeds if the file doesn't exist.
+ */
+export async function deleteEvidenceFile(url: string): Promise<void> {
+  const filename = extractFilename(url);
+  if (!filename) return;
+
+  // Try Supabase first
+  if (supabaseUrl && supabaseServiceKey) {
+    try {
+      const client = createClient(supabaseUrl!, supabaseServiceKey!);
+      const { error } = await client.storage.from(BUCKET_NAME).remove([filename]);
+      if (error) {
+        // File might not exist in Supabase — proceed to local fallback
+        console.debug("Supabase delete failed:", error.message);
+      } else {
+        return; // deleted from Supabase, done
+      }
+    } catch {
+      // network error, try local
+    }
+  }
+
+  // Fallback: local filesystem
+  try {
+    const { unlink } = await import("fs/promises");
+    const { join } = await import("path");
+    const localPath = join(process.cwd(), "public", "uploads", "evidence", filename);
+    await unlink(localPath);
+  } catch {
+    // file already gone or never existed — fine
+  }
+}
+
+/**
+ * Extract filename from a Supabase public URL or local path.
+ * E.g. "https://xyz.supabase.co/.../evidence/ev-123.webp" → "ev-123.webp"
+ * E.g. "/uploads/evidence/ev-123.webp" → "ev-123.webp"
+ * Returns null for non-evidence URLs (e.g. GDrive links).
+ */
+function extractFilename(url: string): string | null {
+  // Only handle our own evidence files
+  if (!url.includes("ev-")) return null;
+
+  // URL path: take everything after the last /
+  const parts = url.split("/");
+  const last = parts[parts.length - 1];
+  if (last && last.startsWith("ev-") && last.endsWith(".webp")) {
+    return last;
+  }
+  return null;
+}
+
 async function uploadToSupabase(
   buffer: Buffer,
   filename: string
