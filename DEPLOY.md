@@ -16,7 +16,6 @@ In Vercel dashboard → **Settings → Environment Variables**:
 | `DIRECT_URL` | Supabase → Project Settings → Database → Connection string (pooled) |
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase → Project Settings → API → Project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase → Project Settings → API → anon public |
-| `NEXT_PUBLIC_SITE_URL` | `https://myth-gateway.vercel.app` (or your custom domain) |
 | `SUPABASE_STORAGE_BUCKET` | `"evidence"` (default, only change if you renamed it) |
 | `UPLOAD_PASSWORD` | Optional — passphrase to gate evidence uploads |
 
