@@ -63,23 +63,6 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // ═══ PRECLAIM GUARD ═══
-    // If this badge already has linkedIds (claimed on another device),
-    // require passcode verification before allowing a new device to claim it.
-    const hasOtherClaims = linkedIds.length > 0;
-    if (hasOtherClaims) {
-      // If the badge has a passcode, require verification
-      if (user.passwordHash) {
-        return NextResponse.json({
-          success: false,
-          error: "This badge is protected by a passcode. Use the original device or verify with your passcode to claim on this device.",
-          needsPasscode: true,
-          badgeCode: user.badgeCode,
-        });
-      }
-      // No passcode set — allow the claim but warn
-    }
-
     // Remove this anonymousId from any other user that has it
     const otherUsers = await prisma.user.findMany({
       where: {
