@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    // Find user linked to this anonymousId
     const linkedUser = await prisma.user.findFirst({
       where: {
         linkedIds: { array_contains: anonymousId },
@@ -20,46 +21,22 @@ export async function GET(request: NextRequest) {
     });
 
     if (!linkedUser) {
-      // Generate a new badge on the fly if not linked yet
-      const { generateBadgeCode } = await import("@/lib/badge");
-      const badgeCode = await generateBadgeCode("DETECTIVE");
-      const user = await prisma.user.create({
-        data: {
-          badgeCode,
-          linkedIds: [anonymousId],
-          handler: "Bureau Commissioner",
-        },
-      });
-
-      // Merge any existing votes/comments
-      await prisma.vote.updateMany({
-        where: { anonymousId, userId: null },
-        data: { userId: user.id },
-      });
-      await prisma.comment.updateMany({
-        where: { anonymousId, userId: null },
-        data: { userId: user.id },
-      });
-
+      // No badge linked — return hasBadge: false, no auto-generation
       return NextResponse.json({
         success: true,
-        isNew: true,
-        user: {
-          id: user.id,
-          badgeCode: user.badgeCode,
-          displayName: user.displayName,
-          role: user.role,
-          phone: user.phone,
-          handler: user.handler,
-          hasPassword: !!user.passwordHash,
-          isAdmin: user.isAdmin,
-        },
+        hasBadge: false,
       });
     }
 
+    // Get vote count and comment count for this user
+    const [voteCount, commentCount] = await Promise.all([
+      prisma.vote.count({ where: { userId: linkedUser.id } }),
+      prisma.comment.count({ where: { userId: linkedUser.id } }),
+    ]);
+
     return NextResponse.json({
       success: true,
-      isNew: false,
+      hasBadge: true,
       user: {
         id: linkedUser.id,
         badgeCode: linkedUser.badgeCode,
@@ -69,11 +46,13 @@ export async function GET(request: NextRequest) {
         handler: linkedUser.handler,
         hasPassword: !!linkedUser.passwordHash,
         isAdmin: linkedUser.isAdmin,
+        voteCount,
+        commentCount,
         createdAt: linkedUser.createdAt,
       },
     });
   } catch (err) {
-    console.error("Badge reveal error:", err);
-    return NextResponse.json({ success: false, error: "Failed to reveal badge" }, { status: 500 });
+    console.error("Badge status error:", err);
+    return NextResponse.json({ success: false, error: "Failed to check badge" }, { status: 500 });
   }
 }
