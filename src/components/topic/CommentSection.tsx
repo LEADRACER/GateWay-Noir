@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/Button";
 import { CommentForm } from "./CommentForm";
 import { CommentItem } from "./CommentItem";
 import { getAnonymousId, getDisplayName } from "@/lib/anonymous";
+import { useBadge } from "@/components/badge/BadgeProvider";
+import { extractSuffix } from "@/lib/badge-cookie";
 
 interface CommentSectionProps {
   topicId: string;
@@ -18,11 +20,15 @@ export function CommentSection({ topicId, initialComments, isConcluded }: Commen
   const [comments, setComments] = useState(initialComments);
   const [anonymousId, setAnonymousId] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState("");
+  const { badge } = useBadge();
 
   useEffect(() => {
     setAnonymousId(getAnonymousId());
     setDisplayName(getDisplayName());
   }, []);
+
+  // Use badge code as display name when badge is claimed
+  const effectiveDisplayName = badge ? badge.badgeCode : displayName;
 
   const refreshComments = useCallback(async () => {
     try {
@@ -56,7 +62,7 @@ export function CommentSection({ topicId, initialComments, isConcluded }: Commen
         <CommentForm
           topicId={topicId}
           anonymousId={anonymousId}
-          displayName={displayName}
+          displayName={effectiveDisplayName}
           onCommentAdded={refreshComments}
         />
       )}

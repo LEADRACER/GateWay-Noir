@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Paperclip, X, Image, Link, Upload } from "lucide-react";
+import { Send, Paperclip, X, Image, Link, Upload, Fingerprint } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Textarea";
 import { createComment } from "@/lib/actions";
@@ -121,12 +121,30 @@ export function CommentForm({ topicId, anonymousId, displayName, onCommentAdded 
       className="mb-4"
     >
       <div className="flex items-center gap-1.5 mb-2">
-        <div
-          className="w-5 h-5 flex items-center justify-center text-[8px] font-bold text-white opacity-40"
-          style={{ backgroundColor: `hsl(${hashCode(displayName) % 360}, 40%, 40%)` }}
-        >
-          {displayName.charAt(displayName.length - 2)}{displayName.charAt(displayName.length - 1)}
-        </div>
+        {displayName?.includes("-") ? (
+          <div className="w-5 h-5 flex items-center justify-center text-[8px] font-bold flex-shrink-0"
+            style={{
+              backgroundColor: displayName.startsWith("BRU")
+                ? "rgba(245,158,11,0.15)"
+                : displayName.startsWith("AGT")
+                  ? "rgba(217,119,6,0.12)"
+                  : "rgba(113,113,122,0.1)"
+            }}
+          >
+            <Fingerprint className={`w-3 h-3 ${
+              displayName.startsWith("BRU") ? "text-amber-300"
+              : displayName.startsWith("AGT") ? "text-amber-500"
+              : "text-zinc-400"
+            }`} />
+          </div>
+        ) : (
+          <div
+            className="w-5 h-5 flex items-center justify-center text-[8px] font-bold text-white opacity-40"
+            style={{ backgroundColor: `hsl(${hashCode(displayName) % 360}, 40%, 40%)` }}
+          >
+            {displayName.charAt(displayName.length - 2)}{displayName.charAt(displayName.length - 1)}
+          </div>
+        )}
         <span className="text-[10px] font-mono font-bold text-[#d97706]">{displayName}</span>
         <span className="case-number">{roleLabel}</span>
       </div>

@@ -203,11 +203,8 @@ export async function createComment(formData: FormData) {
     });
     if (linkedUser) {
       linkedUserId = linkedUser.id;
-      // Mask badge code for public display — Task 7
-      const badgeParts = linkedUser.badgeCode.split("-");
-      const badgePrefix = badgeParts[0] || "DET";
-      const badgeSuffix = badgeParts[1]?.substring(0, 2) || "XX";
-      finalDisplayName = linkedUser.displayName || `${badgePrefix}-#${badgeSuffix}`;
+      // Show full badge code
+      finalDisplayName = linkedUser.badgeCode;
     }
   } catch {
     // silent fail
