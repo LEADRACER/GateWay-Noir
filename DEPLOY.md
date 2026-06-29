@@ -1,90 +1,42 @@
-# Deploy Noir:GateWay
+# Deploy Noir:GateWay to Vercel
 
-## Option A — Vercel (recommended)
-
-The simplest way to go live. Connect your GitHub repo to Vercel:
+## 1. Connect repo
 
 1. Go to [vercel.com/new](https://vercel.com/new)
 2. Import the `LEADRACER/Myth-GateWay` repo
-3. Set the following Environment Variables in Vercel dashboard:
+3. Vercel auto-detects Next.js — settings are already in `vercel.json`
 
-| Variable | Value |
+## 2. Set environment variables
+
+In Vercel dashboard → **Settings → Environment Variables**:
+
+| Variable | Source |
 |---|---|
-| `DATABASE_URL` | Direct Supabase PG connection |
-| `DIRECT_URL` | Pooled Supabase PG connection |
-| `NEXT_PUBLIC_SUPABASE_URL` | `https://[PROJECT_REF].supabase.co` |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | anon public key |
-| `SUPABASE_SERVICE_ROLE_KEY` | service_role key (optional, for admin ops) |
-| `NEXT_PUBLIC_SITE_URL` | `https://myth-gateway.vercel.app` |
+| `DATABASE_URL` | Supabase → Project Settings → Database → Connection string (direct) |
+| `DIRECT_URL` | Supabase → Project Settings → Database → Connection string (pooled) |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase → Project Settings → API → Project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase → Project Settings → API → anon public |
+| `NEXT_PUBLIC_SITE_URL` | `https://myth-gateway.vercel.app` (or your custom domain) |
 
-4. Deploy → Vercel auto-detects Next.js and uses `vercel.json` config
-5. After deploy, go to **Settings → General → Build & Development Settings** and ensure:
-   - Build Command: `npm run build`
-   - Output Directory: `.next`
+The `DIRECT_URL` pooled connection is critical for Vercel serverless functions.
 
-The `DIRECT_URL` (pooled connection) is critical for Vercel's serverless functions.
+## 3. Deploy
 
-## Option B — Self-hosted (systemd)
+Click Deploy. That's it.
 
-Runs the production server as a systemd service on a Linux machine.
+## 4. First-time admin setup
 
-```bash
-# 1. Build
-cd /root/Builds/Noir:GateWay
-npm run build
+Once the site is live:
 
-# 2. Install service
-cp noir-gateway.service /etc/systemd/system/
-systemctl daemon-reload
-systemctl enable noir-gateway
-systemctl start noir-gateway
-
-# 3. Check status
-systemctl status noir-gateway
-
-# 4. Server runs on port 3000
-curl http://localhost:3000
-```
-
-## Option C — Docker
-
-```bash
-# Build image
-docker build -t noir-gateway .
-
-# Run
-docker run -d \
-  --name noir-gateway \
-  -p 3000:3000 \
-  --env-file .env.local \
-  noir-gateway
-```
-
----
-
-## First-Time Setup (after deploy)
-
-Once the app is live, bootstrap the first admin:
-
-1. Visit the site and claim your DET badge (click the badge icon)
-2. Note your badge code (shown in the badge modal — format: `DET-XXXX`)
-3. In browser console:
+1. Visit the site, claim your DET badge (click the badge icon)
+2. Note your badge code from the modal (format: `DET-XXXX`)
+3. Open browser console and run:
 ```js
 fetch('/api/admin/setup', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({badgeCode:'DET-XXXX'})}).then(r=>r.json()).then(console.log)
 ```
-4. Refresh → you're now BRU (Bureau). Full admin panel at `/admin`.
-5. From the admin AGENTS tab, you can generate BRU badges for other admins.
+4. Refresh → you're BRU. Full admin at `/admin`.
+5. Use the **Create New Admin** section in the AGENTS tab to generate BRU badges for other admins.
 
 ---
 
-## Environment Variables
-
-All vars are documented in `.env.example`. Minimum required for production:
-
-```
-DATABASE_URL="postgresql://postgres:***@db.[PROJECT_REF].supabase.co:5432/postgres"
-NEXT_PUBLIC_SUPABASE_URL="https://[PROJECT_REF].supabase.co"
-NEXT_PUBLIC_SUPABASE_ANON_KEY="eyJhbG..."
-```
-
-Requires a Supabase project with the schema pushed via `npx prisma db push`.
+**Env vars reference:** `.env.example` in the repo root.
