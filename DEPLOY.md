@@ -10,14 +10,15 @@
 
 In Vercel dashboard → **Settings → Environment Variables**:
 
-| Variable | Source |
-|---|---|
-| `DATABASE_URL` | Supabase → Project Settings → Database → Connection string (direct) |
-| `DIRECT_URL` | Supabase → Project Settings → Database → Connection string (pooled) |
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase → Project Settings → API → Project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase → Project Settings → API → anon public |
-| `SUPABASE_STORAGE_BUCKET` | `"evidence"` (default, only change if you renamed it) |
-| `UPLOAD_PASSWORD` | Optional — passphrase to gate evidence uploads |
+| Variable | Source | Note |
+|---------|--------|------|
+| `DATABASE_URL` | Supabase → Settings → Database → pick **Pooled** | Runtime queries — must use pooled on Vercel! |
+| `DIRECT_URL` | Supabase → Settings → Database → pick **Direct** | For Prisma Migrate, `prisma db push` |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase → Settings → API → Project URL | |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase → Settings → API → anon public | |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Settings → API → service_role key | Needed for evidence upload/delete |
+| `SUPABASE_STORAGE_BUCKET` | `"evidence"` (default) | Only change if you renamed the bucket |
+| `UPLOAD_PASSWORD` | Optional | Passphrase to gate evidence uploads |
 
 The `DIRECT_URL` pooled connection is critical for Vercel serverless functions.
 
