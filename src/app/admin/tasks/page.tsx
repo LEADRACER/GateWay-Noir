@@ -2,6 +2,8 @@ import { getAllTasks, createTask } from "@/lib/task-actions";
 import { prisma } from "@/lib/prisma";
 import { TasksClient } from "./TasksClient";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminTasksPage() {
   const tasks = await getAllTasks();
   const agents = await prisma.user.findMany({
