@@ -34,7 +34,7 @@ export async function checkBadgeStatus(): Promise<BadgeStatus> {
   }
 }
 
-export async function claimBadge(badgeCode: string): Promise<{
+export async function claimBadge(badgeCode: string, password?: string): Promise<{
   success: boolean;
   alreadyClaimed?: boolean;
   error?: string;
@@ -47,7 +47,7 @@ export async function claimBadge(badgeCode: string): Promise<{
     const res = await fetch("/api/badge/claim", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ badgeCode, anonymousId }),
+      body: JSON.stringify({ badgeCode, anonymousId, password }),
     });
     return await res.json();
   } catch {

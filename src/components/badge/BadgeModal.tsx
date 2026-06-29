@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Fingerprint, AlertCircle, CheckCircle, Smartphone, Download } from "lucide-react";
+import { X, Fingerprint, AlertCircle, CheckCircle, Smartphone, Download, Eye, EyeOff } from "lucide-react";
 import { useBadge } from "./BadgeProvider";
 import { registerPhone } from "@/lib/badge-client";
 import { downloadBadgeSVG } from "@/lib/badge-image";
@@ -10,6 +10,8 @@ import { getBadgeCodeFromCookie, extractSuffix } from "@/lib/badge-cookie";
 export function BadgeModal() {
   const { badge, isNew, showBadgeModal, setShowBadgeModal, claimCode, updateBadge } = useBadge();
   const [code, setCode] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const [claimError, setClaimError] = useState("");
   const [claimSuccess, setClaimSuccess] = useState(false);
@@ -19,6 +21,9 @@ export function BadgeModal() {
     if (showBadgeModal) {
       const savedBadge = getBadgeCodeFromCookie();
       if (savedBadge) setCode(savedBadge);
+      setPassword("");
+      setClaimError("");
+      setClaimSuccess(false);
     }
   }, [showBadgeModal]);
 
@@ -33,26 +38,29 @@ export function BadgeModal() {
 
   const handleClaim = async () => {
     if (code.trim().length < 5) return;
+    if (!password.trim()) {
+      setClaimError("Passcode is required");
+      return;
+    }
     setClaiming(true);
     setClaimError("");
-    setClaimSuccess(false);
 
-    const result = await claimCode(code.trim().toUpperCase());
+    const result = await claimCode(code.trim().toUpperCase(), password.trim());
     if (result.success) {
       setClaimSuccess(true);
       setTimeout(() => {
         setShowBadgeModal(false);
         setCode("");
+        setPassword("");
         setClaimSuccess(false);
       }, 2000);
     } else {
-      // Check for preclaim (needsPasscode) error
       if ((result as any).needsPasscode) {
         setClaimError(
-          "This badge is passcode-protected. Verify with your passcode from the original device."
+          "This badge is passcode-protected. Enter the correct passcode."
         );
       } else {
-        setClaimError(result.error || "Invalid badge code");
+        setClaimError(result.error || "Invalid badge code or passcode");
       }
     }
     setClaiming(false);
@@ -238,6 +246,31 @@ export function BadgeModal() {
                     {claiming ? "..." : "CLAIM"}
                   </button>
                 </div>
+                {/* Passcode for existing badge */}
+                <div className="mt-2">
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Passcode for this badge"
+                      className="w-full bg-black/40 border border-[rgba(168,144,112,0.1)] px-2.5 py-1.5 pr-8 text-[11px] text-zinc-300 outline-none focus:border-[#d97706]/40 transition-colors placeholder:text-zinc-700"
+                      onKeyDown={(e) => e.key === "Enter" && handleClaim()}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-400 transition-colors"
+                      tabIndex={-1}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="w-3 h-3" />
+                      ) : (
+                        <Eye className="w-3 h-3" />
+                      )}
+                    </button>
+                  </div>
+                </div>
                 {claimError && (
                   <p className="flex items-center gap-1 text-[9px] text-red-400/80 mt-1.5">
                     <AlertCircle className="w-2.5 h-2.5" />
@@ -250,17 +283,19 @@ export function BadgeModal() {
             /* No badge — prompt to claim one */
             <div>
               <p className="text-[11px] text-zinc-400 text-center mb-4">
-                Enter your bureau badge code to link this device.
+                Enter your bureau badge code and set a passcode to link this device.
               </p>
               <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value.toUpperCase())}
-                  placeholder="DET-XXXX"
-                  className="flex-1 bg-black/40 border border-[rgba(168,144,112,0.1)] px-2.5 py-1.5 text-[11px] font-mono text-zinc-300 outline-none focus:border-[#d97706]/40 transition-colors placeholder:text-zinc-700"
-                  onKeyDown={(e) => e.key === "Enter" && handleClaim()}
-                />
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    value={code}
+                    onChange={(e) => setCode(e.target.value.toUpperCase())}
+                    placeholder="DET-XXXX"
+                    className="w-full bg-black/40 border border-[rgba(168,144,112,0.1)] px-2.5 py-1.5 text-[11px] font-mono text-zinc-300 outline-none focus:border-[#d97706]/40 transition-colors placeholder:text-zinc-700"
+                    onKeyDown={(e) => e.key === "Enter" && handleClaim()}
+                  />
+                </div>
                 <button
                   onClick={handleClaim}
                   disabled={claiming || code.trim().length < 5}
@@ -268,6 +303,31 @@ export function BadgeModal() {
                 >
                   {claiming ? "..." : "CLAIM"}
                 </button>
+              </div>
+              {/* Password */}
+              <div className="mt-2">
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Set your badge passcode"
+                    className="w-full bg-black/40 border border-[rgba(168,144,112,0.1)] px-2.5 py-1.5 pr-8 text-[11px] text-zinc-300 outline-none focus:border-[#d97706]/40 transition-colors placeholder:text-zinc-700"
+                    onKeyDown={(e) => e.key === "Enter" && handleClaim()}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-400 transition-colors"
+                    tabIndex={-1}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-3 h-3" />
+                    ) : (
+                      <Eye className="w-3 h-3" />
+                    )}
+                  </button>
+                </div>
               </div>
               {claimError && (
                 <p className="flex items-center gap-1 text-[9px] text-red-400/80 mt-1.5">

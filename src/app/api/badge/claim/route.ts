@@ -1,13 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import bcrypt from "bcryptjs";
 
 export async function POST(request: NextRequest) {
   try {
-    const { badgeCode, anonymousId } = await request.json();
+    const { badgeCode, anonymousId, password } = await request.json();
 
     if (!badgeCode || !anonymousId) {
       return NextResponse.json(
         { success: false, error: "badgeCode and anonymousId are required" },
+        { status: 400 }
+      );
+    }
+
+    if (!password?.trim()) {
+      return NextResponse.json(
+        { success: false, error: "Password is required to claim a badge" },
         { status: 400 }
       );
     }
@@ -82,10 +90,30 @@ export async function POST(request: NextRequest) {
 
     // Link the anonymousId to this user
     linkedIds.push(anonymousId);
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { linkedIds: linkedIds },
-    });
+
+    // Password: verify existing OR set new
+    if (user.passwordHash) {
+      // Badge already has a passcode — verify it
+      const valid = await bcrypt.compare(password.trim(), user.passwordHash);
+      if (!valid) {
+        return NextResponse.json(
+          { success: false, error: "Incorrect passcode for this badge" },
+          { status: 401 }
+        );
+      }
+      // Don't overwrite the existing password — just link the device
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { linkedIds },
+      });
+    } else {
+      // First-time password set
+      const passwordHash = await bcrypt.hash(password.trim(), 10);
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { linkedIds, passwordHash },
+      });
+    }
 
     // Merge votes: update anonymousId to use userId
     await prisma.vote.updateMany({

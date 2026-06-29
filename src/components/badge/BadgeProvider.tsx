@@ -13,7 +13,7 @@ interface BadgeContextValue {
   showPasswordModal: boolean;
   setShowPasswordModal: (show: boolean) => void;
   passwordVerified: boolean;
-  claimCode: (code: string) => Promise<{ success: boolean; error?: string }>;
+  claimCode: (code: string, password?: string) => Promise<{ success: boolean; error?: string }>;
   refreshBadge: () => Promise<void>;
   updateBadge: (updates: Partial<BadgeUser>) => void;
   handleSetPassword: (password: string) => Promise<{ success: boolean; error?: string }>;
@@ -64,20 +64,18 @@ export function BadgeProvider({ children }: { children: ReactNode }) {
       // Persist badge code to cookie
       saveBadgeCodeToCookie(status.user.badgeCode);
 
-      // Check if elevated user needs password
-      const isElevated = status.user.role === "AGENT" || status.user.role === "BUREAU";
-      const needsSetup = isElevated && !status.user.hasPassword;
+      // All users must set/verify a passcode after claiming
       const alreadyVerified = typeof window !== "undefined" && localStorage.getItem(PASSWORD_VERIFIED_KEY);
 
-      if (needsSetup) {
+      if (!status.user.hasPassword) {
         // No password set yet — must set one
         setShowPasswordModal(true);
         setPasswordVerified(false);
-      } else if (isElevated && status.user.hasPassword && !alreadyVerified) {
+      } else if (status.user.hasPassword && !alreadyVerified) {
         // Has password but not verified this session
         setShowPasswordModal(true);
         setPasswordVerified(false);
-      } else if (isElevated && alreadyVerified) {
+      } else if (alreadyVerified) {
         setPasswordVerified(true);
       }
 
@@ -93,8 +91,8 @@ export function BadgeProvider({ children }: { children: ReactNode }) {
     refreshBadge();
   }, [refreshBadge]);
 
-  const claimCode = useCallback(async (code: string) => {
-    const result = await claimBadge(code);
+  const claimCode = useCallback(async (code: string, password?: string) => {
+    const result = await claimBadge(code, password);
     if (result.success && result.user) {
       setBadge(result.user);
       saveBadgeCodeToCookie(result.user.badgeCode);
