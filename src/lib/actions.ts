@@ -344,6 +344,23 @@ export async function concludeTopic(formData: FormData) {
 export async function deleteComment(formData: FormData) {
   const id = formData.get("id") as string;
   if (!id) return { error: "Missing comment ID" };
+
+  // Delete evidence files before removing the comment
+  const comment = await prisma.comment.findUnique({
+    where: { id },
+    select: { evidenceUrls: true },
+  });
+  if (comment?.evidenceUrls) {
+    try {
+      const urls: string[] = JSON.parse(comment.evidenceUrls as string);
+      if (Array.isArray(urls)) {
+        await Promise.allSettled(urls.map((url) => deleteEvidenceFile(url)));
+      }
+    } catch {
+      // malformed JSON — skip
+    }
+  }
+
   await prisma.comment.delete({ where: { id } });
   revalidatePath("/admin/comments");
   return { success: true };
