@@ -34,6 +34,23 @@ export async function checkBadgeStatus(): Promise<BadgeStatus> {
   }
 }
 
+export async function generateBadgeCode(): Promise<{
+  success: boolean;
+  user?: BadgeUser;
+  error?: string;
+}> {
+  try {
+    const res = await fetch("/api/badge/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    return await res.json();
+  } catch {
+    return { success: false, error: "Network error" };
+  }
+}
+
 export async function claimBadge(badgeCode: string, password?: string): Promise<{
   success: boolean;
   alreadyClaimed?: boolean;

@@ -21,15 +21,24 @@ export async function POST(request: NextRequest) {
     }
 
     const pwd = password.trim();
+    const rawCode = badgeCode.toUpperCase().replace(/[^A-Z0-9]/g, "");
 
-    // Find user by badge code
-    const user = await prisma.user.findUnique({
-      where: { badgeCode: badgeCode.toUpperCase() },
-    });
+    // Find user — suffix (4 chars) or full badge code
+    let user;
+    if (rawCode.length === 4) {
+      // Look up by suffix: badgeCode ending with -XXXX
+      user = await prisma.user.findFirst({
+        where: { badgeCode: { endsWith: `-${rawCode}` } },
+      });
+    } else {
+      user = await prisma.user.findUnique({
+        where: { badgeCode: rawCode },
+      });
+    }
 
     if (!user) {
       return NextResponse.json(
-        { success: false, error: "Invalid badge code" },
+        { success: false, error: "Invalid badge code — check the 4-character suffix or full code" },
         { status: 404 }
       );
     }
@@ -69,7 +78,6 @@ export async function POST(request: NextRequest) {
         });
       }
       // No passcode set — allow the claim but warn
-      // (user can set a passcode later for security)
     }
 
     // Remove this anonymousId from any other user that has it
@@ -95,7 +103,6 @@ export async function POST(request: NextRequest) {
 
     // Password: verify existing OR set new
     if (user.passwordHash) {
-      // Badge already has a passcode — verify it
       const valid = await bcrypt.compare(pwd, user.passwordHash);
       if (!valid) {
         return NextResponse.json(
@@ -103,13 +110,11 @@ export async function POST(request: NextRequest) {
           { status: 401 }
         );
       }
-      // Don't overwrite the existing password — just link the device
       await prisma.user.update({
         where: { id: user.id },
         data: { linkedIds },
       });
     } else {
-      // First-time password set
       const passwordHash = await bcrypt.hash(pwd, 10);
       await prisma.user.update({
         where: { id: user.id },
@@ -117,7 +122,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Merge votes: update anonymousId to use userId
+    // Merge votes
     await prisma.vote.updateMany({
       where: { anonymousId, userId: null },
       data: { userId: user.id },

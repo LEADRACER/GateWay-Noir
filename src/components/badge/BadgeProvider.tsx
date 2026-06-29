@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
-import { BadgeUser, checkBadgeStatus, claimBadge, setPassword, verifyPassword } from "@/lib/badge-client";
+import { BadgeUser, checkBadgeStatus, claimBadge, setPassword, verifyPassword, generateBadgeCode } from "@/lib/badge-client";
 import { saveBadgeCodeToCookie, getBadgeCodeFromCookie } from "@/lib/badge-cookie";
 
 interface BadgeContextValue {
@@ -14,6 +14,7 @@ interface BadgeContextValue {
   setShowPasswordModal: (show: boolean) => void;
   passwordVerified: boolean;
   claimCode: (code: string, password?: string) => Promise<{ success: boolean; error?: string }>;
+  generateBadge: () => Promise<{ success: boolean; user?: BadgeUser; error?: string }>;
   refreshBadge: () => Promise<void>;
   updateBadge: (updates: Partial<BadgeUser>) => void;
   handleSetPassword: (password: string) => Promise<{ success: boolean; error?: string }>;
@@ -30,6 +31,7 @@ const BadgeContext = createContext<BadgeContextValue>({
   setShowPasswordModal: () => {},
   passwordVerified: false,
   claimCode: async () => ({ success: false }),
+  generateBadge: async () => ({ success: false }),
   refreshBadge: async () => {},
   updateBadge: () => {},
   handleSetPassword: async () => ({ success: false }),
@@ -123,6 +125,16 @@ export function BadgeProvider({ children }: { children: ReactNode }) {
     return result;
   }, [badge]);
 
+  const generateBadge = useCallback(async () => {
+    const result = await generateBadgeCode();
+    if (result.success && result.user) {
+      setBadge(result.user);
+      setIsNew(true);
+      setShowBadgeModal(true);
+    }
+    return result;
+  }, []);
+
   return (
     <BadgeContext.Provider
       value={{
@@ -130,7 +142,7 @@ export function BadgeProvider({ children }: { children: ReactNode }) {
         showBadgeModal, setShowBadgeModal,
         showPasswordModal, setShowPasswordModal,
         passwordVerified,
-        claimCode, refreshBadge, updateBadge,
+        claimCode, generateBadge, refreshBadge, updateBadge,
         handleSetPassword, handleVerifyPassword,
       }}
     >

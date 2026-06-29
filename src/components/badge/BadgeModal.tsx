@@ -1,29 +1,30 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Fingerprint, AlertCircle, CheckCircle, Smartphone, Download, Eye, EyeOff } from "lucide-react";
+import { X, Fingerprint, AlertCircle, CheckCircle, Smartphone, Download, Eye, EyeOff, Sparkles, LogIn } from "lucide-react";
 import { useBadge } from "./BadgeProvider";
 import { registerPhone } from "@/lib/badge-client";
 import { downloadBadgeSVG } from "@/lib/badge-image";
-import { getBadgeCodeFromCookie, extractSuffix } from "@/lib/badge-cookie";
+import { extractSuffix } from "@/lib/badge-cookie";
 
 export function BadgeModal() {
-  const { badge, isNew, showBadgeModal, setShowBadgeModal, claimCode, updateBadge } = useBadge();
-  const [code, setCode] = useState("");
+  const { badge, isNew, showBadgeModal, setShowBadgeModal, claimCode, generateBadge } = useBadge();
+  const [suffix, setSuffix] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [claiming, setClaiming] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [claimError, setClaimError] = useState("");
   const [claimSuccess, setClaimSuccess] = useState(false);
+  const [newBadgeCode, setNewBadgeCode] = useState<string | null>(null);
 
-  // Pre-fill from cookie when modal opens
   useEffect(() => {
     if (showBadgeModal) {
-      const savedBadge = getBadgeCodeFromCookie();
-      if (savedBadge) setCode(savedBadge);
+      setSuffix("");
       setPassword("");
       setClaimError("");
       setClaimSuccess(false);
+      setNewBadgeCode(null);
     }
   }, [showBadgeModal]);
 
@@ -37,33 +38,43 @@ export function BadgeModal() {
   if (!showBadgeModal) return null;
 
   const handleClaim = async () => {
-    if (code.trim().length < 5) return;
-    if (!password.trim()) {
-      setClaimError("Passcode is required");
+    if (suffix.trim().length !== 4) {
+      setClaimError("Enter the 4-character suffix from your badge");
+      return;
+    }
+    if (password.length !== 8) {
+      setClaimError("Passcode must be exactly 8 digits");
       return;
     }
     setClaiming(true);
     setClaimError("");
 
-    const result = await claimCode(code.trim().toUpperCase(), password.trim());
+    const result = await claimCode(suffix.trim().toUpperCase(), password.trim());
     if (result.success) {
       setClaimSuccess(true);
       setTimeout(() => {
         setShowBadgeModal(false);
-        setCode("");
+        setSuffix("");
         setPassword("");
         setClaimSuccess(false);
+        setNewBadgeCode(null);
       }, 2000);
     } else {
-      if ((result as any).needsPasscode) {
-        setClaimError(
-          "This badge is passcode-protected. Enter the correct passcode."
-        );
-      } else {
-        setClaimError(result.error || "Invalid badge code or passcode");
-      }
+      setClaimError(result.error || "Invalid badge code or passcode");
     }
     setClaiming(false);
+  };
+
+  const handleGenerate = async () => {
+    setGenerating(true);
+    setClaimError("");
+    const result = await generateBadge();
+    if (result.success && result.user) {
+      setNewBadgeCode(result.user.badgeCode);
+    } else {
+      setClaimError(result.error || "Failed to generate badge");
+    }
+    setGenerating(false);
   };
 
   const handlePhoneRegister = async () => {
@@ -75,7 +86,7 @@ export function BadgeModal() {
     const result = await registerPhone(badge.badgeCode, phone.trim());
     if (result.success) {
       setPhoneSuccess(true);
-      updateBadge({ phone: result.phone });
+      // Use updateBadge if available, else just state
       setShowPhoneForm(false);
     } else {
       setPhoneError(result.error || "Failed to register phone");
@@ -124,8 +135,8 @@ export function BadgeModal() {
               <p className="text-[11px] text-green-400/80 typewriter-label">BADGE CLAIMED</p>
               <p className="text-[9px] text-zinc-500 mt-1">Welcome to the bureau.</p>
             </div>
-          ) : badge ? (
-            /* Already have a badge — show its info */
+          ) : badge && !newBadgeCode ? (
+            /* Already claimed — show badge info */
             <div className="text-center">
               <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#d97706]/10 border border-[#d97706]/20 mb-3">
                 <Fingerprint className="w-3 h-3 text-[#d97706]" />
@@ -139,8 +150,16 @@ export function BadgeModal() {
               <p className="text-[8px] text-zinc-600 typewriter-label mb-4">
                 {badge.role} • {badge.voteCount ?? 0} VOTES • {badge.commentCount ?? 0} COMMENTS
               </p>
+
+              {/* Hint about suffix login */}
+              <div className="bg-[rgba(168,144,112,0.04)] border border-[rgba(168,144,112,0.08)] px-3 py-2 mb-4">
+                <p className="text-[9px] text-zinc-500 typewriter-label">
+                  LOGIN SUFFIX: <span className="text-[#d97706] font-mono font-bold">{extractSuffix(badge.badgeCode)}</span>
+                </p>
+              </div>
+
               <p className="text-[9px] text-zinc-600 leading-relaxed">
-                Use this badge code to access your account on any device.
+                Use your 4-character suffix + passcode to access your account on any device.
               </p>
 
               {/* Hint to visit HQ for elevation / profile */}
@@ -164,7 +183,7 @@ export function BadgeModal() {
               {/* Save prompt for new users */}
               {isNew && (
                 <p className="mt-2 text-[9px] text-[#d97706]/70 typewriter-label text-center">
-                  Save your badge! You'll need this code to access your account on another device.
+                  Save your badge! You'll need the code to log in on another device.
                 </p>
               )}
 
@@ -227,28 +246,19 @@ export function BadgeModal() {
               {/* Claim another badge */}
               <div className="mt-4 pt-4 border-t border-[rgba(168,144,112,0.06)]">
                 <p className="text-[9px] text-zinc-600 mb-2 typewriter-label">
-                  ALREADY HAVE A BADGE? ENTER IT HERE
+                  LOG IN WITH A DIFFERENT BADGE
                 </p>
                 <div className="flex gap-2">
                   <input
                     type="text"
-                    value={code}
-                    onChange={(e) => setCode(e.target.value.toUpperCase())}
-                    placeholder="DET-XXXX"
-                    className="flex-1 bg-black/40 border border-[rgba(168,144,112,0.1)] px-2.5 py-1.5 text-[11px] font-mono text-zinc-300 outline-none focus:border-[#d97706]/40 transition-colors placeholder:text-zinc-700"
+                    value={suffix}
+                    onChange={(e) => setSuffix(e.target.value.replace(/[^A-Za-z0-9]/g, "").slice(0, 4).toUpperCase())}
+                    placeholder="XXXX"
+                    maxLength={4}
+                    className="w-20 bg-black/40 border border-[rgba(168,144,112,0.1)] px-2.5 py-1.5 text-[11px] font-mono text-zinc-300 text-center tracking-[0.2em] outline-none focus:border-[#d97706]/40 transition-colors placeholder:text-zinc-700"
                     onKeyDown={(e) => e.key === "Enter" && handleClaim()}
                   />
-                  <button
-                    onClick={handleClaim}
-                    disabled={claiming || code.trim().length < 5}
-                    className="px-3 py-1.5 bg-[#d97706]/20 border border-[#d97706]/30 text-[10px] text-[#d97706] typewriter-label hover:bg-[#d97706]/30 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                  >
-                    {claiming ? "..." : "CLAIM"}
-                  </button>
-                </div>
-                {/* Passcode for existing badge */}
-                <div className="mt-2">
-                  <div className="relative">
+                  <div className="relative flex-1">
                     <input
                       type={showPassword ? "text" : "password"}
                       value={password}
@@ -266,13 +276,16 @@ export function BadgeModal() {
                       className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-400 transition-colors"
                       tabIndex={-1}
                     >
-                      {showPassword ? (
-                        <EyeOff className="w-3 h-3" />
-                      ) : (
-                        <Eye className="w-3 h-3" />
-                      )}
+                      {showPassword ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
                     </button>
                   </div>
+                  <button
+                    onClick={handleClaim}
+                    disabled={claiming || suffix.length !== 4 || password.length !== 8}
+                    className="px-3 py-1.5 bg-[#d97706]/20 border border-[#d97706]/30 text-[10px] text-[#d97706] typewriter-label hover:bg-[#d97706]/30 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                  >
+                    {claiming ? "..." : "LOG IN"}
+                  </button>
                 </div>
                 {claimError && (
                   <p className="flex items-center gap-1 text-[9px] text-red-400/80 mt-1.5">
@@ -282,34 +295,135 @@ export function BadgeModal() {
                 )}
               </div>
             </div>
-          ) : (
-            /* No badge — prompt to claim one */
-            <div>
-              <p className="text-[11px] text-zinc-400 text-center mb-4">
-                Enter your bureau badge code and set a passcode to link this device.
+          ) : newBadgeCode ? (
+            /* New badge generated — show code + set passcode */
+            <div className="text-center">
+              <Sparkles className="w-8 h-8 text-[#d97706] mx-auto mb-2" />
+              <p className="text-[10px] text-zinc-400 typewriter-label mb-3">YOUR NEW BADGE</p>
+
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#d97706]/10 border border-[#d97706]/20 mb-3">
+                <Fingerprint className="w-3.5 h-3.5 text-[#d97706]" />
+                <span className="text-[15px] font-mono font-bold text-[#d97706] tracking-wider">
+                  {newBadgeCode}
+                </span>
+              </div>
+
+              <p className="text-[9px] text-zinc-600 mb-1">
+                This is your badge code. Save it.
+              </p>
+              <p className="text-[9px] text-zinc-500 mb-4">
+                Login suffix: <span className="text-[#d97706] font-mono font-bold">{extractSuffix(newBadgeCode)}</span>
+              </p>
+
+              {/* Set passcode */}
+              <p className="text-[9px] text-zinc-600 mb-2 typewriter-label text-left">
+                SET YOUR 8-DIGIT PASSCODE
               </p>
               <div className="flex gap-2">
                 <div className="relative flex-1">
                   <input
-                    type="text"
-                    value={code}
-                    onChange={(e) => setCode(e.target.value.toUpperCase())}
-                    placeholder="DET-XXXX"
-                    className="w-full bg-black/40 border border-[rgba(168,144,112,0.1)] px-2.5 py-1.5 text-[11px] font-mono text-zinc-300 outline-none focus:border-[#d97706]/40 transition-colors placeholder:text-zinc-700"
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                    placeholder="8-digit passcode"
+                    inputMode="numeric"
+                    pattern="[0-9]{8}"
+                    autoComplete="off"
+                    autoFocus
+                    className="w-full bg-black/40 border border-[rgba(168,144,112,0.1)] px-2.5 py-1.5 pr-8 text-[11px] text-zinc-300 outline-none focus:border-[#d97706]/40 transition-colors placeholder:text-zinc-700"
                     onKeyDown={(e) => e.key === "Enter" && handleClaim()}
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-400 transition-colors"
+                    tabIndex={-1}
+                  >
+                    {showPassword ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                  </button>
                 </div>
                 <button
-                  onClick={handleClaim}
-                  disabled={claiming || code.trim().length < 5}
+                  onClick={async () => {
+                    if (password.length !== 8) {
+                      setClaimError("Passcode must be exactly 8 digits");
+                      return;
+                    }
+                    setClaiming(true);
+                    setClaimError("");
+                    // Claim the newly generated badge with passcode
+                    const result = await claimCode(newBadgeCode, password.trim());
+                    if (result.success) {
+                      setClaimSuccess(true);
+                      setTimeout(() => {
+                        setShowBadgeModal(false);
+                        setPassword("");
+                        setClaimSuccess(false);
+                        setNewBadgeCode(null);
+                      }, 2000);
+                    } else {
+                      setClaimError(result.error || "Failed to claim badge");
+                    }
+                    setClaiming(false);
+                  }}
+                  disabled={claiming || password.length !== 8}
                   className="px-3 py-1.5 bg-[#d97706]/20 border border-[#d97706]/30 text-[10px] text-[#d97706] typewriter-label hover:bg-[#d97706]/30 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                 >
                   {claiming ? "..." : "CLAIM"}
                 </button>
               </div>
-              {/* Password */}
-              <div className="mt-2">
-                <div className="relative">
+
+              {claimError && (
+                <p className="flex items-center gap-1 text-[9px] text-red-400/80 mt-1.5">
+                  <AlertCircle className="w-2.5 h-2.5" />
+                  {claimError}
+                </p>
+              )}
+            </div>
+          ) : (
+            /* No badge — show options */
+            <div>
+              <p className="text-[11px] text-zinc-400 text-center mb-5">
+                Get a bureau badge or log in with your existing one.
+              </p>
+
+              {/* GET BADGE */}
+              <button
+                onClick={handleGenerate}
+                disabled={generating}
+                className="w-full flex items-center justify-center gap-2 px-3 py-3 bg-[#d97706]/15 border border-[#d97706]/30 text-[11px] text-[#d97706] typewriter-label hover:bg-[#d97706]/25 disabled:opacity-40 disabled:cursor-not-allowed transition-all mb-4"
+              >
+                {generating ? (
+                  "..."
+                ) : (
+                  <>
+                    <Sparkles className="w-3.5 h-3.5" />
+                    GET YOUR BADGE
+                  </>
+                )}
+              </button>
+
+              {/* Divider */}
+              <div className="flex items-center gap-3 mb-4">
+                <div className="flex-1 h-px bg-[rgba(168,144,112,0.06)]" />
+                <span className="text-[8px] text-zinc-700 typewriter-label">OR</span>
+                <div className="flex-1 h-px bg-[rgba(168,144,112,0.06)]" />
+              </div>
+
+              {/* Log in with existing badge */}
+              <p className="text-[9px] text-zinc-600 mb-2 typewriter-label">
+                LOG IN WITH EXISTING BADGE
+              </p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={suffix}
+                  onChange={(e) => setSuffix(e.target.value.replace(/[^A-Za-z0-9]/g, "").slice(0, 4).toUpperCase())}
+                  placeholder="XXXX"
+                  maxLength={4}
+                  className="w-20 bg-black/40 border border-[rgba(168,144,112,0.1)] px-2.5 py-1.5 text-[11px] font-mono text-zinc-300 text-center tracking-[0.2em] outline-none focus:border-[#d97706]/40 transition-colors placeholder:text-zinc-700"
+                  onKeyDown={(e) => e.key === "Enter" && handleClaim()}
+                />
+                <div className="relative flex-1">
                   <input
                     type={showPassword ? "text" : "password"}
                     value={password}
@@ -327,14 +441,18 @@ export function BadgeModal() {
                     className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-400 transition-colors"
                     tabIndex={-1}
                   >
-                    {showPassword ? (
-                      <EyeOff className="w-3 h-3" />
-                    ) : (
-                      <Eye className="w-3 h-3" />
-                    )}
+                    {showPassword ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
                   </button>
                 </div>
+                <button
+                  onClick={handleClaim}
+                  disabled={claiming || suffix.length !== 4 || password.length !== 8}
+                  className="px-3 py-1.5 bg-[#d97706]/20 border border-[#d97706]/30 text-[10px] text-[#d97706] typewriter-label hover:bg-[#d97706]/30 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                >
+                  {claiming ? "..." : <LogIn className="w-3 h-3" />}
+                </button>
               </div>
+
               {claimError && (
                 <p className="flex items-center gap-1 text-[9px] text-red-400/80 mt-1.5">
                   <AlertCircle className="w-2.5 h-2.5" />
