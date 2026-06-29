@@ -11,9 +11,9 @@ interface Props {
 export async function generateMetadata({ params }: Props) {
   const { slug } = await params;
   const topic = await getTopicBySlug(slug);
-  if (!topic) return { title: "Topic Not Found — Myth:GateWay" };
+  if (!topic) return { title: "Case Not Found — GateWay:Noir" };
   return {
-    title: `${topic.title} — Myth:GateWay`,
+    title: `${topic.title} — GateWay:Noir`,
     description: topic.description.substring(0, 160),
   };
 }

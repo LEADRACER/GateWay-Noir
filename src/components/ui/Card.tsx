@@ -10,8 +10,8 @@ export function Card({ children, className, hover = false }: CardProps) {
   return (
     <div
       className={cn(
-        "rounded-2xl border border-zinc-800 bg-zinc-900/50 backdrop-blur-sm",
-        hover && "transition-all duration-300 hover:border-zinc-700 hover:bg-zinc-900/80 hover:shadow-lg hover:shadow-zinc-900/50",
+        "bg-[#111113] border border-[rgba(168,144,112,0.08)] shadow-[0_1px_0_rgba(0,0,0,0.2),0_2px_8px_rgba(0,0,0,0.4)]",
+        hover && "transition-shadow duration-200 hover:border-[rgba(168,144,112,0.18)] hover:shadow-[0_2px_0_rgba(0,0,0,0.3),0_4px_16px_rgba(0,0,0,0.5)]",
         className
       )}
     >
@@ -21,13 +21,13 @@ export function Card({ children, className, hover = false }: CardProps) {
 }
 
 export function CardHeader({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={cn("p-5 pb-0", className)}>{children}</div>;
+  return <div className={cn("p-4 pb-0", className)}>{children}</div>;
 }
 
 export function CardContent({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={cn("p-5", className)}>{children}</div>;
+  return <div className={cn("p-4", className)}>{children}</div>;
 }
 
 export function CardFooter({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={cn("p-5 pt-0 flex items-center gap-3", className)}>{children}</div>;
+  return <div className={cn("p-4 pt-0 flex items-center gap-2", className)}>{children}</div>;
 }

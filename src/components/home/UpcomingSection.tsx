@@ -1,11 +1,7 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { useCallback, useEffect, useState } from "react";
-import {
-  Sparkles,
-  ChevronUp as VoteIcon,
-} from "lucide-react";
+import { ChevronUp as VoteIcon, FileText, Inbox } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/lib/utils";
 import { getAnonymousId } from "@/lib/anonymous";
@@ -27,22 +23,16 @@ export function UpcomingSection({ topics: initialTopics }: UpcomingSectionProps)
   const [topics, setTopics] = useState(initialTopics);
   const [userVotes, setUserVotes] = useState<Set<string>>(new Set());
   const [votingIds, setVotingIds] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(true);
 
-  // Fetch user's existing votes on mount
   useEffect(() => {
     const anonId = getAnonymousId();
-    if (!anonId || initialTopics.length === 0) {
-      setLoading(false);
-      return;
-    }
+    if (!anonId || initialTopics.length === 0) return;
     fetch(`/api/user-votes?anonymousId=${anonId}`)
       .then((r) => r.json())
       .then((data) => {
         if (data.votes) setUserVotes(new Set(data.votes));
       })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      .catch(() => {});
   }, [initialTopics.length]);
 
   const handleVote = useCallback(async (topicId: string) => {
@@ -85,74 +75,64 @@ export function UpcomingSection({ topics: initialTopics }: UpcomingSectionProps)
   if (topics.length === 0) return null;
 
   return (
-    <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-8">
+    <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-4">
+      {/* Section Header */}
       <div className="flex items-center gap-2 mb-2">
-        <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-        <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider">
-          Upcoming Topics ({topics.length})
+        <Inbox className="w-3.5 h-3.5 text-[#d97706] opacity-50" />
+        <h2 className="text-[10px] font-semibold text-zinc-500 typewriter-label">
+          PENDING INTAKE ({topics.length})
         </h2>
+        <span className="case-number text-zinc-700">TIP TO PRIORITIZE</span>
       </div>
-      <p className="text-sm text-zinc-500 mb-6">
-        Vote for the topics you want investigated next. The most voted topics will be put to the
-        community for debate.
-      </p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+
+      {/* Pending Cases Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-1.5">
         {topics.map((topic, i) => {
           const hasVoted = userVotes.has(topic.id);
           const isLoading = votingIds.has(topic.id);
           return (
-            <motion.div
+            <div
               key={topic.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.05 }}
-              className="rounded-2xl border border-zinc-800 bg-zinc-900/50 backdrop-blur-sm hover:border-zinc-700 hover:bg-zinc-900/80 transition-all duration-300 h-full"
+              className="bg-[#0d0d0f] border border-[rgba(168,144,112,0.06)] hover:border-[#d97706]/30 transition-all duration-200 pixelated-amber-hover"
             >
-              <div className="p-5 flex flex-col h-full">
-                <div className="flex items-center gap-2 mb-3">
-                  <Badge
-                    className="text-[10px] uppercase tracking-wider font-semibold"
-                    style={{
-                      backgroundColor: `${topic.category.color}15`,
-                      borderColor: `${topic.category.color}30`,
-                      color: topic.category.color,
-                    }}
-                  >
-                    {topic.category.name}
-                  </Badge>
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium border bg-amber-500/20 text-amber-400 border-amber-500/30">
-                    <Sparkles className="w-3 h-3" />
-                    UPCOMING
-                  </span>
-                </div>
-                <h3 className="text-base font-semibold text-white mb-2 leading-snug line-clamp-2">
+              {/* Tab */}
+              <div className="flex items-center justify-between px-2 py-1 border-b border-[rgba(168,144,112,0.04)] bg-[#0a0a0c]">
+                <Badge
+                  className="text-[8px]"
+                  style={{
+                    backgroundColor: `${topic.category.color}10`,
+                    borderColor: `${topic.category.color}20`,
+                    color: topic.category.color,
+                  }}
+                >
+                  {topic.category.name}
+                </Badge>
+                <span className="case-number text-zinc-700">
+                  <span className="status-dot pending mr-1" />
+                  {topic._count.votes} TIPS
+                </span>
+              </div>
+
+              {/* Content */}
+              <div className="p-2">
+                <h3 className="text-[10px] font-medium text-zinc-400 leading-snug line-clamp-2 mb-2 group-hover:text-white transition-colors duration-200">
                   {topic.title}
                 </h3>
-                <p className="text-sm text-zinc-500 mb-4 line-clamp-2 flex-1">
-                  {topic.description}
-                </p>
-                <div className="flex items-center justify-between pt-4 border-t border-zinc-800/50">
-                  <button
-                    onClick={() => handleVote(topic.id)}
-                    disabled={isLoading}
-                    className={cn(
-                      "inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200",
-                      hasVoted
-                        ? "bg-violet-600/20 text-violet-300 border border-violet-500/30"
-                        : "bg-zinc-800/50 text-zinc-400 border border-zinc-700 hover:border-violet-500/50 hover:text-violet-300 hover:bg-zinc-800"
-                    )}
-                  >
-                    <VoteIcon className={cn("w-4 h-4", isLoading && "animate-bounce")} />
-                    <span className="font-semibold">{topic._count.votes}</span>
-                    <span className="text-xs">{hasVoted ? "Voted" : "Vote"}</span>
-                  </button>
-                  <div className="flex items-center gap-1.5 text-xs text-zinc-500">
-                    <Sparkles className="w-3.5 h-3.5" />
-                    Needs votes to launch
-                  </div>
-                </div>
+                <button
+                  onClick={() => handleVote(topic.id)}
+                  disabled={isLoading}
+                  className={cn(
+                    "w-full flex items-center justify-center gap-1.5 px-2 py-1 text-[9px] font-medium transition-colors typewriter-label",
+                    hasVoted
+                      ? "bg-[#d97706] text-black"
+                      : "bg-[#111113] text-zinc-500 border border-[rgba(168,144,112,0.08)] hover:border-[rgba(217,119,6,0.15)]"
+                  )}
+                >
+                  <VoteIcon className={cn("w-2.5 h-2.5", isLoading && "animate-bounce")} />
+                  {hasVoted ? "TIPPED" : "TIP TO INVESTIGATE"}
+                </button>
               </div>
-            </motion.div>
+            </div>
           );
         })}
       </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { ArrowLeft, Clock, MessageSquare, BookOpen, ExternalLink } from "lucide-react";
+import { ArrowLeft, Clock, MessageSquare, BookOpen, Fingerprint, FileText, Stamp } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/Badge";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -16,97 +16,120 @@ interface TopicDetailClientProps {
 
 export function TopicDetailClient({ topic }: TopicDetailClientProps) {
   const isConcluded = topic.status === "CONCLUDED";
+  const caseId = `GWN-${topic.id.slice(0, 8).toUpperCase()}`;
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
       {/* Back Button */}
       <Link
         href="/"
-        className="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-300 transition-colors mb-6 group"
+        className="inline-flex items-center gap-1.5 text-xs text-zinc-600 hover:text-zinc-400 transition-colors mb-4 typewriter-label"
       >
-        <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
-        Back to all myths
+        <ArrowLeft className="w-3 h-3" />
+        RETURN TO CASE BOARD
       </Link>
 
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-        {/* Header */}
-        <div className="flex flex-wrap items-center gap-3 mb-4">
-          <Badge
-            className="text-xs uppercase tracking-wider font-semibold"
-            style={{
-              backgroundColor: `${topic.category.color}15`,
-              borderColor: `${topic.category.color}30`,
-              color: topic.category.color,
-            }}
-          >
-            {topic.category.name}
-          </Badge>
-          <Badge variant={isConcluded ? "verdict" : "status"} status={topic.status} verdict={topic.verdict}>
-            {isConcluded ? topic.verdict : "Active Investigation"}
-          </Badge>
-          {topic.durationDays && (
-            <span className="text-xs text-zinc-600">
-              {topic.durationDays}-day investigation
-            </span>
-          )}
-        </div>
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+        {/* Case File Folder */}
+        <div className="bg-[#111113] border border-[rgba(168,144,112,0.08)] shadow-[0_2px_0_rgba(0,0,0,0.3),0_4px_12px_rgba(0,0,0,0.5),0_8px_40px_rgba(0,0,0,0.2)] overflow-hidden grain">
+          {/* Evidence tape top */}
+          <div className="h-0.5 evidence-tape" />
 
-        <h1 className="text-3xl md:text-4xl font-bold text-white mb-4 leading-tight">
-          {topic.title}
-        </h1>
-
-        <p className="text-base md:text-lg text-zinc-400 leading-relaxed mb-8">
-          {topic.description}
-        </p>
-
-        {/* Timer Section */}
-        <Card className="mb-8">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <Clock className="w-5 h-5 text-violet-400" />
-              <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wider">
-                {isConcluded ? "Case Closed" : "Time Remaining"}
-              </h3>
-              {!isConcluded && (
-                <span className="text-xs text-zinc-600">
-                  Started {formatDate(topic.createdAt)}
+          {/* Case Header Strip */}
+          <div className="px-5 sm:px-6 pt-4 pb-3 border-b border-[rgba(168,144,112,0.06)]">
+            <div className="flex items-center justify-between mb-2">
+              <span className="case-number">{caseId}</span>
+              <span className="case-number">{formatDate(topic.createdAt)}</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5 mb-1">
+              <Badge
+                className="text-[9px]"
+                style={{
+                  backgroundColor: `${topic.category.color}12`,
+                  borderColor: `${topic.category.color}25`,
+                  color: topic.category.color,
+                }}
+              >
+                {topic.category.name}
+              </Badge>
+              <Badge variant={isConcluded ? "verdict" : "status"} status={topic.status} verdict={topic.verdict}>
+                {isConcluded ? topic.verdict : "UNDER INVESTIGATION"}
+              </Badge>
+              {topic.durationDays && (
+                <span className="case-number">
+                  <span className="status-dot active mr-1" />
+                  {topic.durationDays}-DAY INVESTIGATION
                 </span>
               )}
             </div>
-            <CountdownFull endsAt={topic.endsAt} />
-          </CardContent>
-        </Card>
+          </div>
 
-        {/* Verdict Banner */}
-        {isConcluded && topic.verdict && (
-          <VerdictBanner verdict={topic.verdict} summary={topic.summary} />
-        )}
+          {/* Case Title Block */}
+          <div className="px-5 sm:px-6 py-5">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-zinc-200 mb-2 leading-tight">
+              {topic.title}
+            </h1>
+            <p className="text-sm text-zinc-500 leading-relaxed">
+              {topic.description}
+            </p>
+          </div>
 
-        {/* Evidence Section */}
-        {topic.evidence && (
-          <Card className="mb-8">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <BookOpen className="w-5 h-5 text-amber-400" />
-                <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wider">Evidence & Background</h3>
+          {/* Timer Section */}
+          <div className="mx-5 sm:mx-6 mb-5">
+            <div className="bg-[#0a0a0c] border border-[rgba(168,144,112,0.06)] p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Clock className="w-3.5 h-3.5 text-[#d97706] opacity-50" />
+                <h3 className="case-number text-zinc-500">
+                  {isConcluded ? "CASE CLOSED" : "TIME REMAINING"}
+                </h3>
               </div>
-              <div className="prose prose-invert prose-sm max-w-none text-zinc-400 leading-relaxed whitespace-pre-wrap">
-                {topic.evidence}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+              <CountdownFull endsAt={topic.endsAt} />
+            </div>
+          </div>
 
-        {/* Comments Section */}
-        <Card>
-          <CardContent className="p-6">
-            <CommentSection
-              topicId={topic.id}
-              initialComments={topic.comments || []}
-              isConcluded={isConcluded}
-            />
-          </CardContent>
-        </Card>
+          {/* Verdict Banner */}
+          {isConcluded && topic.verdict && (
+            <div className="mx-5 sm:mx-6 mb-5">
+              <VerdictBanner verdict={topic.verdict} summary={topic.summary} />
+            </div>
+          )}
+
+          {/* Evidence Section */}
+          {topic.evidence && (
+            <div className="mx-5 sm:mx-6 mb-5">
+              <div className="bg-[#0a0a0c] border border-[rgba(168,144,112,0.06)] p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <BookOpen className="w-3.5 h-3.5 text-[#d97706] opacity-50" />
+                  <h3 className="case-number text-zinc-500">EVIDENCE & BACKGROUND</h3>
+                </div>
+                <div className="text-xs text-zinc-500 leading-relaxed whitespace-pre-wrap font-mono">
+                  {topic.evidence}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Witness Statements */}
+          <div className="mx-5 sm:mx-6 mb-5">
+            <div className="bg-[#0a0a0c] border border-[rgba(168,144,112,0.06)] p-4">
+              <CommentSection
+                topicId={topic.id}
+                initialComments={topic.comments || []}
+                isConcluded={isConcluded}
+              />
+            </div>
+          </div>
+
+          {/* Case Footer */}
+          <div className="px-5 sm:px-6 py-3 border-t border-[rgba(168,144,112,0.06)] evidence-tape">
+            <div className="case-meta justify-center">
+              <Stamp className="w-3 h-3" />
+              <span>GATEWAY:NOIR</span>
+              <span>•</span>
+              <span>{caseId}</span>
+            </div>
+          </div>
+        </div>
       </motion.div>
     </div>
   );

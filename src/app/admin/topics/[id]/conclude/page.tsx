@@ -1,6 +1,7 @@
 import { getTopicById } from "@/lib/actions";
 import { notFound } from "next/navigation";
 import { ConcludeTopicForm } from "./ConcludeTopicForm";
+import { Stamp } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -16,8 +17,8 @@ export default async function ConcludeTopicPage({ params }: Props) {
 
   if (topic.status === "CONCLUDED") {
     return (
-      <div className="text-center py-12">
-        <p className="text-zinc-400 text-lg">This topic has already been concluded.</p>
+      <div className="case-file rounded-2xl p-8 text-center">
+        <p className="text-zinc-400 text-lg">This case has already been concluded.</p>
         <p className="text-zinc-600 text-sm mt-2">Verdict: {topic.verdict}</p>
       </div>
     );
@@ -25,15 +26,21 @@ export default async function ConcludeTopicPage({ params }: Props) {
 
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-white">Conclude Investigation</h1>
-        <p className="text-sm text-zinc-500 mt-1">
+      <div className="case-file rounded-2xl p-5 mb-6">
+        <div className="flex items-center gap-2 mb-1">
+          <Stamp className="w-4 h-4 text-amber-500" />
+          <span className="typewriter-label text-amber-400/60">Final Verdict</span>
+        </div>
+        <h1 className="text-xl font-bold text-white mb-1">Conclude Investigation</h1>
+        <p className="text-sm text-zinc-500">
           Reviewing: <span className="text-zinc-300">{topic.title}</span>
         </p>
       </div>
 
       <div className="max-w-2xl">
-        <ConcludeTopicForm topic={topic} />
+        <div className="case-file rounded-2xl p-6">
+          <ConcludeTopicForm topic={topic} />
+        </div>
       </div>
     </div>
   );

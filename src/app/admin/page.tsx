@@ -1,79 +1,77 @@
 import { getStats, getUpcomingTopics } from "@/lib/actions";
-import { LayoutDashboard, Scale, MessageSquare, Sparkles, CheckCircle2 } from "lucide-react";
-import { StatsCard } from "@/components/admin/StatsCard";
-import Link from "next/link";
-import { PromoteSection } from "./PromoteSection";
+import { getPendingElevations, getApprovedElevations, getRejectedElevations } from "@/lib/elevation-actions";
+import { getCurrentUser } from "@/lib/get-current-user";
+import { FileText } from "lucide-react";
+import { ElevationsPanel } from "./ElevationsPanel";
+import { BureauContent } from "./BureauContent";
+import { DetHQ } from "@/components/hq/DetHQ";
+import { AgentHQ } from "@/components/hq/AgentHQ";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminPage() {
-  const [stats, upcomingTopics] = await Promise.all([
+  const user = await getCurrentUser();
+
+  if (!user) {
+    return (
+      <div className="max-w-2xl mx-auto py-16 text-center">
+        <p className="text-zinc-500 text-sm">No badge detected. Claim a badge first.</p>
+      </div>
+    );
+  }
+
+  // DET view — elevation request + profile
+  if (user.role === "DETECTIVE") {
+    return <DetHQ />;
+  }
+
+  // AGT view — tasks + profile merged
+  if (user.role === "AGENT") {
+    return <AgentHQ />;
+  }
+
+  // BRU view — full admin HQ
+  const [stats, upcomingTopics, pendingElevations, approvedElevations, rejectedElevations] = await Promise.all([
     getStats(),
     getUpcomingTopics(),
+    getPendingElevations(),
+    getApprovedElevations(),
+    getRejectedElevations(),
   ]);
 
+  const serializedPending = pendingElevations.map((e: any) => ({
+    ...e,
+    createdAt: e.createdAt.toISOString(),
+    updatedAt: e.updatedAt.toISOString(),
+    user: { ...e.user, createdAt: e.user.createdAt.toISOString() },
+  }));
+
+  const serializedApproved = approvedElevations.map((e: any) => ({
+    ...e,
+    createdAt: e.createdAt.toISOString(),
+    updatedAt: e.updatedAt.toISOString(),
+    user: { ...e.user, createdAt: e.user.createdAt.toISOString() },
+  }));
+
+  const serializedRejected = rejectedElevations.map((e: any) => ({
+    ...e,
+    createdAt: e.createdAt.toISOString(),
+    updatedAt: e.updatedAt.toISOString(),
+    user: { ...e.user, createdAt: e.user.createdAt.toISOString() },
+  }));
+
+  const serializedUpcoming = upcomingTopics.map((t: any) => ({
+    ...t,
+    createdAt: t.createdAt.toISOString(),
+  }));
+
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-white">Admin Dashboard</h1>
-        <p className="text-sm text-zinc-500 mt-1">
-          Manage myths, verdicts, and community comments
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatsCard
-          title="Total Topics"
-          value={stats.totalTopics}
-          icon={<Scale className="w-5 h-5" />}
-          color="violet"
-        />
-        <StatsCard
-          title="Active"
-          value={stats.activeTopics}
-          icon={<CheckCircle2 className="w-5 h-5" />}
-          color="emerald"
-        />
-        <StatsCard
-          title="Upcoming"
-          value={stats.upcomingTopics}
-          icon={<Sparkles className="w-5 h-5" />}
-          color="amber"
-        />
-        <StatsCard
-          title="Comments"
-          value={stats.totalComments}
-          icon={<MessageSquare className="w-5 h-5" />}
-          color="blue"
-        />
-      </div>
-
-      {upcomingTopics.length > 0 && <PromoteSection topics={upcomingTopics} />}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Link
-          href="/admin/topics/new"
-          className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6 hover:border-violet-500/50 transition-all group"
-        >
-          <h3 className="text-white font-semibold mb-1 group-hover:text-violet-300 transition-colors">
-            + New Topic
-          </h3>
-          <p className="text-sm text-zinc-500">
-            Create a new myth or conspiracy to investigate
-          </p>
-        </Link>
-        <Link
-          href="/admin/comments"
-          className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6 hover:border-violet-500/50 transition-all group"
-        >
-          <h3 className="text-white font-semibold mb-1 group-hover:text-violet-300 transition-colors">
-            Moderate Comments
-          </h3>
-          <p className="text-sm text-zinc-500">
-            Review flagged comments ({stats.flaggedComments} flagged)
-          </p>
-        </Link>
-      </div>
-    </div>
+    <BureauContent
+      stats={stats}
+      upcomingTopics={serializedUpcoming}
+      pendingElevations={serializedPending}
+      approvedElevations={serializedApproved}
+      rejectedElevations={serializedRejected}
+    />
   );
 }

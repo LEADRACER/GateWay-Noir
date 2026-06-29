@@ -34,18 +34,18 @@ export function timeRemaining(endsAt: string | Date): { days: number; hours: num
 
 export function getStatusColor(status: string): string {
   switch (status) {
-    case "ACTIVE": return "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
-    case "CONCLUDED": return "bg-violet-500/20 text-violet-400 border-violet-500/30";
-    default: return "bg-zinc-500/20 text-zinc-400 border-zinc-500/30";
+    case "ACTIVE": return "bg-emerald-500/10 text-emerald-400 border-emerald-500/15";
+    case "CONCLUDED": return "bg-amber-500/10 text-amber-400 border-amber-500/15";
+    default: return "bg-zinc-500/10 text-zinc-400 border-zinc-500/15";
   }
 }
 
 export function getVerdictColor(verdict: string | null): string {
   switch (verdict) {
-    case "BUSTED": return "bg-red-500/20 text-red-400 border-red-500/30";
-    case "TRUE": return "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
-    case "INCONCLUSIVE": return "bg-amber-500/20 text-amber-400 border-amber-500/30";
-    default: return "bg-zinc-500/20 text-zinc-400 border-zinc-500/30";
+    case "SOLVED": return "bg-red-500/10 text-red-400 border-red-500/15";
+    case "CONFIRMED": return "bg-emerald-500/10 text-emerald-400 border-emerald-500/15";
+    case "UNSOLVED": return "bg-amber-500/10 text-amber-400 border-amber-500/15";
+    default: return "bg-zinc-500/10 text-zinc-400 border-zinc-500/15";
   }
 }
 

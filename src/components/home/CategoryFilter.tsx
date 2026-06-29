@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 interface Category {
@@ -18,40 +17,36 @@ interface CategoryFilterProps {
 
 export function CategoryFilter({ categories, selected, onSelect }: CategoryFilterProps) {
   return (
-    <div className="flex flex-wrap gap-2">
-      <motion.button
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.97 }}
+    <div className="flex flex-wrap gap-1">
+      <button
         onClick={() => onSelect(null)}
         className={cn(
-          "px-3.5 py-1.5 rounded-full text-xs font-medium border transition-all duration-200",
+          "px-2 py-0.5 text-[9px] font-medium border transition-colors typewriter-label",
           !selected
-            ? "bg-violet-600/20 text-violet-300 border-violet-500/30 shadow-sm shadow-violet-500/10"
-            : "bg-zinc-900/60 text-zinc-500 border-zinc-800 hover:border-zinc-700 hover:text-zinc-300"
+            ? "bg-[#d97706] text-black border-[#d97706]"
+            : "bg-[#0d0d0f] text-zinc-600 border-[rgba(168,144,112,0.08)] hover:border-[rgba(168,144,112,0.15)]"
         )}
       >
-        All
-      </motion.button>
+        ALL
+      </button>
       {categories.map((cat) => (
-        <motion.button
+        <button
           key={cat.id}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.97 }}
           onClick={() => onSelect(selected === cat.slug ? null : cat.slug)}
           className={cn(
-            "px-3.5 py-1.5 rounded-full text-xs font-medium border transition-all duration-200",
+            "px-2 py-0.5 text-[9px] font-medium border transition-colors typewriter-label",
             selected === cat.slug
-              ? "text-white border-current shadow-sm"
-              : "bg-zinc-900/60 text-zinc-500 border-zinc-800 hover:border-zinc-700 hover:text-zinc-300"
+              ? "text-black border-current"
+              : "bg-[#0d0d0f] text-zinc-600 border-[rgba(168,144,112,0.08)] hover:border-[rgba(168,144,112,0.15)]"
           )}
           style={
             selected === cat.slug
-              ? { backgroundColor: `${cat.color}20`, borderColor: `${cat.color}50`, color: cat.color }
+              ? { backgroundColor: cat.color, borderColor: cat.color }
               : undefined
           }
         >
-          {cat.name}
-        </motion.button>
+          {cat.name.toUpperCase()}
+        </button>
       ))}
     </div>
   );

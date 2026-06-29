@@ -42,6 +42,14 @@ export async function getActiveAndConcludedTopics(categorySlug?: string) {
   });
 }
 
+export async function getConcludedTopics() {
+  return prisma.topic.findMany({
+    where: { status: "CONCLUDED" },
+    include: { category: true },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
 export async function getTopicBySlug(slug: string) {
   return prisma.topic.findUnique({
     where: { slug },
@@ -149,6 +157,15 @@ export async function createComment(formData: FormData) {
   const content = formData.get("content") as string;
   const anonymousId = formData.get("anonymousId") as string;
   const displayName = formData.get("displayName") as string;
+  const evidenceUrlsRaw = formData.get("evidenceUrls") as string;
+  let evidenceUrls: string[] | undefined;
+  if (evidenceUrlsRaw) {
+    try {
+      evidenceUrls = JSON.parse(evidenceUrlsRaw);
+    } catch {
+      // silent
+    }
+  }
 
   if (!topicId || !content?.trim() || !anonymousId) {
     return { error: "Missing required fields" };
@@ -175,12 +192,37 @@ export async function createComment(formData: FormData) {
     return { error: "You're commenting too fast. Please wait a moment." };
   }
 
+  // Look up linked user for badge code
+  let finalDisplayName = displayName;
+  let linkedUserId: string | null = null;
+  try {
+    const allUsers = await prisma.user.findMany();
+    const linkedUser = allUsers.find((u: any) => {
+      try {
+        const ids: string[] = JSON.parse(u.linkedIds || "[]");
+        return ids.includes(anonymousId);
+      } catch { return false; }
+    });
+    if (linkedUser) {
+      linkedUserId = linkedUser.id;
+      finalDisplayName = linkedUser.badgeCode; // e.g. DET-A3K9 or AGT-X7M2
+    }
+  } catch {
+    // silent fail
+  }
+
+  if (!finalDisplayName) {
+    finalDisplayName = `DET-${anonymousId.substring(0, 4).toUpperCase()}`;
+  }
+
   const comment = await prisma.comment.create({
     data: {
       topicId,
       content: content.trim(),
       anonymousId,
-      displayName: displayName || `Anonymous #${anonymousId.substring(0, 4).toUpperCase()}`,
+      userId: linkedUserId,
+      displayName: finalDisplayName,
+      evidenceUrls: evidenceUrls && evidenceUrls.length > 0 ? JSON.stringify(evidenceUrls) : null,
     },
   });
 
@@ -242,7 +284,7 @@ export async function concludeTopic(formData: FormData) {
   const summary = formData.get("summary") as string;
 
   if (!id || !verdict) return { error: "Missing required fields" };
-  if (!["BUSTED", "TRUE", "INCONCLUSIVE"].includes(verdict)) {
+  if (!["SOLVED", "CONFIRMED", "UNSOLVED"].includes(verdict)) {
     return { error: "Invalid verdict" };
   }
 

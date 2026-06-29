@@ -1,21 +1,25 @@
-const STORAGE_KEY = "mythgateway_id";
+const STORAGE_KEY = "noirgateway_id";
 
 export function getAnonymousId(): string {
   if (typeof window === "undefined") return "";
 
+  // Try localStorage first
   let id = localStorage.getItem(STORAGE_KEY);
   if (!id) {
     id = crypto.randomUUID();
     localStorage.setItem(STORAGE_KEY, id);
   }
+
+  // Sync to cookie for server-side access
+  document.cookie = `${STORAGE_KEY}=${id}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`;
   return id;
 }
 
 export function getDisplayName(): string {
   const id = getAnonymousId();
-  if (!id) return "Anonymous";
+  if (!id) return "Detective";
   const shortId = id.substring(0, 4).toUpperCase();
-  return `Anonymous #${shortId}`;
+  return `Detective #${shortId}`;
 }
 
 export function generateColor(id: string): string {

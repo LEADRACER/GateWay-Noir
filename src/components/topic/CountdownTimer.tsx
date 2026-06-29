@@ -18,7 +18,7 @@ export function CountdownTimer({ endsAt, className = "" }: CountdownTimerProps) 
   }, [endsAt]);
 
   if (remaining.total <= 0) {
-    return <span className="text-red-400 font-medium">Time's up!</span>;
+    return <span className="text-[#dc2626] font-medium typewriter-label text-xs">TIME EXPIRED</span>;
   }
 
   const parts: { value: number; label: string }[] = [];
@@ -30,9 +30,9 @@ export function CountdownTimer({ endsAt, className = "" }: CountdownTimerProps) 
     <span className={`font-mono tabular-nums ${className}`}>
       {parts.map((p, i) => (
         <span key={p.label}>
-          <span className="text-white font-medium">{p.value}</span>
-          <span className="text-zinc-500 ml-0.5">{p.label}</span>
-          {i < parts.length - 1 && <span className="mx-0.5 text-zinc-600">:</span>}
+          <span className="text-zinc-300 font-medium">{p.value}</span>
+          <span className="text-zinc-600 ml-0.5">{p.label}</span>
+          {i < parts.length - 1 && <span className="mx-0.5 text-zinc-700">:</span>}
         </span>
       ))}
     </span>
@@ -51,7 +51,6 @@ function calcRemaining(endsAt: string | Date) {
   };
 }
 
-// Full display version for the topic detail page
 export function CountdownFull({ endsAt }: { endsAt: string | Date }) {
   const [remaining, setRemaining] = useState(calcRemaining(endsAt));
 
@@ -64,32 +63,32 @@ export function CountdownFull({ endsAt }: { endsAt: string | Date }) {
 
   if (remaining.total <= 0) {
     return (
-      <div className="text-center py-4 px-6 rounded-2xl bg-red-500/10 border border-red-500/20">
-        <p className="text-red-400 font-semibold text-lg">⏰ Time has expired</p>
-        <p className="text-red-400/60 text-sm mt-1">This case is now closed for deliberation.</p>
+      <div className="text-center py-3 px-4 bg-[rgba(220,38,38,0.06)] border border-[rgba(220,38,38,0.12)]">
+        <p className="text-[#dc2626] font-semibold text-sm typewriter-label">⏰ TIME EXPIRED</p>
+        <p className="text-[#dc2626]/40 text-[10px] mt-0.5 typewriter-label">CASE CLOSED FOR DELIBERATION</p>
       </div>
     );
   }
 
   const segments = [
-    { value: remaining.days, label: "Days" },
-    { value: remaining.hours, label: "Hours" },
-    { value: remaining.minutes, label: "Min" },
-    { value: remaining.seconds, label: "Sec" },
+    { value: remaining.days, label: "DAYS" },
+    { value: remaining.hours, label: "HRS" },
+    { value: remaining.minutes, label: "MIN" },
+    { value: remaining.seconds, label: "SEC" },
   ];
 
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-2">
       {segments.map((seg, i) => (
         <div key={seg.label} className="flex items-center">
           <div className="text-center">
-            <div className="text-2xl md:text-3xl font-bold font-mono text-white tabular-nums bg-zinc-900/80 border border-zinc-800 rounded-xl px-3 py-2 min-w-[60px]">
+            <div className="text-lg sm:text-xl md:text-2xl font-bold font-mono text-zinc-300 tabular-nums bg-[#08080a] border border-[rgba(168,144,112,0.08)] px-2 py-1 min-w-[40px]">
               {String(seg.value).padStart(2, "0")}
             </div>
-            <span className="text-[10px] text-zinc-500 uppercase tracking-wider mt-1 block">{seg.label}</span>
+            <span className="text-[8px] text-zinc-600 uppercase tracking-wider mt-0.5 block typewriter-label">{seg.label}</span>
           </div>
           {i < segments.length - 1 && (
-            <span className="text-zinc-700 text-xl font-bold mx-1 mt-[-16px]">:</span>
+            <span className="text-zinc-700 text-sm font-bold mx-1 mt-[-10px]">:</span>
           )}
         </div>
       ))}

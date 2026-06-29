@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model Category {
@@ -25,13 +25,14 @@ model Topic {
   description  String
   evidence     String?
   imageUrl     String?
-  status       String     @default("UPCOMING") // UPCOMING | ACTIVE | CONCLUDED
+  status       String     @default("UPCOMING")
   durationDays Int        @default(7)
   createdAt    DateTime   @default(now())
   endsAt       DateTime
-  verdict      String?    // BUSTED | TRUE | INCONCLUSIVE | null
+  verdict      String?
   summary      String?
   createdBy    String?
+  createdByUser User?    @relation(fields: [createdBy], references: [id])
   categoryId   String
   category     Category   @relation(fields: [categoryId], references: [id])
   comments     Comment[]
@@ -47,13 +48,17 @@ model Comment {
   topicId      String
   topic        Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
   anonymousId  String
+  userId       String?  // linked badge user
+  user         User?   @relation(fields: [userId], references: [id])
   displayName  String
   content      String
+  evidenceUrls String?  // JSON array of photo URLs (Supabase or GDrive links)
   isFlagged    Boolean  @default(false)
   createdAt    DateTime @default(now())
 
   @@index([topicId])
   @@index([anonymousId])
+  @@index([userId])
 }
 
 model Vote {
@@ -61,9 +66,74 @@ model Vote {
   topicId     String
   topic       Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
   anonymousId String
-  createdAt   DateTime @default(now())
+  userId       String?  // linked badge user
+  user         User?   @relation(fields: [userId], references: [id])
+  createdAt    DateTime @default(now())
 
   @@unique([topicId, anonymousId])
   @@index([topicId])
   @@index([anonymousId])
+  @@index([userId])
+}
+
+model User {
+  id             String   @id @default(cuid())
+  badgeCode      String   @unique
+  displayName    String   @default("Detective")
+  role           String   @default("DETECTIVE") // DETECTIVE | AGENT | BUREAU
+
+  telegramId     String?  @unique
+  discordId      String?  @unique
+  whatsappId     String?  @unique
+  linkedIds      String   @default("[]") // JSON array of linked anonymousIds
+  phone          String?  // optional mobile number for WhatsApp
+  handler        String?  // BRU badge code of managing admin
+  passwordHash   String?  // bcrypt hash for elevated user login
+  isAdmin        Boolean  @default(false)
+  bio            String?  // agent bio/about
+  avatarUrl      String?  // optional avatar/photo URL
+  createdAt      DateTime @default(now())
+  lastSeenAt     DateTime @default(now()) @updatedAt
+
+  votes          Vote[]
+  comments       Comment[]
+  createdTopics  Topic[]
+
+  elevationRequests ElevationRequest[]  @relation("ElevationRequests")
+  adminApprovals    ElevationRequest[]  @relation("AdminApprovals")
+  agentTasks        AgentTask[]         @relation("AgentTasks")
+  assignedTasks     AgentTask[]         @relation("AdminAssigned")
+}
+
+model ElevationRequest {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation("ElevationRequests", fields: [userId], references: [id], onDelete: Cascade)
+  adminId        String?
+  admin          User?    @relation("AdminApprovals", fields: [adminId], references: [id])
+  requestedRole  String   @default("AGENT")
+  status         String   @default("PENDING") // PENDING | APPROVED | REJECTED
+  message        String?  // optional note from requester
+  adminNote      String?  // optional note from admin
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+model AgentTask {
+  id            String    @id @default(cuid())
+  agentId       String
+  agent         User      @relation("AgentTasks", fields: [agentId], references: [id], onDelete: Cascade)
+  adminId       String
+  admin         User      @relation("AdminAssigned", fields: [adminId], references: [id])
+  title         String
+  description   String?
+  status        String    @default("PENDING") // PENDING | IN_PROGRESS | COMPLETED
+  createdAt     DateTime  @default(now())
+  completedAt   DateTime?
+
+  @@index([agentId])
+  @@index([status])
 }

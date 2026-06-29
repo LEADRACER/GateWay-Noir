@@ -58,8 +58,8 @@ export function CommentsPanel({ allComments, flaggedComments }: CommentsPanelPro
           onClick={() => setTab("flagged")}
           className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
             tab === "flagged"
-              ? "bg-red-500/20 text-red-400 border border-red-500/30"
-              : "text-zinc-500 hover:text-zinc-300 border border-transparent"
+              ? "bg-red-500/10 text-red-400 border border-red-500/15"
+              : "text-zinc-600 hover:text-zinc-300 border border-transparent"
           }`}
         >
           <AlertTriangle className="w-3.5 h-3.5 inline mr-1.5" />
@@ -69,8 +69,8 @@ export function CommentsPanel({ allComments, flaggedComments }: CommentsPanelPro
           onClick={() => setTab("all")}
           className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
             tab === "all"
-              ? "bg-zinc-800 text-zinc-200 border border-zinc-700"
-              : "text-zinc-500 hover:text-zinc-300 border border-transparent"
+              ? "bg-[#0d0d18] text-zinc-300 border border-[rgba(212,184,150,0.08)]"
+              : "text-zinc-600 hover:text-zinc-300 border border-transparent"
           }`}
         >
           <MessageSquare className="w-3.5 h-3.5 inline mr-1.5" />
@@ -91,7 +91,7 @@ export function CommentsPanel({ allComments, flaggedComments }: CommentsPanelPro
               key={comment.id}
               initial={{ opacity: 0, y: 5 }}
               animate={{ opacity: 1, y: 0 }}
-              className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4"
+              className="bg-[#0a0a0c] border border-[rgba(168,144,112,0.06)] p-3"
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
@@ -99,13 +99,13 @@ export function CommentsPanel({ allComments, flaggedComments }: CommentsPanelPro
                     <span className="text-sm font-medium text-zinc-200">{comment.displayName}</span>
                     <span className="text-xs text-zinc-600">{formatDate(comment.createdAt)}</span>
                     {comment.isFlagged && (
-                      <Badge variant="verdict" verdict="INCONCLUSIVE" className="text-[10px]">
+                      <Badge variant="verdict" verdict="UNSOLVED" className="text-[10px]">
                         <Flag className="w-2.5 h-2.5" /> Flagged
                       </Badge>
                     )}
                   </div>
                   <p className="text-sm text-zinc-400 mb-2">{comment.content}</p>
-                  <p className="text-xs text-violet-500">
+                  <p className="text-xs text-amber-600/60">
                     on <span className="hover:underline">{comment.topic.title}</span>
                   </p>
                 </div>

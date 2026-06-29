@@ -49,9 +49,9 @@ export function ConcludeTopicForm({ topic }: { topic: Topic }) {
       onSubmit={handleSubmit}
       className="space-y-6"
     >
-      <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-5">
-        <p className="text-sm text-zinc-400 mb-1">Topic</p>
-        <p className="text-base font-medium text-white">{topic.title}</p>
+      <div className="bg-[#0a0a0c] border border-[rgba(168,144,112,0.06)] p-4">
+        <p className="case-number text-zinc-600 mb-0.5">CASE FILE</p>
+        <p className="text-sm font-medium text-zinc-300">{topic.title}</p>
       </div>
 
       <Select
@@ -59,9 +59,9 @@ export function ConcludeTopicForm({ topic }: { topic: Topic }) {
         name="verdict"
         placeholder="Select verdict..."
         options={[
-          { value: "BUSTED", label: "🚫 BUSTED — Myth is false" },
-          { value: "TRUE", label: "✅ TRUE — Myth is confirmed" },
-          { value: "INCONCLUSIVE", label: "❓ INCONCLUSIVE — Not enough evidence" },
+          { value: "SOLVED", label: "🚫 SOLVED — Evidence disproves the allegation" },
+          { value: "CONFIRMED", label: "✅ CONFIRMED — Evidence supports the allegation" },
+          { value: "UNSOLVED", label: "❓ UNSOLVED — Insufficient evidence" },
         ]}
         required
       />
