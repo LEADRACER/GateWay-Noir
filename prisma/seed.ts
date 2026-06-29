@@ -262,7 +262,7 @@ async function main() {
       role: "BUREAU",
       isAdmin: true,
       passwordHash: await bcrypt.hash("00000000", 10),
-      linkedIds: "[]",
+      linkedIds: [],
     },
   });
   console.log(`  ✓ Bureau user: ${bureau.badgeCode}`);
@@ -278,7 +278,7 @@ async function main() {
       passwordHash: await bcrypt.hash("00000000", 10),
       handler: bureau.badgeCode,
       bio: "Field operative assigned to forensic investigations.",
-      linkedIds: "[]",
+      linkedIds: [],
     },
   });
   console.log(`  ✓ Agent user: ${agent.badgeCode}`);
@@ -294,7 +294,7 @@ async function main() {
       displayName: "Rising Detective",
       role: "DETECTIVE",
       passwordHash: await bcrypt.hash("00000000", 10),
-      linkedIds: "[]",
+      linkedIds: [],
     },
   });
 

@@ -35,3 +35,5 @@ prisma/dev.db-journal
 
 # kilop plans
 .kilo/
+.vercel
+.env*

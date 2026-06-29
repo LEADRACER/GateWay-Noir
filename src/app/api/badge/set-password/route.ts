@@ -33,8 +33,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const rawIds = user.linkedIds as unknown;
-    const linkedIds: string[] = Array.isArray(rawIds) ? (rawIds as string[]) : JSON.parse(String(rawIds || "[]"));
+    const linkedIds: string[] = Array.isArray(user.linkedIds) ? user.linkedIds : [];
 
     if (user.passwordHash) {
       // Existing user — must own this badge to change password

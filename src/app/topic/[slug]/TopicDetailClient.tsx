@@ -19,7 +19,7 @@ export function TopicDetailClient({ topic }: TopicDetailClientProps) {
   const caseId = `GWN-${topic.id.slice(0, 8).toUpperCase()}`;
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6" style={{ maxWidth: '80%' }}>
       {/* Back Button */}
       <Link
         href="/"
@@ -31,7 +31,7 @@ export function TopicDetailClient({ topic }: TopicDetailClientProps) {
 
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
         {/* Case File Folder */}
-        <div className="bg-[#111113] border border-[rgba(168,144,112,0.08)] shadow-[0_2px_0_rgba(0,0,0,0.3),0_4px_12px_rgba(0,0,0,0.5),0_8px_40px_rgba(0,0,0,0.2)] overflow-hidden grain">
+        <div className="bg-[#111113] border-2 border-[rgba(168,144,112,0.12)] shadow-[0_4px_0_rgba(0,0,0,0.5),0_8px_24px_rgba(0,0,0,0.6),0_16px_60px_rgba(0,0,0,0.3)] overflow-hidden">
           {/* Evidence tape top */}
           <div className="h-0.5 evidence-tape" />
 

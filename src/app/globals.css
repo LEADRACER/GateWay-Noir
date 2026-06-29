@@ -1,25 +1,30 @@
 @import "tailwindcss";
 
 :root {
-  --background: #08080a;
+  --background: #060608;
   --foreground: #d4d4d8;
   --manila: #a89070;
   --manila-light: #c4b090;
-  --surface: #111113;
-  --surface-raised: #161618;
-  --surface-overlay: #1c1c1f;
-  --border: rgba(168, 144, 112, 0.12);
-  --border-strong: rgba(168, 144, 112, 0.22);
+  --surface: #0e0e10;
+  --surface-raised: #141416;
+  --surface-overlay: #1a1a1d;
+  --border: rgba(168, 144, 112, 0.15);
+  --border-strong: rgba(168, 144, 112, 0.28);
   --text-muted: #71717a;
   --text-dim: #52525b;
   --amber: #d97706;
-  --amber-dim: rgba(217, 119, 6, 0.15);
+  --amber-dim: rgba(217, 119, 6, 0.18);
   --red: #dc2626;
-  --red-dim: rgba(220, 38, 38, 0.15);
+  --red-dim: rgba(220, 38, 38, 0.18);
   --green: #16a34a;
-  --green-dim: rgba(22, 163, 74, 0.15);
+  --green-dim: rgba(22, 163, 74, 0.18);
   --blue: #2563eb;
-  --blue-dim: rgba(37, 99, 235, 0.15);
+  --blue-dim: rgba(37, 99, 235, 0.18);
+}
+
+/* 80% width container */
+.max-w-7xl {
+  max-width: 80% !important;
 }
 
 @theme inline {
@@ -80,29 +85,29 @@ html {
 /* Solid surface — no gradients, just flat matte color + heavy shadow */
 .case-file {
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 2px solid var(--border);
   box-shadow:
-    0 2px 0 rgba(0, 0, 0, 0.4),
-    0 4px 12px rgba(0, 0, 0, 0.6),
-    0 8px 40px rgba(0, 0, 0, 0.3);
+    0 4px 0 rgba(0, 0, 0, 0.5),
+    0 8px 24px rgba(0, 0, 0, 0.7),
+    0 16px 60px rgba(0, 0, 0, 0.4);
   position: relative;
 }
 
 /* Card variant — raised surface */
 .case-file-card {
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 2px solid var(--border);
   box-shadow:
-    0 1px 0 rgba(0, 0, 0, 0.3),
-    0 2px 8px rgba(0, 0, 0, 0.5);
+    0 2px 0 rgba(0, 0, 0, 0.4),
+    0 4px 12px rgba(0, 0, 0, 0.6);
   transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 .case-file-card:hover {
   border-color: var(--border-strong);
   box-shadow:
-    0 2px 0 rgba(0, 0, 0, 0.4),
-    0 4px 16px rgba(0, 0, 0, 0.6),
-    0 12px 48px rgba(0, 0, 0, 0.3);
+    0 4px 0 rgba(0, 0, 0, 0.5),
+    0 8px 24px rgba(0, 0, 0, 0.7),
+    0 16px 60px rgba(0, 0, 0, 0.4);
 }
 
 /* Grain overlay for cards */

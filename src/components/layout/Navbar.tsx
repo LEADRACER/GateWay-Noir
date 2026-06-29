@@ -24,8 +24,8 @@ export function Navbar() {
   const HQIcon = hq?.icon || Scale;
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 border-b border-[rgba(168,144,112,0.12)] bg-[#08080a]/95 backdrop-blur-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <nav className="fixed top-0 left-0 right-0 z-50 border-b-2 border-[rgba(168,144,112,0.15)] bg-[#060608]/95 backdrop-blur-sm shadow-[0_4px_12px_rgba(0,0,0,0.5)]">
+      <div className="mx-auto px-4 sm:px-6 lg:px-8" style={{ maxWidth: '80%' }}>
         <div className="flex items-center justify-between h-14">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5 group">

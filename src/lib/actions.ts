@@ -202,7 +202,7 @@ export async function createComment(formData: FormData) {
   try {
     const linkedUser = await prisma.user.findFirst({
       where: {
-        linkedIds: { array_contains: anonymousId },
+        linkedIds: { has: anonymousId },
       },
     });
     if (linkedUser) {

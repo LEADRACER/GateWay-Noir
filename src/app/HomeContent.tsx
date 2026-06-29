@@ -93,12 +93,12 @@ export function HomeContent({
   }, []);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
+    <div className="mx-auto px-4 sm:px-6 lg:px-8 pb-12" style={{ maxWidth: '80%' }}>
       <div className="flex flex-col lg:flex-row gap-4">
         {/* Main Content */}
         <div className="flex-1 min-w-0">
           {/* Dossier Header */}
-          <div className="bg-[#111113] border border-[rgba(168,144,112,0.08)]">
+          <div className="bg-[#111113] border-2 border-[rgba(168,144,112,0.12)] shadow-[0_4px_0_rgba(0,0,0,0.5),0_8px_24px_rgba(0,0,0,0.6)]">
             {/* Tab Strip */}
             <div className="flex items-center justify-between px-4 py-2 border-b border-[rgba(168,144,112,0.06)]">
               <div className="flex items-center gap-2">

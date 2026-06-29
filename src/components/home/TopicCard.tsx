@@ -60,7 +60,7 @@ export function TopicCard({ topic, index, initialHasVoted }: TopicCardProps) {
       transition={{ delay: index * 0.02, duration: 0.2 }}
     >
       <Link href={`/topic/${topic.slug}`} className="block group">
-        <div className="bg-[#0d0d0f] border border-[rgba(168,144,112,0.06)] hover:border-[#d97706]/30 transition-all duration-200 h-full pixelated-amber-hover">
+        <div className="bg-[#0d0d0f] border-2 border-[rgba(168,144,112,0.1)] hover:border-[#d97706]/40 transition-all duration-200 h-full pixelated-amber-hover shadow-[0_2px_0_rgba(0,0,0,0.4),0_4px_12px_rgba(0,0,0,0.5)]">
           {/* Tab strip */}
           <div className="flex items-center justify-between px-3 py-1.5 border-b border-[rgba(168,144,112,0.04)] bg-[#0a0a0c] transition-all duration-200">
             <span className="case-number text-zinc-700">{caseId}</span>

@@ -24,7 +24,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
 
   const linkedUser = await prisma.user.findFirst({
     where: {
-      linkedIds: { array_contains: anonId },
+      linkedIds: { has: anonId },
     },
   });
 

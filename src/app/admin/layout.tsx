@@ -26,7 +26,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     <div className="flex min-h-[calc(100vh-3.5rem)]">
       {/* Sidebar — only for BRU users */}
       {isBureau && (
-        <aside className="hidden md:flex flex-col w-52 border-r border-[rgba(168,144,112,0.08)] bg-[#0a0a0c] p-3">
+        <aside className="hidden md:flex flex-col w-56 border-r-2 border-[rgba(168,144,112,0.12)] bg-[#0a0a0c] p-3 shadow-[4px_0_12px_rgba(0,0,0,0.3)]">
           <div className="flex items-center gap-2 px-2 py-2 mb-4">
             <Scale className="w-4 h-4 text-[#d97706] opacity-50" />
             <span className="text-xs font-semibold text-zinc-400 typewriter-label">HQ</span>

@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
 
   if (anonymousId) {
     const user = await prisma.user.findFirst({
-      where: { linkedIds: { array_contains: anonymousId } },
+      where: { linkedIds: { has: anonymousId } },
       select: { badgeCode: true, isAdmin: true, role: true },
     });
     if (user) {
@@ -41,8 +41,7 @@ export async function POST(req: NextRequest) {
         select: { isAdmin: true, linkedIds: true },
       });
       if (user && user.isAdmin) {
-        const rawIds = user.linkedIds as unknown;
-        const ids: string[] = Array.isArray(rawIds) ? (rawIds as string[]) : JSON.parse(String(rawIds || "[]"));
+        const ids: string[] = Array.isArray(user.linkedIds) ? user.linkedIds : [];
         if (ids.includes(anonymousId)) {
           const res = NextResponse.json({ success: true, admin: true, badgeAdmin: true });
           res.cookies.set("noirgateway_admin", "authenticated", {

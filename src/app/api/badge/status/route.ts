@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     // Find user linked to this anonymousId
     const linkedUser = await prisma.user.findFirst({
       where: {
-        linkedIds: { array_contains: anonymousId },
+        linkedIds: { has: anonymousId },
       },
     });
 

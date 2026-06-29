@@ -43,9 +43,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Parse existing linked IDs
-    const rawIds = user.linkedIds as unknown;
-    const linkedIds: string[] = Array.isArray(rawIds) ? (rawIds as string[]) : JSON.parse(String(rawIds || "[]"));
+    const linkedIds: string[] = Array.isArray(user.linkedIds)
+      ? user.linkedIds
+      : [];
 
     // If already linked to this anonymousId, return success
     if (linkedIds.includes(anonymousId)) {
@@ -67,12 +67,11 @@ export async function POST(request: NextRequest) {
     const otherUsers = await prisma.user.findMany({
       where: {
         id: { not: user.id },
-        linkedIds: { array_contains: anonymousId },
+        linkedIds: { has: anonymousId },
       },
     });
     for (const otherUser of otherUsers) {
-      const rawOtherIds = otherUser.linkedIds as unknown;
-      const otherIds: string[] = Array.isArray(rawOtherIds) ? (rawOtherIds as string[]) : JSON.parse(String(rawOtherIds || "[]"));
+      const otherIds: string[] = Array.isArray(otherUser.linkedIds) ? otherUser.linkedIds : [];
       await prisma.user.update({
         where: { id: otherUser.id },
         data: {
