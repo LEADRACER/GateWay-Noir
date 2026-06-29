@@ -52,10 +52,11 @@ interface BureauContentProps {
   approvedElevations: ElevationRequest[];
   rejectedElevations: ElevationRequest[];
   adminId?: string;
+  adminBadgeCode: string;
   agents: AgentUser[];
 }
 
-export function BureauContent({ stats, upcomingTopics, pendingElevations, approvedElevations, rejectedElevations, adminId, agents }: BureauContentProps) {
+export function BureauContent({ stats, upcomingTopics, pendingElevations, approvedElevations, rejectedElevations, adminId, adminBadgeCode, agents }: BureauContentProps) {
   return (
     <BureauHQ stats={stats}>
       {/* Dashboard tab content — rendered below stats */}
@@ -66,10 +67,11 @@ export function BureauContent({ stats, upcomingTopics, pendingElevations, approv
           approvedElevations={approvedElevations}
           rejectedElevations={rejectedElevations}
           adminId={adminId}
+          adminBadgeCode={adminBadgeCode}
         />
 
         {/* AGT → BRU promotion */}
-        <PromoteSection agents={agents} adminId={adminId || ""} />
+        <PromoteSection agents={agents} adminId={adminId || ""} adminBadgeCode={adminBadgeCode} />
 
         {/* Pending cases */}
         {upcomingTopics.length > 0 && (

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Fingerprint, CheckCircle2, XCircle, LayoutDashboard, ShieldCheck, ShieldX } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
+import { PasswordDialog } from "@/components/ui/PasswordDialog";
 import { formatDate } from "@/lib/utils";
 import toast from "react-hot-toast";
 
@@ -31,6 +32,7 @@ interface ElevationsPanelProps {
   approvedElevations: ElevationRequest[];
   rejectedElevations: ElevationRequest[];
   adminId?: string;
+  adminBadgeCode: string;
 }
 
 export function ElevationsPanel({
@@ -38,12 +40,17 @@ export function ElevationsPanel({
   approvedElevations: initialApproved,
   rejectedElevations: initialRejected,
   adminId,
+  adminBadgeCode,
 }: ElevationsPanelProps) {
   const [activeTab, setActiveTab] = useState<"dashboard" | "elevations">("dashboard");
   const [pending, setPending] = useState(initialPending);
   const [approved, setApproved] = useState(initialApproved);
   const [rejected, setRejected] = useState(initialRejected);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [passwordAction, setPasswordAction] = useState<{
+    type: "approve" | "reject";
+    requestId: string;
+  } | null>(null);
 
   // Auto-activate elevations tab if navigated via #elevations hash
   useEffect(() => {
@@ -53,54 +60,57 @@ export function ElevationsPanel({
   }, []);
 
   const handleApprove = async (requestId: string) => {
-    setProcessingId(requestId);
-    try {
-      const res = await fetch("/api/elevation/approve", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ requestId, adminId }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        toast.success(`Elevation approved — new badge: ${data.newBadgeCode}`);
-        // Move from pending to approved
-        const approvedReq = pending.find((e) => e.id === requestId);
-        if (approvedReq) {
-          setPending((prev) => prev.filter((e) => e.id !== requestId));
-          setApproved((prev) => [{ ...approvedReq, status: "APPROVED" }, ...prev].slice(0, 10));
-        }
-      } else {
-        toast.error(data.error || "Failed to approve");
-      }
-    } catch {
-      toast.error("Network error — failed to approve");
-    } finally {
-      setProcessingId(null);
-    }
+    setPasswordAction({ type: "approve", requestId });
   };
 
   const handleReject = async (requestId: string) => {
+    setPasswordAction({ type: "reject", requestId });
+  };
+
+  const executeAfterVerify = async (verifiedAdminId: string) => {
+    if (!passwordAction) return;
+    const { type, requestId } = passwordAction;
+    setPasswordAction(null);
     setProcessingId(requestId);
+
     try {
-      const res = await fetch("/api/elevation/reject", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ requestId }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        toast.success("Elevation rejected");
-        // Move from pending to rejected
-        const rejectedReq = pending.find((e) => e.id === requestId);
-        if (rejectedReq) {
-          setPending((prev) => prev.filter((e) => e.id !== requestId));
-          setRejected((prev) => [{ ...rejectedReq, status: "REJECTED" }, ...prev].slice(0, 10));
+      if (type === "approve") {
+        const res = await fetch("/api/elevation/approve", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ requestId, adminId: verifiedAdminId }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          toast.success(`Elevation approved — new badge: ${data.newBadgeCode}`);
+          const approvedReq = pending.find((e) => e.id === requestId);
+          if (approvedReq) {
+            setPending((prev) => prev.filter((e) => e.id !== requestId));
+            setApproved((prev) => [{ ...approvedReq, status: "APPROVED" }, ...prev].slice(0, 10));
+          }
+        } else {
+          toast.error(data.error || "Failed to approve");
         }
       } else {
-        toast.error(data.error || "Failed to reject");
+        const res = await fetch("/api/elevation/reject", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ requestId }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          toast.success("Elevation rejected");
+          const rejectedReq = pending.find((e) => e.id === requestId);
+          if (rejectedReq) {
+            setPending((prev) => prev.filter((e) => e.id !== requestId));
+            setRejected((prev) => [{ ...rejectedReq, status: "REJECTED" }, ...prev].slice(0, 10));
+          }
+        } else {
+          toast.error(data.error || "Failed to reject");
+        }
       }
     } catch {
-      toast.error("Network error — failed to reject");
+      toast.error("Network error — failed to process");
     } finally {
       setProcessingId(null);
     }
@@ -288,6 +298,14 @@ export function ElevationsPanel({
           </div>
         </motion.div>
       )}
+
+      <PasswordDialog
+        adminBadgeCode={adminBadgeCode}
+        actionLabel={passwordAction?.type === "approve" ? "APPROVE ELEVATION" : "REJECT ELEVATION"}
+        onVerified={executeAfterVerify}
+        onCancel={() => setPasswordAction(null)}
+        isOpen={passwordAction !== null}
+      />
     </>
   );
 }

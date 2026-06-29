@@ -80,6 +80,7 @@ export default async function AdminPage() {
       approvedElevations={serializedApproved}
       rejectedElevations={serializedRejected}
       adminId={user.id}
+      adminBadgeCode={user.badgeCode}
       agents={serializedAgents}
     />
   );
