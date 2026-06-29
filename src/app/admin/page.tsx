@@ -1,5 +1,6 @@
 import { getStats, getUpcomingTopics } from "@/lib/actions";
 import { getPendingElevations, getApprovedElevations, getRejectedElevations } from "@/lib/elevation-actions";
+import { getAllAgents } from "@/lib/admin-actions";
 import { getCurrentUser } from "@/lib/get-current-user";
 import { FileText } from "lucide-react";
 import { ElevationsPanel } from "./ElevationsPanel";
@@ -31,12 +32,13 @@ export default async function AdminPage() {
   }
 
   // BRU view — full admin HQ
-  const [stats, upcomingTopics, pendingElevations, approvedElevations, rejectedElevations] = await Promise.all([
+  const [stats, upcomingTopics, pendingElevations, approvedElevations, rejectedElevations, agents] = await Promise.all([
     getStats(),
     getUpcomingTopics(),
     getPendingElevations(),
     getApprovedElevations(),
     getRejectedElevations(),
+    getAllAgents(),
   ]);
 
   const serializedPending = pendingElevations.map((e: any) => ({
@@ -65,6 +67,11 @@ export default async function AdminPage() {
     createdAt: t.createdAt.toISOString(),
   }));
 
+  const serializedAgents = agents.map((a: any) => ({
+    ...a,
+    createdAt: a.createdAt.toISOString(),
+  }));
+
   return (
     <BureauContent
       stats={stats}
@@ -73,6 +80,7 @@ export default async function AdminPage() {
       approvedElevations={serializedApproved}
       rejectedElevations={serializedRejected}
       adminId={user.id}
+      agents={serializedAgents}
     />
   );
 }
