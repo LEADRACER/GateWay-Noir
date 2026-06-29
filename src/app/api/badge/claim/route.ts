@@ -13,12 +13,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!password?.trim()) {
+    if (!password?.trim() || !/^\d{8}$/.test(password.trim())) {
       return NextResponse.json(
-        { success: false, error: "Password is required to claim a badge" },
+        { success: false, error: "Passcode must be exactly 8 digits (0-9)" },
         { status: 400 }
       );
     }
+
+    const pwd = password.trim();
 
     // Find user by badge code
     const user = await prisma.user.findUnique({
@@ -94,7 +96,7 @@ export async function POST(request: NextRequest) {
     // Password: verify existing OR set new
     if (user.passwordHash) {
       // Badge already has a passcode — verify it
-      const valid = await bcrypt.compare(password.trim(), user.passwordHash);
+      const valid = await bcrypt.compare(pwd, user.passwordHash);
       if (!valid) {
         return NextResponse.json(
           { success: false, error: "Incorrect passcode for this badge" },
@@ -108,7 +110,7 @@ export async function POST(request: NextRequest) {
       });
     } else {
       // First-time password set
-      const passwordHash = await bcrypt.hash(password.trim(), 10);
+      const passwordHash = await bcrypt.hash(pwd, 10);
       await prisma.user.update({
         where: { id: user.id },
         data: { linkedIds, passwordHash },

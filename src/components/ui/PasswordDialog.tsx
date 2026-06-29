@@ -98,8 +98,11 @@ export function PasswordDialog({
             <input
               type={showPassword ? "text" : "password"}
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password"
+              onChange={(e) => setPassword(e.target.value.replace(/\D/g, "").slice(0, 8))}
+              placeholder="8-digit passcode"
+              inputMode="numeric"
+              pattern="[0-9]{8}"
+              autoComplete="off"
               autoFocus
               className="w-full bg-[#0a0a0c] border border-[rgba(168,144,112,0.1)] px-2.5 py-2 pr-8 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-[rgba(168,144,112,0.25)] transition-colors"
             />

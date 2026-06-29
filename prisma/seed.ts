@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
@@ -259,6 +260,8 @@ async function main() {
       badgeCode: bureauBadge,
       displayName: "Bureau Chief",
       role: "BUREAU",
+      isAdmin: true,
+      passwordHash: await bcrypt.hash("00000000", 10),
       linkedIds: "[]",
     },
   });
@@ -272,6 +275,7 @@ async function main() {
       badgeCode: agentBadge,
       displayName: "Field Agent Alpha",
       role: "AGENT",
+      passwordHash: await bcrypt.hash("00000000", 10),
       handler: bureau.badgeCode,
       bio: "Field operative assigned to forensic investigations.",
       linkedIds: "[]",
@@ -289,6 +293,7 @@ async function main() {
       badgeCode: detBadge,
       displayName: "Rising Detective",
       role: "DETECTIVE",
+      passwordHash: await bcrypt.hash("00000000", 10),
       linkedIds: "[]",
     },
   });

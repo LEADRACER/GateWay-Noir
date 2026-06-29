@@ -8,7 +8,14 @@ export async function POST(request: NextRequest) {
 
     if (!badgeCode || !password) {
       return NextResponse.json(
-        { success: false, error: "badgeCode and password are required" },
+        { success: false, error: "badgeCode and passcode are required" },
+        { status: 400 }
+      );
+    }
+
+    if (!/^\d{8}$/.test(password)) {
+      return NextResponse.json(
+        { success: false, error: "Passcode must be exactly 8 digits (0-9)" },
         { status: 400 }
       );
     }

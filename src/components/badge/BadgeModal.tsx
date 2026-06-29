@@ -252,8 +252,11 @@ export function BadgeModal() {
                     <input
                       type={showPassword ? "text" : "password"}
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Passcode for this badge"
+                      onChange={(e) => setPassword(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                      placeholder="8-digit passcode"
+                      inputMode="numeric"
+                      pattern="[0-9]{8}"
+                      autoComplete="off"
                       className="w-full bg-black/40 border border-[rgba(168,144,112,0.1)] px-2.5 py-1.5 pr-8 text-[11px] text-zinc-300 outline-none focus:border-[#d97706]/40 transition-colors placeholder:text-zinc-700"
                       onKeyDown={(e) => e.key === "Enter" && handleClaim()}
                     />
@@ -310,8 +313,11 @@ export function BadgeModal() {
                   <input
                     type={showPassword ? "text" : "password"}
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Set your badge passcode"
+                    onChange={(e) => setPassword(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                    placeholder="8-digit passcode"
+                    inputMode="numeric"
+                    pattern="[0-9]{8}"
+                    autoComplete="off"
                     className="w-full bg-black/40 border border-[rgba(168,144,112,0.1)] px-2.5 py-1.5 pr-8 text-[11px] text-zinc-300 outline-none focus:border-[#d97706]/40 transition-colors placeholder:text-zinc-700"
                     onKeyDown={(e) => e.key === "Enter" && handleClaim()}
                   />

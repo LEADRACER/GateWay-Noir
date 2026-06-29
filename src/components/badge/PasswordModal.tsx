@@ -15,36 +15,21 @@ export function PasswordModal() {
   } = useBadge();
 
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [showPw, setShowPw] = useState(false);
-  const [showConfirmPw, setShowConfirmPw] = useState(false);
 
   if (!showPasswordModal || !badge) return null;
   if (passwordVerified) return null;
 
   const needsSetup = !badge.hasPassword;
-  const isElevated = badge.role === "AGENT" || badge.role === "BUREAU";
-  if (!isElevated) return null;
 
   const handleSubmit = async () => {
     setError("");
 
-    if (needsSetup) {
-      if (password.length < 6) {
-        setError("Password must be at least 6 characters");
-        return;
-      }
-      if (password !== confirmPassword) {
-        setError("Passwords do not match");
-        return;
-      }
-    } else {
-      if (password.length < 1) {
-        setError("Enter your password");
-        return;
-      }
+    if (!/^\d{8}$/.test(password)) {
+      setError("Passcode must be exactly 8 digits (0-9)");
+      return;
     }
 
     setSubmitting(true);
@@ -57,7 +42,6 @@ export function PasswordModal() {
       setError(result.error || "Failed");
     } else {
       setPassword("");
-      setConfirmPassword("");
     }
   };
 
@@ -94,90 +78,39 @@ export function PasswordModal() {
           </div>
 
           {needsSetup ? (
-            <>
-              <p className="text-[9px] text-zinc-500 mb-3 typewriter-label text-left">
-                YOUR ELEVATION TO {badge.role} HAS BEEN APPROVED. SET A PASSWORD TO SECURE YOUR ACCOUNT.
-              </p>
-
-              {/* Password */}
-              <div className="mb-2.5">
-                <label className="text-[9px] text-zinc-600 typewriter-label mb-1 block text-left">
-                  PASSWORD
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPw ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Min 6 characters"
-                    className="w-full bg-black/40 border border-[rgba(168,144,112,0.1)] px-2.5 py-2 pr-8 text-[11px] font-mono text-zinc-300 outline-none focus:border-[#d97706]/40 transition-colors placeholder:text-zinc-700"
-                    onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPw(!showPw)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-400"
-                  >
-                    {showPw ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Confirm Password */}
-              <div className="mb-3">
-                <label className="text-[9px] text-zinc-600 typewriter-label mb-1 block text-left">
-                  CONFIRM PASSWORD
-                </label>
-                <div className="relative">
-                  <input
-                    type={showConfirmPw ? "text" : "password"}
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Re-enter password"
-                    className="w-full bg-black/40 border border-[rgba(168,144,112,0.1)] px-2.5 py-2 pr-8 text-[11px] font-mono text-zinc-300 outline-none focus:border-[#d97706]/40 transition-colors placeholder:text-zinc-700"
-                    onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPw(!showConfirmPw)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-400"
-                  >
-                    {showConfirmPw ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-                  </button>
-                </div>
-              </div>
-            </>
+            <p className="text-[9px] text-zinc-500 mb-3 typewriter-label text-left">
+              SET YOUR 8-DIGIT PASSCODE TO SECURE THIS BADGE.
+            </p>
           ) : (
-            <>
-              <p className="text-[9px] text-zinc-500 mb-3 typewriter-label text-left">
-                ENTER YOUR PASSWORD TO ACCESS ELEVATED FEATURES.
-              </p>
-
-              {/* Password input */}
-              <div className="mb-3">
-                <label className="text-[9px] text-zinc-600 typewriter-label mb-1 block text-left">
-                  PASSWORD
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPw ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter your password"
-                    className="w-full bg-black/40 border border-[rgba(168,144,112,0.1)] px-2.5 py-2 pr-8 text-[11px] font-mono text-zinc-300 outline-none focus:border-[#d97706]/40 transition-colors placeholder:text-zinc-700"
-                    onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPw(!showPw)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-400"
-                  >
-                    {showPw ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-                  </button>
-                </div>
-              </div>
-            </>
+            <p className="text-[9px] text-zinc-500 mb-3 typewriter-label text-left">
+              ENTER YOUR 8-DIGIT PASSCODE TO ACCESS ELEVATED FEATURES.
+            </p>
           )}
+
+          {/* Passcode input */}
+          <div className="mb-3">
+            <div className="relative">
+              <input
+                type={showPw ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                placeholder="8-digit passcode"
+                inputMode="numeric"
+                pattern="[0-9]{8}"
+                autoComplete="off"
+                autoFocus
+                className="w-full bg-black/40 border border-[rgba(168,144,112,0.1)] px-2.5 py-2 pr-8 text-[11px] font-mono text-zinc-300 text-center tracking-[0.3em] outline-none focus:border-[#d97706]/40 transition-colors placeholder:text-zinc-700"
+                onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPw(!showPw)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-400"
+              >
+                {showPw ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+              </button>
+            </div>
+          </div>
 
           {/* Error */}
           {error && (
@@ -190,7 +123,7 @@ export function PasswordModal() {
           {/* Submit */}
           <button
             onClick={handleSubmit}
-            disabled={submitting || password.length < (needsSetup ? 6 : 1)}
+            disabled={submitting || password.length !== 8}
             className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-[#d97706]/15 border border-[#d97706]/30 text-[10px] text-[#d97706] typewriter-label hover:bg-[#d97706]/25 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
           >
             {submitting ? (
@@ -198,7 +131,7 @@ export function PasswordModal() {
             ) : needsSetup ? (
               <>
                 <CheckCircle className="w-3 h-3" />
-                SET PASSWORD & CONTINUE
+                SET PASSCODE & CONTINUE
               </>
             ) : (
               <>

@@ -14,9 +14,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (password.length < 6) {
+    if (!/^\d{8}$/.test(password)) {
       return NextResponse.json(
-        { success: false, error: "Password must be at least 6 characters" },
+        { success: false, error: "Passcode must be exactly 8 digits (0-9)" },
         { status: 400 }
       );
     }
@@ -33,13 +33,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Only elevated roles can set a password
-    if (user.role !== "AGENT" && user.role !== "BUREAU") {
-      return NextResponse.json(
-        { success: false, error: "Only elevated agents can set a password" },
-        { status: 403 }
-      );
-    }
+    // All users can set a passcode
 
     // Check they own this badge (via linkedIds)
     const rawIds = user.linkedIds as unknown;
