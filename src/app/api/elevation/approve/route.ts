@@ -4,32 +4,25 @@ import { prisma } from "@/lib/prisma";
 
 export async function POST(req: NextRequest) {
   try {
-    const { requestId } = await req.json();
-    const cookie = req.cookies.get("noirgateway_id")?.value;
+    const { requestId, adminId } = await req.json();
 
-    // Look up admin by session cookie or fallback to any BRU user
-    let admin = null;
-    if (cookie) {
-      admin = await prisma.user.findFirst({
-        where: {
-          OR: [
-            { linkedIds: { contains: cookie } },
-            { badgeCode: cookie },
-          ],
-        },
-      });
+    if (!adminId) {
+      return NextResponse.json({ error: "Admin ID required" }, { status: 401 });
     }
+
+    const admin = await prisma.user.findUnique({
+      where: { id: adminId },
+      select: { role: true },
+    });
 
     if (!admin || admin.role !== "BUREAU") {
-      admin = await prisma.user.findFirst({ where: { role: "BUREAU" } });
+      return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
 
-    if (!admin) return NextResponse.json({ error: "No BRU user found" }, { status: 401 });
-    if (admin.role !== "BUREAU") return NextResponse.json({ error: "Not authorized" }, { status: 403 });
-
-    const result = await approveElevation(requestId, admin.id);
+    const result = await approveElevation(requestId, adminId);
     return NextResponse.json(result);
   } catch (e: any) {
+    console.error("Approve elevation error:", e);
     return NextResponse.json({ error: e?.message || "Failed to approve" }, { status: 500 });
   }
 }

@@ -75,7 +75,7 @@ export async function createBureauUser(displayName: string, creatorBadgeCode?: s
       role: "BUREAU",
       isAdmin: true,
       handler: creatorBadgeCode || null,
-      linkedIds: "[]",
+      linkedIds: [],
     },
   });
 

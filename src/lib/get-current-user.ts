@@ -22,14 +22,10 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   const anonId = cookieStore.get("noirgateway_id")?.value;
   if (!anonId) return null;
 
-  const users = await prisma.user.findMany();
-  const linkedUser = users.find((u) => {
-    try {
-      const ids: string[] = JSON.parse(u.linkedIds || "[]");
-      return ids.includes(anonId);
-    } catch {
-      return false;
-    }
+  const linkedUser = await prisma.user.findFirst({
+    where: {
+      linkedIds: { array_contains: anonId },
+    },
   });
 
   if (!linkedUser) return null;

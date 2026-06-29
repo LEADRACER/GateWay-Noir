@@ -29,6 +29,7 @@ export async function POST(request: NextRequest) {
     revalidatePath("/");
     return NextResponse.json({ success: true, voted: true, votes: await prisma.vote.count({ where: { topicId } }) });
   } catch (e) {
+    console.error("Vote error:", e);
     return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
   }
 }

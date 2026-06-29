@@ -85,7 +85,7 @@ model User {
   telegramId     String?  @unique
   discordId      String?  @unique
   whatsappId     String?  @unique
-  linkedIds      String   @default("[]") // JSON array of linked anonymousIds
+  linkedIds      Json?    @default("[]") // JSON array of linked anonymousIds
   phone          String?  // optional mobile number for WhatsApp
   handler        String?  // BRU badge code of managing admin
   passwordHash   String?  // bcrypt hash for elevated user login

@@ -14,14 +14,10 @@ export async function GET(request: NextRequest) {
 
   try {
     // Find user linked to this anonymousId
-    const users = await prisma.user.findMany();
-    const linkedUser = users.find((u) => {
-      try {
-        const ids: string[] = JSON.parse(u.linkedIds || "[]");
-        return ids.includes(anonymousId);
-      } catch {
-        return false;
-      }
+    const linkedUser = await prisma.user.findFirst({
+      where: {
+        linkedIds: { array_contains: anonymousId },
+      },
     });
 
     if (!linkedUser) {

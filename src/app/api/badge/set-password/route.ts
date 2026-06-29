@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
@@ -41,7 +42,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Check they own this badge (via linkedIds)
-    const linkedIds: string[] = JSON.parse(user.linkedIds || "[]");
+    const rawIds = user.linkedIds as unknown;
+    const linkedIds: string[] = Array.isArray(rawIds) ? (rawIds as string[]) : JSON.parse(String(rawIds || "[]"));
     if (!linkedIds.includes(anonymousId)) {
       return NextResponse.json(
         { success: false, error: "You don't own this badge" },
@@ -56,6 +58,7 @@ export async function POST(request: NextRequest) {
       data: { passwordHash },
     });
 
+    revalidatePath("/admin");
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("Set password error:", err);

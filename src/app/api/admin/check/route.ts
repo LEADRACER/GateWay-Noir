@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
 
   if (anonymousId) {
     const user = await prisma.user.findFirst({
-      where: { linkedIds: { contains: anonymousId } },
+      where: { linkedIds: { array_contains: anonymousId } },
       select: { badgeCode: true, isAdmin: true, role: true },
     });
     if (user) {
@@ -40,16 +40,20 @@ export async function POST(req: NextRequest) {
         where: { badgeCode },
         select: { isAdmin: true, linkedIds: true },
       });
-      if (user && user.isAdmin && user.linkedIds.includes(anonymousId)) {
-        const res = NextResponse.json({ success: true, admin: true, badgeAdmin: true });
-        res.cookies.set("noirgateway_admin", "authenticated", {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "lax",
-          maxAge: 60 * 60 * 24 * 7,
-          path: "/",
-        });
-        return res;
+      if (user && user.isAdmin) {
+        const rawIds = user.linkedIds as unknown;
+        const ids: string[] = Array.isArray(rawIds) ? (rawIds as string[]) : JSON.parse(String(rawIds || "[]"));
+        if (ids.includes(anonymousId)) {
+          const res = NextResponse.json({ success: true, admin: true, badgeAdmin: true });
+          res.cookies.set("noirgateway_admin", "authenticated", {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "lax",
+            maxAge: 60 * 60 * 24 * 7,
+            path: "/",
+          });
+          return res;
+        }
       }
     }
 

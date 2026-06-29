@@ -23,6 +23,9 @@ export async function POST(request: NextRequest) {
     // Delete votes first (foreign key constraint)
     await prisma.vote.deleteMany({ where: { topicId: id } });
 
+    // Delete comments (defense-in-depth — cascade should handle this, but be explicit)
+    await prisma.comment.deleteMany({ where: { topicId: id } });
+
     // Delete the topic
     await prisma.topic.delete({ where: { id } });
 
@@ -31,6 +34,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (e) {
+    console.error("Discard topic error:", e);
     return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
   }
 }

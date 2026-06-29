@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(request: NextRequest) {
@@ -25,6 +26,7 @@ export async function POST(request: NextRequest) {
       data: { phone: cleaned },
     });
 
+    revalidatePath("/");
     return NextResponse.json({ success: true, phone: cleaned });
   } catch (err) {
     console.error("Badge phone error:", err);

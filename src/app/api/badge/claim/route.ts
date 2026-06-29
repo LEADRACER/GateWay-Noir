@@ -25,7 +25,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Parse existing linked IDs
-    const linkedIds: string[] = JSON.parse(user.linkedIds || "[]");
+    const rawIds = user.linkedIds as unknown;
+    const linkedIds: string[] = Array.isArray(rawIds) ? (rawIds as string[]) : JSON.parse(String(rawIds || "[]"));
 
     // If already linked to this anonymousId, return success
     if (linkedIds.includes(anonymousId)) {
@@ -62,29 +63,28 @@ export async function POST(request: NextRequest) {
     }
 
     // Remove this anonymousId from any other user that has it
-    const allUsers = await prisma.user.findMany();
-    for (const otherUser of allUsers) {
-      if (otherUser.id === user.id) continue;
-      try {
-        const otherIds: string[] = JSON.parse(otherUser.linkedIds || "[]");
-        if (otherIds.includes(anonymousId)) {
-          await prisma.user.update({
-            where: { id: otherUser.id },
-            data: {
-              linkedIds: JSON.stringify(otherIds.filter((id) => id !== anonymousId)),
-            },
-          });
-        }
-      } catch {
-        // skip malformed JSON
-      }
+    const otherUsers = await prisma.user.findMany({
+      where: {
+        id: { not: user.id },
+        linkedIds: { array_contains: anonymousId },
+      },
+    });
+    for (const otherUser of otherUsers) {
+      const rawOtherIds = otherUser.linkedIds as unknown;
+      const otherIds: string[] = Array.isArray(rawOtherIds) ? (rawOtherIds as string[]) : JSON.parse(String(rawOtherIds || "[]"));
+      await prisma.user.update({
+        where: { id: otherUser.id },
+        data: {
+          linkedIds: otherIds.filter((id) => id !== anonymousId),
+        },
+      });
     }
 
     // Link the anonymousId to this user
     linkedIds.push(anonymousId);
     await prisma.user.update({
       where: { id: user.id },
-      data: { linkedIds: JSON.stringify(linkedIds) },
+      data: { linkedIds: linkedIds },
     });
 
     // Merge votes: update anonymousId to use userId

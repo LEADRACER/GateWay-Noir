@@ -3,7 +3,7 @@ import sharp from "sharp";
 import { randomBytes } from "crypto";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const BUCKET_NAME = "evidence";
 const MAX_WIDTH = 800;
@@ -21,7 +21,7 @@ export async function uploadEvidence(buffer: Buffer): Promise<string> {
 
   const filename = `ev-${Date.now()}-${randomBytes(4).toString("hex")}.webp`;
 
-  if (supabaseUrl && supabaseAnonKey) {
+  if (supabaseUrl && supabaseServiceKey) {
     const url = await uploadToSupabase(resized, filename);
     if (url) return url;
   }
@@ -39,7 +39,7 @@ async function uploadToSupabase(
   buffer: Buffer,
   filename: string
 ): Promise<string | null> {
-  const client = createClient(supabaseUrl!, supabaseAnonKey!);
+  const client = createClient(supabaseUrl!, supabaseServiceKey!);
 
   // Ensure bucket exists
   const { data: buckets } = await client.storage.listBuckets();

@@ -4,9 +4,8 @@ import { revalidatePath } from "next/cache";
 
 export async function POST(request: NextRequest) {
   try {
-    const formData = await request.formData();
-    const id = formData.get("id") as string;
-    const durationDays = parseInt(formData.get("durationDays") as string) || 7;
+    const { id, durationDays: durationParam } = await request.json();
+    const durationDays = parseInt(durationParam) || 7;
 
     if (!id) {
       return NextResponse.json({ error: "Missing topic ID" }, { status: 400 });
@@ -38,6 +37,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, slug: topic.slug });
   } catch (e) {
+    console.error("Promote topic error:", e);
     return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
   }
 }

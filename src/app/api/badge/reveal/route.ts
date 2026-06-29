@@ -13,14 +13,10 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const users = await prisma.user.findMany();
-    const linkedUser = users.find((u) => {
-      try {
-        const ids: string[] = JSON.parse(u.linkedIds || "[]");
-        return ids.includes(anonymousId);
-      } catch {
-        return false;
-      }
+    const linkedUser = await prisma.user.findFirst({
+      where: {
+        linkedIds: { array_contains: anonymousId },
+      },
     });
 
     if (!linkedUser) {
@@ -30,7 +26,7 @@ export async function GET(request: NextRequest) {
       const user = await prisma.user.create({
         data: {
           badgeCode,
-          linkedIds: JSON.stringify([anonymousId]),
+          linkedIds: [anonymousId],
           handler: "Bureau Commissioner",
         },
       });

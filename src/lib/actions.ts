@@ -196,16 +196,18 @@ export async function createComment(formData: FormData) {
   let finalDisplayName = displayName;
   let linkedUserId: string | null = null;
   try {
-    const allUsers = await prisma.user.findMany();
-    const linkedUser = allUsers.find((u: any) => {
-      try {
-        const ids: string[] = JSON.parse(u.linkedIds || "[]");
-        return ids.includes(anonymousId);
-      } catch { return false; }
+    const linkedUser = await prisma.user.findFirst({
+      where: {
+        linkedIds: { array_contains: anonymousId },
+      },
     });
     if (linkedUser) {
       linkedUserId = linkedUser.id;
-      finalDisplayName = linkedUser.badgeCode; // e.g. DET-A3K9 or AGT-X7M2
+      // Mask badge code for public display — Task 7
+      const badgeParts = linkedUser.badgeCode.split("-");
+      const badgePrefix = badgeParts[0] || "DET";
+      const badgeSuffix = badgeParts[1]?.substring(0, 2) || "XX";
+      finalDisplayName = linkedUser.displayName || `${badgePrefix}-#${badgeSuffix}`;
     }
   } catch {
     // silent fail

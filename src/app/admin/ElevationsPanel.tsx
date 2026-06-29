@@ -30,12 +30,14 @@ interface ElevationsPanelProps {
   pendingElevations: ElevationRequest[];
   approvedElevations: ElevationRequest[];
   rejectedElevations: ElevationRequest[];
+  adminId?: string;
 }
 
 export function ElevationsPanel({
   pendingElevations: initialPending,
   approvedElevations: initialApproved,
   rejectedElevations: initialRejected,
+  adminId,
 }: ElevationsPanelProps) {
   const [activeTab, setActiveTab] = useState<"dashboard" | "elevations">("dashboard");
   const [pending, setPending] = useState(initialPending);
@@ -56,7 +58,7 @@ export function ElevationsPanel({
       const res = await fetch("/api/elevation/approve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ requestId }),
+        body: JSON.stringify({ requestId, adminId }),
       });
       const data = await res.json();
       if (data.success) {

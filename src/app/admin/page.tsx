@@ -72,6 +72,7 @@ export default async function AdminPage() {
       pendingElevations={serializedPending}
       approvedElevations={serializedApproved}
       rejectedElevations={serializedRejected}
+      adminId={user.id}
     />
   );
 }

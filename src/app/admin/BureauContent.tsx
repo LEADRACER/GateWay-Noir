@@ -41,9 +41,10 @@ interface BureauContentProps {
   pendingElevations: ElevationRequest[];
   approvedElevations: ElevationRequest[];
   rejectedElevations: ElevationRequest[];
+  adminId?: string;
 }
 
-export function BureauContent({ stats, upcomingTopics, pendingElevations, approvedElevations, rejectedElevations }: BureauContentProps) {
+export function BureauContent({ stats, upcomingTopics, pendingElevations, approvedElevations, rejectedElevations, adminId }: BureauContentProps) {
   return (
     <BureauHQ stats={stats}>
       {/* Dashboard tab content — rendered below stats */}
@@ -53,6 +54,7 @@ export function BureauContent({ stats, upcomingTopics, pendingElevations, approv
           pendingElevations={pendingElevations}
           approvedElevations={approvedElevations}
           rejectedElevations={rejectedElevations}
+          adminId={adminId}
         />
 
         {/* Pending cases */}
