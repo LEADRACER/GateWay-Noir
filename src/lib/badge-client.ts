@@ -40,10 +40,11 @@ export async function generateBadgeCode(): Promise<{
   error?: string;
 }> {
   try {
+    const anonymousId = getAnonymousId();
     const res = await fetch("/api/badge/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
+      body: JSON.stringify({ anonymousId }),
     });
     return await res.json();
   } catch {

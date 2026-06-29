@@ -4,7 +4,7 @@ import { generateBadgeCode } from "@/lib/badge";
 
 export async function POST(request: NextRequest) {
   try {
-    const { role, displayName } = await request.json();
+    const { role, displayName, anonymousId } = await request.json();
     const badgeCode = await generateBadgeCode(role);
 
     const user = await prisma.user.create({
@@ -12,6 +12,7 @@ export async function POST(request: NextRequest) {
         badgeCode,
         displayName: displayName || "Detective",
         role: role || "DETECTIVE",
+        linkedIds: anonymousId ? [anonymousId] : [],
       },
     });
 

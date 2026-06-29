@@ -33,23 +33,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // All users can set a passcode
-
-    // Check they own this badge (via linkedIds)
     const rawIds = user.linkedIds as unknown;
     const linkedIds: string[] = Array.isArray(rawIds) ? (rawIds as string[]) : JSON.parse(String(rawIds || "[]"));
-    if (!linkedIds.includes(anonymousId)) {
-      return NextResponse.json(
-        { success: false, error: "You don't own this badge" },
-        { status: 403 }
-      );
+
+    if (user.passwordHash) {
+      // Existing user — must own this badge to change password
+      if (!linkedIds.includes(anonymousId)) {
+        return NextResponse.json(
+          { success: false, error: "You don't own this badge" },
+          { status: 403 }
+        );
+      }
     }
+
+    // Link anonymousId to this user if not already linked (first-time setup)
+    const updatedLinkedIds = linkedIds.includes(anonymousId)
+      ? linkedIds
+      : [...linkedIds, anonymousId];
 
     // Hash and store password
     const passwordHash = await bcrypt.hash(password, 12);
     await prisma.user.update({
       where: { id: user.id },
-      data: { passwordHash },
+      data: { passwordHash, linkedIds: updatedLinkedIds },
     });
 
     revalidatePath("/admin");
