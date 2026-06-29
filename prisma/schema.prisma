@@ -103,6 +103,8 @@ model User {
   adminApprovals    ElevationRequest[]  @relation("AdminApprovals")
   agentTasks        AgentTask[]         @relation("AgentTasks")
   assignedTasks     AgentTask[]         @relation("AdminAssigned")
+  discussionsCreated AgentDiscussion[]  @relation("DiscussionsCreated")
+  discussionMessages AgentDiscussionMessage[]
 }
 
 model ElevationRequest {
@@ -136,4 +138,31 @@ model AgentTask {
 
   @@index([agentId])
   @@index([status])
+}
+
+model AgentDiscussion {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  isOpen      Boolean   @default(true)
+  createdById String
+  createdBy   User      @relation("DiscussionsCreated", fields: [createdById], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  messages    AgentDiscussionMessage[]
+
+  @@index([createdById])
+}
+
+model AgentDiscussionMessage {
+  id           String           @id @default(cuid())
+  discussionId String
+  discussion   AgentDiscussion  @relation(fields: [discussionId], references: [id], onDelete: Cascade)
+  content      String
+  userId       String
+  user         User             @relation(fields: [userId], references: [id])
+  createdAt    DateTime         @default(now())
+
+  @@index([discussionId])
+  @@index([userId])
 }

@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import {
   ClipboardList, Play, CheckCircle2, Clock, Loader2, FileX,
   User, Smartphone, AlertCircle, CheckCircle, Scale, Save,
+  MessageSquare, ArrowUpRight,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useBadge } from "@/components/badge/BadgeProvider";
@@ -226,6 +227,15 @@ export function AgentHQ() {
           <User className="w-3 h-3" />
           PROFILE
         </button>
+        <div className="flex-1" />
+        <a
+          href="/agent/discussions"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium text-zinc-500 hover:text-amber-400 typewriter-label transition-colors border border-transparent hover:border-[rgba(168,144,112,0.08)]"
+        >
+          <MessageSquare className="w-3 h-3" />
+          DISCUSSIONS
+          <ArrowUpRight className="w-2.5 h-2.5" />
+        </a>
       </div>
 
       {/* Tasks Tab */}
