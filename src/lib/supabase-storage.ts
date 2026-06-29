@@ -5,7 +5,7 @@ import { randomBytes } from "crypto";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-const BUCKET_NAME = "evidence";
+const BUCKET_NAME = process.env.SUPABASE_STORAGE_BUCKET || "evidence";
 const MAX_WIDTH = 800;
 const QUALITY = 80;
 
