@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { setSessionCookie } from "@/lib/session-cookie";
 
 export async function POST(request: NextRequest) {
   try {
@@ -54,7 +55,7 @@ export async function POST(request: NextRequest) {
 
     // If already linked to this anonymousId, return success
     if (linkedIds.includes(anonymousId)) {
-      return NextResponse.json({
+      const res = NextResponse.json({
         success: true,
         alreadyClaimed: true,
         user: {
@@ -66,6 +67,10 @@ export async function POST(request: NextRequest) {
           isAdmin: user.isAdmin,
         },
       });
+      if (user.passwordHash) {
+        res.headers.set("Set-Cookie", setSessionCookie(user.badgeCode));
+      }
+      return res;
     }
 
     // Remove this anonymousId from any other user that has it
@@ -120,7 +125,7 @@ export async function POST(request: NextRequest) {
       .filter("anonymousId", "eq", anonymousId)
       .filter("userId", "is", null);
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       success: true,
       alreadyClaimed: false,
       votesMerged: true,
@@ -133,6 +138,8 @@ export async function POST(request: NextRequest) {
         isAdmin: user.isAdmin,
       },
     });
+    res.headers.set("Set-Cookie", setSessionCookie(user.badgeCode));
+    return res;
   } catch (err) {
     console.error("Badge claim error:", err);
     return NextResponse.json({ success: false, error: "Failed to claim badge" }, { status: 500 });

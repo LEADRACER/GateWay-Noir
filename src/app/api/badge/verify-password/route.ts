@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { setSessionCookie } from "@/lib/session-cookie";
 
 export async function POST(request: NextRequest) {
   try {
@@ -50,7 +51,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       success: true,
       user: {
         id: user.id,
@@ -62,6 +63,8 @@ export async function POST(request: NextRequest) {
         hasPassword: !!user.passwordHash,
       },
     });
+    res.headers.set("Set-Cookie", setSessionCookie(user.badgeCode));
+    return res;
   } catch (err) {
     console.error("Verify password error:", err);
     return NextResponse.json(

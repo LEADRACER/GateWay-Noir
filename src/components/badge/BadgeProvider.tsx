@@ -98,6 +98,11 @@ export function BadgeProvider({ children }: { children: ReactNode }) {
     if (result.success && result.user) {
       setBadge(result.user);
       saveBadgeCodeToCookie(result.user.badgeCode);
+      // Persist password-verified state so modal doesn't reappear on refresh
+      if (result.user.hasPassword) {
+        localStorage.setItem(PASSWORD_VERIFIED_KEY, "true");
+        setPasswordVerified(true);
+      }
       return { success: true };
     }
     return { success: false, error: result.error, needsPasscode: (result as any).needsPasscode };
