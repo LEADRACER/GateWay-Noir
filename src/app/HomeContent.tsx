@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
-import { Search, FolderOpen, Inbox, ChevronUp, FileText } from "lucide-react";
+import { Search, FolderOpen, Inbox, ChevronUp, FileText, Check, Trash2 } from "lucide-react";
 import { CategoryFilter } from "@/components/home/CategoryFilter";
 import { TopicGrid } from "@/components/home/TopicGrid";
 import { AnnouncementsSidebar } from "@/components/home/AnnouncementsSidebar";
 import { getAnonymousId } from "@/lib/anonymous";
+import { useBadge } from "@/components/badge/BadgeProvider";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 interface HomeContentProps {
@@ -21,6 +23,9 @@ export function HomeContent({
   concludedTopics,
   upcomingTopics: initialUpcoming = [],
 }: HomeContentProps) {
+  const router = useRouter();
+  const { badge } = useBadge();
+  const isBureau = badge?.role === "BUREAU";
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [upcomingTopics, setUpcomingTopics] = useState(initialUpcoming);
@@ -91,6 +96,36 @@ export function HomeContent({
       votingRef.current.delete(topicId);
     }
   }, []);
+
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [discardingId, setDiscardingId] = useState<string | null>(null);
+
+  const handleApprove = async (topic: any) => {
+    setApprovingId(topic.id);
+    try {
+      await fetch("/api/admin/approve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: topic.id }),
+      });
+      router.refresh();
+    } catch {
+      // silent
+    }
+  };
+
+  const handleDiscard = async (topic: any) => {
+    if (!confirm(`Discard "${topic.title}"? This cannot be undone.`)) return;
+    setDiscardingId(topic.id);
+    try {
+      const formData = new FormData();
+      formData.append("id", topic.id);
+      await fetch("/api/admin/discard", { method: "POST", body: formData });
+      router.refresh();
+    } catch {
+      // silent
+    }
+  };
 
   return (
     <div className="mx-auto px-4 sm:px-6 lg:px-8 pb-12" style={{ maxWidth: '80%' }}>
@@ -202,6 +237,27 @@ export function HomeContent({
                           <p className="text-[9px] text-zinc-400 leading-snug line-clamp-2 mb-3">
                             {topic.title}
                           </p>
+                          {/* Bureau action buttons */}
+                          {isBureau && (
+                            <div className="flex gap-2 mb-3">
+                              <button
+                                onClick={() => handleApprove(topic)}
+                                disabled={approvingId === topic.id}
+                                className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-[8px] font-mono text-green-400/80 border border-green-500/20 hover:bg-green-500/10 disabled:opacity-30 transition-all"
+                              >
+                                <Check className="w-2.5 h-2.5" />
+                                {approvingId === topic.id ? "..." : "APPROVE"}
+                              </button>
+                              <button
+                                onClick={() => handleDiscard(topic)}
+                                disabled={discardingId === topic.id}
+                                className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-[8px] font-mono text-red-400/80 border border-red-500/20 hover:bg-red-500/10 disabled:opacity-30 transition-all"
+                              >
+                                <Trash2 className="w-2.5 h-2.5" />
+                                {discardingId === topic.id ? "..." : "DISCARD"}
+                              </button>
+                            </div>
+                          )}
                           <button
                             onClick={() => handleVote(topic.id)}
                             className={cn(
