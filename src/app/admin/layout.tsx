@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation";
 import Link from "next/link";
 import { LayoutDashboard, PlusCircle, Scale, MessageSquare, ChevronRight, Fingerprint, ClipboardList } from "lucide-react";
 import { getCurrentUser } from "@/lib/get-current-user";
@@ -13,12 +12,7 @@ const bureauNavItems = [
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
 
-  // No badge at all — redirect home
-  if (!user) {
-    redirect("/");
-  }
-
-  const isBureau = user.role === "BUREAU";
+  const isBureau = user?.role === "BUREAU";
 
   return (
     <div className="flex min-h-[calc(100vh-3.5rem)]">
