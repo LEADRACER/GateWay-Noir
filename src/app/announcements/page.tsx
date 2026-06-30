@@ -13,7 +13,7 @@ export default async function AnnouncementsPage() {
   ]);
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div className="mx-auto px-4 sm:px-6 lg:px-8 py-6" style={{ maxWidth: '80%' }}>
       {/* Back Button */}
       <Link
         href="/"
@@ -24,7 +24,7 @@ export default async function AnnouncementsPage() {
       </Link>
 
       {/* Header */}
-      <div className="bg-[#111113] border border-[rgba(168,144,112,0.08)] mb-4">
+      <div className="case-file mb-4">
         <div className="h-0.5 evidence-tape" />
         <div className="p-4">
           <div className="flex items-center gap-2 mb-1">
@@ -40,7 +40,7 @@ export default async function AnnouncementsPage() {
 
       {/* Concluded Cases List */}
       {concludedTopics.length === 0 ? (
-        <div className="bg-[#111113] border border-[rgba(168,144,112,0.08)] p-8 text-center mb-6">
+        <div className="case-file p-8 text-center mb-6">
           <Archive className="w-6 h-6 text-zinc-800 mx-auto mb-2" />
           <p className="text-zinc-600 text-xs typewriter-label">NO CONCLUDED CASES YET</p>
         </div>
@@ -50,7 +50,7 @@ export default async function AnnouncementsPage() {
             <Link
               key={topic.id}
               href={`/topic/${topic.slug}`}
-              className="block bg-[#111113] border border-[rgba(168,144,112,0.08)] hover:border-[#d97706]/30 transition-all duration-200 group pixelated-amber-hover"
+              className="block case-file-card hover:border-[#d97706]/30 transition-all duration-200 group"
             >
               <div className="p-3">
                 <div className="flex items-center justify-between mb-1">
@@ -99,11 +99,11 @@ export default async function AnnouncementsPage() {
             </h2>
             <span className="case-number text-zinc-700">AWAITING REVIEW</span>
           </div>
-          <div className="space-y-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
             {upcomingTopics.map((topic: any) => (
               <div
                 key={topic.id}
-                className="bg-[#111113] border border-[rgba(168,144,112,0.08)] hover:border-[#d97706]/30 transition-all duration-200 pixelated-amber-hover"
+                className="case-file-card hover:border-[#d97706]/30 transition-all duration-200"
               >
                 <div className="p-3">
                   <div className="flex items-center justify-between mb-1">
