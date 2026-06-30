@@ -102,7 +102,7 @@ export function TopicDetailClient({ topic }: TopicDetailClientProps) {
                   <BookOpen className="w-3.5 h-3.5 text-[#d97706] opacity-50" />
                   <h3 className="case-number text-zinc-500">EVIDENCE & BACKGROUND</h3>
                 </div>
-                <div className="text-xs text-zinc-500 leading-relaxed whitespace-pre-wrap font-mono">
+                <div className="text-xs text-zinc-500 leading-relaxed whitespace-pre-wrap font-mono overflow-x-auto">
                   {topic.evidence}
                 </div>
               </div>

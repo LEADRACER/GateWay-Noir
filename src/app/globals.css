@@ -27,6 +27,25 @@
   max-width: 80% !important;
 }
 
+/* ── MOBILE RESPONSIVE ── */
+@media (max-width: 640px) {
+  /* Override 80% containers to full width on mobile */
+  [style*="max-width: 80"] {
+    max-width: 100% !important;
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+  /* Override inline px-4 to tighten margins on tiny screens */
+  .case-file, .case-file-card {
+    border-width: 1px;
+  }
+}
+@media (min-width: 641px) and (max-width: 1024px) {
+  [style*="max-width: 80"] {
+    max-width: 95% !important;
+  }
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

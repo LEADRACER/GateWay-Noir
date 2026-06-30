@@ -114,7 +114,7 @@ export function HomeContent({
             {/* Search + Filter Bar */}
             <div className="px-4 py-2 border-b border-[rgba(168,144,112,0.06)] bg-[#0a0a0c]">
               <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                <div className="relative flex-1 max-w-xs">
+                <div className="relative flex-1">
                   <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-zinc-600" />
                   <input
                     type="text"
