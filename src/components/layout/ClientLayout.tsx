@@ -14,7 +14,7 @@ export function ClientLayout({ children, initialUser }: { children: ReactNode; i
   return (
     <BadgeProvider initialUser={initialUser}>
       <Navbar />
-      <main className="flex-1 pt-16 flex flex-col items-center">
+      <main className="flex-1 pt-16 flex flex-col">
         {children}
       </main>
       <RotatingLiquidText />
