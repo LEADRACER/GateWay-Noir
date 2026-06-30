@@ -1,6 +1,4 @@
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { LayoutDashboard, PlusCircle, Scale, MessageSquare, ChevronRight, Fingerprint, ClipboardList } from "lucide-react";
 import { getCurrentUser } from "@/lib/get-current-user";

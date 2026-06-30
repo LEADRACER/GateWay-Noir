@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,17 +23,24 @@ export async function POST(request: NextRequest) {
     const pwd = password.trim();
     const rawCode = badgeCode.toUpperCase().replace(/[^A-Z0-9]/g, "");
 
+    const supabase = await createServerSupabaseClient();
+
     // Find user — suffix (4 chars) or full badge code
     let user;
     if (rawCode.length === 4) {
-      // Look up by suffix: badgeCode ending with -XXXX
-      user = await prisma.user.findFirst({
-        where: { badgeCode: { endsWith: `-${rawCode}` } },
-      });
+      const { data } = await supabase
+        .from('User')
+        .select("*")
+        .like("badgeCode", `%-${rawCode}`)
+        .maybeSingle();
+      user = data;
     } else {
-      user = await prisma.user.findUnique({
-        where: { badgeCode: rawCode },
-      });
+      const { data } = await supabase
+        .from('User')
+        .select("*")
+        .eq("badgeCode", rawCode)
+        .maybeSingle();
+      user = data;
     }
 
     if (!user) {
@@ -43,9 +50,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const linkedIds: string[] = Array.isArray(user.linkedIds)
-      ? user.linkedIds
-      : [];
+    const linkedIds: string[] = Array.isArray(user.linkedIds) ? user.linkedIds : [];
 
     // If already linked to this anonymousId, return success
     if (linkedIds.includes(anonymousId)) {
@@ -64,20 +69,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Remove this anonymousId from any other user that has it
-    const otherUsers = await prisma.user.findMany({
-      where: {
-        id: { not: user.id },
-        linkedIds: { has: anonymousId },
-      },
-    });
-    for (const otherUser of otherUsers) {
+    const { data: otherUsers } = await supabase
+      .from('User')
+      .select("id, linkedIds")
+      .filter("linkedIds", "ov", `{${anonymousId}}`);
+
+    for (const otherUser of otherUsers || []) {
       const otherIds: string[] = Array.isArray(otherUser.linkedIds) ? otherUser.linkedIds : [];
-      await prisma.user.update({
-        where: { id: otherUser.id },
-        data: {
-          linkedIds: otherIds.filter((id) => id !== anonymousId),
-        },
-      });
+      await supabase
+        .from('User')
+        .update({ linkedIds: otherIds.filter((id: string) => id !== anonymousId) })
+        .eq("id", otherUser.id);
     }
 
     // Link the anonymousId to this user
@@ -92,29 +94,31 @@ export async function POST(request: NextRequest) {
           { status: 401 }
         );
       }
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { linkedIds },
-      });
+      await supabase
+        .from('User')
+        .update({ linkedIds })
+        .eq("id", user.id);
     } else {
       const passwordHash = await bcrypt.hash(pwd, 10);
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { linkedIds, passwordHash },
-      });
+      await supabase
+        .from('User')
+        .update({ linkedIds, passwordHash })
+        .eq("id", user.id);
     }
 
     // Merge votes
-    await prisma.vote.updateMany({
-      where: { anonymousId, userId: null },
-      data: { userId: user.id },
-    });
+    await supabase
+      .from('Vote')
+      .update({ userId: user.id })
+      .filter("anonymousId", "eq", anonymousId)
+      .filter("userId", "is", null);
 
     // Merge comments
-    await prisma.comment.updateMany({
-      where: { anonymousId, userId: null },
-      data: { userId: user.id },
-    });
+    await supabase
+      .from('Comment')
+      .update({ userId: user.id })
+      .filter("anonymousId", "eq", anonymousId)
+      .filter("userId", "is", null);
 
     return NextResponse.json({
       success: true,

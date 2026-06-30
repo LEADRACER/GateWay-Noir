@@ -1,155 +1,168 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/prisma";
-import { generateBadgeCode, getBadgePrefix } from "@/lib/badge";
-import { getCurrentUser } from "@/lib/get-current-user";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { reprefixBadgeCode } from "@/lib/badge";
 
-/**
- * Promote an AGENT user to BUREAU.
- * Only existing BUREAU users can call this.
- * Preserves the user's badge suffix (AGT-XXXX XXXX).
- */
-export async function promoteToBureau(agentUserId: string, bureauUserId?: string) {
-  const caller = await getCurrentUser();
-  if (!caller || caller.role !== "BUREAU") return { error: "Unauthorized" };
-  if (!agentUserId) return { error: "Missing user ID" };
+// ─── Agent Management ───
 
-  const user = await prisma.user.findUnique({ where: { id: agentUserId } });
+export async function createAgentUser(data: {
+  displayName: string;
+  role: string;
+  badgeCode: string;
+}) {
+  const supabase = await createServerSupabaseClient();
+
+  const { data: user } = await supabase
+    .from('User')
+    .insert({
+      badgeCode: data.badgeCode,
+      displayName: data.displayName?.trim() || data.badgeCode,
+      role: data.role || "AGENT",
+      isAdmin: false,
+      linkedIds: [],
+    })
+    .select()
+    .single();
+
+  if (!user) throw new Error("Failed to create user");
+  return user;
+}
+
+export async function promoteAgentToBureau(agentUserId: string, adminBadgeCode: string, adminUserId: string) {
+  const supabase = await createServerSupabaseClient();
+
+  const { data: user } = await supabase
+    .from('User')
+    .select("*")
+    .eq("id", agentUserId)
+    .maybeSingle();
+
   if (!user) return { error: "User not found" };
   if (user.role === "BUREAU") return { error: "User is already BUREAU" };
 
-  // Re-prefix the badge code: AGT-XXXX → BRU-XXXX
-  const prefix = getBadgePrefix("BUREAU");
-  const suffix = user.badgeCode.split("-")[1] || user.badgeCode.slice(-4);
-  const newBadgeCode = `${prefix}-${suffix}`;
+  const newBadgeCode = reprefixBadgeCode(user.badgeCode, "BUREAU");
 
-  // Check uniqueness (rare collision, but be safe)
-  const existing = await prisma.user.findUnique({ where: { badgeCode: newBadgeCode } });
-  if (existing && existing.id !== user.id) {
+  // Check for collision
+  const { data: existing } = await supabase
+    .from('User')
+    .select("id")
+    .eq("badgeCode", newBadgeCode)
+    .maybeSingle();
+
+  if (existing && existing.id !== agentUserId) {
     return { error: "Badge code collision — try again" };
   }
 
-  await prisma.user.update({
-    where: { id: agentUserId },
-    data: {
+  await supabase
+    .from('User')
+    .update({
       role: "BUREAU",
       badgeCode: newBadgeCode,
       isAdmin: true,
-    },
-  });
+      handler: adminUserId,
+    })
+    .eq("id", agentUserId);
 
-  revalidatePath("/admin");
   return { success: true, newBadgeCode };
 }
 
-/**
- * Get all AGENT users for the BRU admin panel.
- */
-export async function getAllAgents() {
-  const caller = await getCurrentUser();
-  if (!caller || caller.role !== "BUREAU") return [];
-  return prisma.user.findMany({
-    where: { role: "AGENT" },
-    select: {
-      id: true,
-      badgeCode: true,
-      displayName: true,
-      bio: true,
-      phone: true,
-      handler: true,
-      createdAt: true,
-    },
-    orderBy: { createdAt: "desc" },
-  });
+export async function getUsersByRole(role: string) {
+  const supabase = await createServerSupabaseClient();
+
+  const { data } = await supabase
+    .from('User')
+    .select("*")
+    .eq("role", role)
+    .order("createdAt", { ascending: false });
+
+  return data || [];
 }
 
-/**
- * Create a new BUREAU user from scratch (invite a new admin).
- * Generates a fresh BRU badge code that can be shared.
- */
-export async function createBureauUser(displayName: string, creatorBadgeCode?: string) {
-  const caller = await getCurrentUser();
-  if (!caller || caller.role !== "BUREAU") return { error: "Unauthorized" };
-  if (!displayName?.trim()) return { error: "Display name is required" };
+export async function getAllUsers() {
+  const supabase = await createServerSupabaseClient();
 
-  const badgeCode = await generateBadgeCode("BUREAU");
+  const { data } = await supabase
+    .from('User')
+    .select("*")
+    .order("createdAt", { ascending: false });
 
-  const user = await prisma.user.create({
-    data: {
-      badgeCode,
-      displayName: displayName.trim(),
-      role: "BUREAU",
-      isAdmin: true,
-      handler: creatorBadgeCode || null,
-      linkedIds: [],
-    },
-  });
-
-  revalidatePath("/admin");
-  return { success: true, badgeCode: user.badgeCode };
+  return data || [];
 }
 
-/**
- * Promote the currently authenticated user to BUREAU.
- * Only works if the user has a badge claimed and no BRU user exists yet,
- * or if the caller knows the badge code (first-admin setup).
- * Used for initial admin bootstrapping.
- */
-export async function promoteSelfToBureau(badgeCode: string) {
-  if (!badgeCode?.trim()) return { error: "Badge code is required" };
+// ─── Badge Setup (first admin) ───
 
-  const user = await prisma.user.findUnique({ where: { badgeCode: badgeCode.trim().toUpperCase() } });
-  if (!user) return { error: "No user found with this badge code" };
-  if (user.role === "BUREAU") return { error: "Already BUREAU" };
+export async function setupBureauAdmin(code: string, passwordHash: string) {
+  const supabase = await createServerSupabaseClient();
 
-  // Re-prefix badge code
-  const prefix = getBadgePrefix("BUREAU");
-  const suffix = user.badgeCode.split("-")[1] || user.badgeCode.slice(-4);
-  const newBadgeCode = `${prefix}-${suffix}`;
+  // Check if any BUREAU exists
+  const { data: existingBureau } = await supabase
+    .from('User')
+    .select("id")
+    .eq("role", "BUREAU")
+    .maybeSingle();
 
-  const existing = await prisma.user.findUnique({ where: { badgeCode: newBadgeCode } });
-  if (existing && existing.id !== user.id) {
-    return { error: "Badge code collision — try with a new DET badge" };
+  // If BUREAU exists, check if caller is one
+  if (existingBureau) {
+    const { data: admin } = await supabase
+      .from('User')
+      .select("*")
+      .eq("badgeCode", code)
+      .maybeSingle();
+
+    if (!admin || admin.role !== "BUREAU") {
+      return { error: "BUREAU already exists. Login with existing BUREAU badge." };
+    }
+    return { success: true, user: admin };
   }
 
-  await prisma.user.update({
-    where: { id: user.id },
-    data: {
+  // No BUREAU exists — bootstrap
+  const codeUpper = code.toUpperCase().trim();
+  const { data: user } = await supabase
+    .from('User')
+    .select("*")
+    .eq("badgeCode", codeUpper)
+    .maybeSingle();
+
+  if (!user) return { error: "Badge code not found. Create a badge first." };
+
+  const newBadgeCode = reprefixBadgeCode(codeUpper, "BUREAU");
+  const { data: existing } = await supabase
+    .from('User')
+    .select("id")
+    .eq("badgeCode", newBadgeCode)
+    .maybeSingle();
+
+  if (existing && existing.id !== user.id) {
+    return { error: "Badge code collision" };
+  }
+
+  await supabase
+    .from('User')
+    .update({
       role: "BUREAU",
       badgeCode: newBadgeCode,
       isAdmin: true,
-    },
-  });
+      passwordHash,
+    })
+    .eq("id", user.id);
 
-  revalidatePath("/admin");
-  revalidatePath("/");
   return { success: true, newBadgeCode };
 }
 
-/**
- * Get all users grouped by role.
- */
-export async function getAllUsers() {
-  const caller = await getCurrentUser();
-  if (!caller || caller.role !== "BUREAU") return { detectives: [], agents: [], bureau: [] };
-  const users = await prisma.user.findMany({
-    select: {
-      id: true,
-      badgeCode: true,
-      displayName: true,
-      role: true,
-      isAdmin: true,
-      phone: true,
-      handler: true,
-      createdAt: true,
-    },
-    orderBy: [{ role: "asc" }, { createdAt: "desc" }],
-  });
+// ─── Backward-compatible aliases (old signatures) ───
 
-  return {
-    detectives: users.filter((u) => u.role === "DETECTIVE"),
-    agents: users.filter((u) => u.role === "AGENT"),
-    bureau: users.filter((u) => u.role === "BUREAU"),
-  };
+export const getAllAgents = getAllUsers;
+
+export async function promoteToBureau(agentId: string, adminBadgeCode: string, adminUserId: string) {
+  if (!adminBadgeCode || !adminUserId) return { error: "Admin badge code and user ID required" };
+  return promoteAgentToBureau(agentId, adminBadgeCode, adminUserId);
+}
+
+export async function createBureauUser(displayName: string, adminBadgeCode: string) {
+  if (!adminBadgeCode) throw new Error("Admin badge code is required to create a Bureau user");
+  return createAgentUser({
+    displayName,
+    role: "BUREAU",
+    badgeCode: adminBadgeCode,
+  });
 }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/prisma";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,21 +10,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "badgeCode and phone required" });
     }
 
-    // Basic validation — strip common formatting characters
+    // Basic validation
     const cleaned = phone.replace(/[\s\-\(\)\.\,\*\#]/g, "");
     if (!/^\+?[0-9]{7,15}$/.test(cleaned)) {
       return NextResponse.json({ success: false, error: "Invalid phone number format" });
     }
 
-    const user = await prisma.user.findUnique({ where: { badgeCode } });
+    const supabase = await createServerSupabaseClient();
+
+    const { data: user } = await supabase
+      .from('User')
+      .select("*")
+      .eq("badgeCode", badgeCode)
+      .maybeSingle();
+
     if (!user) {
       return NextResponse.json({ success: false, error: "Badge not found" });
     }
 
-    await prisma.user.update({
-      where: { badgeCode },
-      data: { phone: cleaned },
-    });
+    await supabase
+      .from('User')
+      .update({ phone: cleaned })
+      .eq("badgeCode", badgeCode);
 
     revalidatePath("/");
     return NextResponse.json({ success: true, phone: cleaned });

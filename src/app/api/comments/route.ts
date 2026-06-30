@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -9,15 +9,19 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "topicId required" }, { status: 400 });
   }
 
-  const comments = await prisma.comment.findMany({
-    where: { topicId, isFlagged: false },
-    orderBy: { createdAt: "desc" },
-  });
+  const supabase = await createServerSupabaseClient();
 
-  // Parse evidenceUrls JSON string back to array for client
-  const parsedComments = comments.map((c) => ({
+  const { data: comments } = await supabase
+    .from('Comment')
+    .select("*")
+    .eq("topicId", topicId)
+    .eq("isFlagged", false)
+    .order("createdAt", { ascending: false });
+
+  // evidenceUrls is stored as text[] in PG, not a JSON string
+  const parsedComments = (comments || []).map((c: any) => ({
     ...c,
-    evidenceUrls: c.evidenceUrls ? JSON.parse(c.evidenceUrls) : [],
+    evidenceUrls: Array.isArray(c.evidenceUrls) ? c.evidenceUrls : [],
   }));
 
   return NextResponse.json({ comments: parsedComments });

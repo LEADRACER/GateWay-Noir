@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,9 +20,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const user = await prisma.user.findUnique({
-      where: { badgeCode: badgeCode.toUpperCase() },
-    });
+    const supabase = await createServerSupabaseClient();
+
+    const { data: user } = await supabase
+      .from('User')
+      .select("*")
+      .eq("badgeCode", badgeCode.toUpperCase())
+      .maybeSingle();
 
     if (!user) {
       return NextResponse.json(

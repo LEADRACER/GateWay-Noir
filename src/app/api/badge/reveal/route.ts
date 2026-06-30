@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -13,25 +13,24 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Find user linked to this anonymousId
-    const linkedUser = await prisma.user.findFirst({
-      where: {
-        linkedIds: { has: anonymousId },
-      },
-    });
+    const supabase = await createServerSupabaseClient();
+
+    const { data: linkedUser } = await supabase
+      .from('User')
+      .select("*")
+      .filter("linkedIds", "ov", `{${anonymousId}}`)
+      .maybeSingle();
 
     if (!linkedUser) {
-      // No badge linked — return hasBadge: false, no auto-generation
       return NextResponse.json({
         success: true,
         hasBadge: false,
       });
     }
 
-    // Get vote count and comment count for this user
-    const [voteCount, commentCount] = await Promise.all([
-      prisma.vote.count({ where: { userId: linkedUser.id } }),
-      prisma.comment.count({ where: { userId: linkedUser.id } }),
+    const [{ count: voteCount }, { count: commentCount }] = await Promise.all([
+      supabase.from('Vote').select("*", { count: "exact", head: true }).eq("userId", linkedUser.id),
+      supabase.from('Comment').select("*", { count: "exact", head: true }).eq("userId", linkedUser.id),
     ]);
 
     return NextResponse.json({

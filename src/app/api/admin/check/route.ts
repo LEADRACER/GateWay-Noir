@@ -1,20 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export async function GET(req: NextRequest) {
   const token = req.cookies.get("noirgateway_admin")?.value;
   const cookieAdmin = token === "authenticated";
 
-  // Also check for badge-based admin
   const anonymousId = req.nextUrl.searchParams.get("anonymousId");
   let badgeAdmin = false;
   let badgeCode = null;
 
   if (anonymousId) {
-    const user = await prisma.user.findFirst({
-      where: { linkedIds: { has: anonymousId } },
-      select: { badgeCode: true, isAdmin: true, role: true },
-    });
+    const supabase = await createServerSupabaseClient();
+
+    const { data: user } = await supabase
+      .from('User')
+      .select("badgeCode, isAdmin, role")
+      .filter("linkedIds", "ov", `{${anonymousId}}`)
+      .maybeSingle();
+
     if (user) {
       badgeAdmin = user.isAdmin || user.role === "BUREAU";
       badgeCode = user.badgeCode;
@@ -36,10 +39,14 @@ export async function POST(req: NextRequest) {
 
     // Badge-based admin verification
     if (badgeCode && anonymousId) {
-      const user = await prisma.user.findUnique({
-        where: { badgeCode },
-        select: { isAdmin: true, linkedIds: true },
-      });
+      const supabase = await createServerSupabaseClient();
+
+      const { data: user } = await supabase
+        .from('User')
+        .select("isAdmin, linkedIds")
+        .eq("badgeCode", badgeCode)
+        .maybeSingle();
+
       if (user && user.isAdmin) {
         const ids: string[] = Array.isArray(user.linkedIds) ? user.linkedIds : [];
         if (ids.includes(anonymousId)) {
@@ -57,7 +64,10 @@ export async function POST(req: NextRequest) {
     }
 
     // Fallback: password-based admin
-    const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "noir2024";
+    const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+    if (!ADMIN_PASSWORD) {
+      return NextResponse.json({ success: false, admin: false, error: "Admin password not configured" }, { status: 500 });
+    }
     if (password === ADMIN_PASSWORD) {
       const res = NextResponse.json({ success: true, admin: true });
       res.cookies.set("noirgateway_admin", "authenticated", {

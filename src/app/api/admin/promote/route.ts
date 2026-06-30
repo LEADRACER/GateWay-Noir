@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/get-current-user";
 import { revalidatePath } from "next/cache";
 
@@ -17,7 +17,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing topic ID" }, { status: 400 });
     }
 
-    const topic = await prisma.topic.findUnique({ where: { id } });
+    const supabase = await createServerSupabaseClient();
+
+    const { data: topic } = await supabase
+      .from('Topic')
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+
     if (!topic) {
       return NextResponse.json({ error: "Topic not found" }, { status: 404 });
     }
@@ -29,14 +36,10 @@ export async function POST(request: NextRequest) {
     const endsAt = new Date();
     endsAt.setDate(endsAt.getDate() + durationDays);
 
-    await prisma.topic.update({
-      where: { id },
-      data: {
-        status: "ACTIVE",
-        durationDays,
-        endsAt,
-      },
-    });
+    await supabase
+      .from('Topic')
+      .update({ status: "ACTIVE", durationDays, endsAt: endsAt.toISOString() })
+      .eq("id", id);
 
     revalidatePath("/");
     revalidatePath("/admin");

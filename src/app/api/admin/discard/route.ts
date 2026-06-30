@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/get-current-user";
 import { revalidatePath } from "next/cache";
 
@@ -17,7 +17,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing topic ID" }, { status: 400 });
     }
 
-    const topic = await prisma.topic.findUnique({ where: { id } });
+    const supabase = await createServerSupabaseClient();
+
+    const { data: topic } = await supabase
+      .from('Topic')
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+
     if (!topic) {
       return NextResponse.json({ error: "Topic not found" }, { status: 404 });
     }
@@ -27,13 +34,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Delete votes first (foreign key constraint)
-    await prisma.vote.deleteMany({ where: { topicId: id } });
+    await supabase.from('Vote').delete().eq("topicId", id);
 
-    // Delete comments (defense-in-depth — cascade should handle this, but be explicit)
-    await prisma.comment.deleteMany({ where: { topicId: id } });
+    // Delete comments
+    await supabase.from('Comment').delete().eq("topicId", id);
 
     // Delete the topic
-    await prisma.topic.delete({ where: { id } });
+    await supabase.from('Topic').delete().eq("id", id);
 
     revalidatePath("/");
     revalidatePath("/admin");

@@ -1,68 +1,81 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export async function updateAgentProfile(userId: string, data: { displayName?: string; bio?: string; phone?: string }) {
-  const user = await prisma.user.findUnique({ where: { id: userId } });
+  const supabase = await createServerSupabaseClient();
+
+  const { data: user } = await supabase
+    .from('User')
+    .select("*")
+    .eq("id", userId)
+    .maybeSingle();
+
   if (!user) return { error: "User not found" };
   if (user.role === "DETECTIVE") return { error: "Only AGENT+ users have profiles" };
 
-  const updated = await prisma.user.update({
-    where: { id: userId },
-    data: {
-      displayName: data.displayName?.trim() || undefined,
-      bio: data.bio?.trim() || undefined,
-      phone: data.phone?.trim() || undefined,
-    },
-  });
+  const updateData: any = {};
+  if (data.displayName !== undefined) updateData.displayName = data.displayName.trim();
+  if (data.bio !== undefined) updateData.bio = data.bio.trim();
+  if (data.phone !== undefined) updateData.phone = data.phone.trim();
 
+  const { data: updated, error } = await supabase
+    .from('User')
+    .update(updateData)
+    .eq("id", userId)
+    .select()
+    .single();
+
+  if (error) return { error: error.message };
   return { success: true, user: updated };
 }
 
 export async function getAgentProfile(userId: string) {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      id: true,
-      badgeCode: true,
-      displayName: true,
-      role: true,
-      bio: true,
-      phone: true,
-      handler: true,
-      createdAt: true,
-      _count: { select: { votes: true, comments: true } },
-    },
-  });
+  if (!userId) return null;
+
+  const supabase = await createServerSupabaseClient();
+
+  const { data: user } = await supabase
+    .from('User')
+    .select("*")
+    .eq("id", userId)
+    .maybeSingle();
+
   if (!user) return null;
 
   // Get handler info if exists
   let handlerInfo = null;
   if (user.handler) {
-    const handler = await prisma.user.findUnique({
-      where: { badgeCode: user.handler },
-      select: { badgeCode: true, displayName: true },
-    });
+    const { data: handler } = await supabase
+      .from('User')
+      .select("badgeCode, displayName, id")
+      .eq("id", user.handler)
+      .maybeSingle();
     if (handler) handlerInfo = handler;
   }
 
+  // Get vote and comment counts
+  const [{ count: voteCount }, { count: commentCount }] = await Promise.all([
+    supabase.from('Vote').select("*", { count: "exact", head: true }).eq("userId", userId),
+    supabase.from('Comment').select("*", { count: "exact", head: true }).eq("userId", userId),
+  ]);
+
   // Get task counts
-  const taskCounts = await prisma.agentTask.groupBy({
-    by: ["status"],
-    where: { agentId: userId },
-    _count: true,
-  });
+  const { data: tasks } = await supabase
+    .from('AgentTask')
+    .select("status")
+    .eq("agentId", userId);
 
   const taskStatusCounts: Record<string, number> = {};
-  taskCounts.forEach((t: any) => {
-    taskStatusCounts[t.status] = t._count;
-  });
+  for (const t of tasks || []) {
+    taskStatusCounts[t.status] = (taskStatusCounts[t.status] || 0) + 1;
+  }
 
   return {
     ...user,
     handlerInfo,
-    voteCount: user._count?.votes || 0,
-    commentCount: user._count?.comments || 0,
+    voteCount: voteCount ?? 0,
+    commentCount: commentCount ?? 0,
     taskCounts: taskStatusCounts,
   };
 }

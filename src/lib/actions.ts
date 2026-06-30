@@ -1,126 +1,292 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma } from "./prisma";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { generateSlug } from "./utils";
-import { deleteEvidenceFile } from "./supabase-storage";
 import { getCurrentUser } from "./get-current-user";
+import type { Topic, Vote, Comment, Category } from "@/lib/types/database";
 
+/**
+ * Normalize Supabase PostgREST join key from table name `Category` → `category`.
+ */
+function normalizeCategory<T>(obj: T): T {
+  if (!obj) return obj;
+  const o = obj as Record<string, any>;
+  if (o.Category) {
+    o.category = o.Category;
+    delete o.Category;
+  }
+  return obj;
+}
+
+/**
+ * Placeholder — storage removed. No-op for evidence cleanup.
+ */
 // ─── Topic Actions ───
 
 export async function getTopics(categorySlug?: string, status?: string) {
-  return prisma.topic.findMany({
-    where: {
-      ...(categorySlug ? { category: { slug: categorySlug } } : {}),
-      ...(status ? { status } : { status: "ACTIVE" }),
-    },
-    include: { category: true, _count: { select: { comments: true, votes: true } } },
-    orderBy: { createdAt: "desc" },
-  });
+  const supabase = await createServerSupabaseClient();
+
+  let query = supabase
+    .from('Topic')
+    .select('*, Category(*)')
+    .order("createdAt", { ascending: false });
+
+  if (categorySlug) {
+    query = query.eq("category.slug", categorySlug);
+  }
+  if (status) {
+    query = query.eq("status", status);
+  } else {
+    query = query.eq("status", "ACTIVE");
+  }
+
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+
+  // Get counts separately since Supabase doesn't do _count like Prisma
+  const topics = data || [];
+  const enriched = await Promise.all(
+    topics.map(async (t: any) => {
+      const { count: commentsCount } = await supabase
+        .from('Comment')
+        .select("*", { count: "exact", head: true })
+        .eq("topicId", t.id);
+      const { count: votesCount } = await supabase
+        .from('Vote')
+        .select("*", { count: "exact", head: true })
+        .eq("topicId", t.id);
+      return normalizeCategory({ ...t, _count: { comments: commentsCount ?? 0, votes: votesCount ?? 0 } });
+    }),
+  );
+
+  return enriched;
 }
 
 export async function getUpcomingTopics() {
-  return prisma.topic.findMany({
-    where: { status: "UPCOMING" },
-    include: {
-      category: true,
-      _count: { select: { votes: true } },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+  const supabase = await createServerSupabaseClient();
+
+  const { data, error } = await supabase
+    .from('Topic')
+    .select('*, Category(*)')
+    .eq("status", "UPCOMING")
+    .order("createdAt", { ascending: false });
+
+  if (error) throw new Error(error.message);
+
+  const topics = data || [];
+  const enriched = await Promise.all(
+    topics.map(async (t: any) => {
+      const { count } = await supabase
+        .from('Vote')
+        .select("*", { count: "exact", head: true })
+        .eq("topicId", t.id);
+      return normalizeCategory({ ...t, _count: { votes: count ?? 0 } });
+    }),
+  );
+
+  return enriched;
 }
 
 export async function getActiveAndConcludedTopics(categorySlug?: string) {
-  const where: any = {
-    status: { in: ["ACTIVE", "CONCLUDED"] },
-  };
+  const supabase = await createServerSupabaseClient();
+
+  let query = supabase
+    .from('Topic')
+    .select('*, Category(*)')
+    .in("status", ["ACTIVE", "CONCLUDED"])
+    .order("createdAt", { ascending: false });
+
   if (categorySlug) {
-    where.category = { slug: categorySlug };
+    query = query.eq("category.slug", categorySlug);
   }
-  return prisma.topic.findMany({
-    where,
-    include: { category: true, _count: { select: { comments: true, votes: true } } },
-    orderBy: { createdAt: "desc" },
-  });
+
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+
+  const topics = data || [];
+  const enriched = await Promise.all(
+    topics.map(async (t: any) => {
+      const { count: commentsCount } = await supabase
+        .from('Comment')
+        .select("*", { count: "exact", head: true })
+        .eq("topicId", t.id);
+      const { count: votesCount } = await supabase
+        .from('Vote')
+        .select("*", { count: "exact", head: true })
+        .eq("topicId", t.id);
+      return normalizeCategory({ ...t, _count: { comments: commentsCount ?? 0, votes: votesCount ?? 0 } });
+    }),
+  );
+
+  return enriched;
 }
 
 export async function getConcludedTopics() {
-  return prisma.topic.findMany({
-    where: { status: "CONCLUDED" },
-    include: { category: true },
-    orderBy: { createdAt: "desc" },
-  });
+  const supabase = await createServerSupabaseClient();
+
+  const { data, error } = await supabase
+    .from('Topic')
+    .select('*, Category(*)')
+    .eq("status", "CONCLUDED")
+    .order("createdAt", { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return (data || []).map(normalizeCategory);
 }
 
 export async function getTopicBySlug(slug: string) {
-  return prisma.topic.findUnique({
-    where: { slug },
-    include: {
-      category: true,
-      comments: { orderBy: { createdAt: "desc" } },
-      _count: { select: { votes: true } },
-    },
+  const supabase = await createServerSupabaseClient();
+
+  const { data: topic, error } = await supabase
+    .from('Topic')
+    .select('*, Category(*)')
+    .eq("slug", slug)
+    .maybeSingle();
+
+  if (error) return null;
+  if (!topic) return null;
+
+  const { data: comments } = await supabase
+    .from('Comment')
+    .select("*")
+    .eq("topicId", topic.id)
+    .order("createdAt", { ascending: false });
+
+  const { count: votesCount } = await supabase
+    .from('Vote')
+    .select("*", { count: "exact", head: true })
+    .eq("topicId", topic.id);
+
+  return normalizeCategory({
+    ...topic,
+    comments: comments || [],
+    _count: { votes: votesCount ?? 0 },
   });
 }
 
 export async function getTopicById(id: string) {
-  return prisma.topic.findUnique({
-    where: { id },
-    include: { category: true, comments: { orderBy: { createdAt: "desc" } } },
-  });
+  const supabase = await createServerSupabaseClient();
+
+  const { data: topic, error } = await supabase
+    .from('Topic')
+    .select('*, Category(*)')
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) return null;
+  if (!topic) return null;
+
+  const { data: comments } = await supabase
+    .from('Comment')
+    .select("*")
+    .eq("topicId", topic.id)
+    .order("createdAt", { ascending: false });
+
+  return normalizeCategory({ ...topic, comments: comments || [] });
 }
 
 export async function getCategories() {
-  return prisma.category.findMany({ orderBy: { name: "asc" } });
+  const supabase = await createServerSupabaseClient();
+
+  const { data, error } = await supabase
+    .from('Category')
+    .select("*")
+    .order("name", { ascending: true });
+
+  if (error) throw new Error(error.message);
+  return data || [];
 }
 
 // ─── Voting Actions ───
 
 export async function voteTopic(formData: FormData) {
+  const supabase = await createServerSupabaseClient();
+
   const topicId = formData.get("topicId") as string;
   const anonymousId = formData.get("anonymousId") as string;
 
   if (!topicId || !anonymousId) return { error: "Missing required fields" };
 
-  const existing = await prisma.vote.findUnique({
-    where: { topicId_anonymousId: { topicId, anonymousId } },
-  });
+  // Check existing vote
+  const { data: existing } = await supabase
+    .from('Vote')
+    .select("*")
+    .eq("topicId", topicId)
+    .eq("anonymousId", anonymousId)
+    .maybeSingle();
 
   if (existing) {
-    // Already voted — remove vote (toggle)
-    await prisma.vote.delete({ where: { id: existing.id } });
+    // Toggle — remove vote
+    await supabase
+      .from('Vote')
+      .delete()
+      .eq("topicId", topicId)
+      .eq("anonymousId", anonymousId);
+
     revalidatePath("/");
-    revalidatePath(`/topic/${(await prisma.topic.findUnique({ where: { id: topicId } }))?.slug}`);
+    const { data: topic } = await supabase
+      .from('Topic')
+      .select("slug")
+      .eq("id", topicId)
+      .maybeSingle();
+    if (topic) revalidatePath(`/topic/${topic.slug}`);
+
     return { success: true, voted: false };
   }
 
-  await prisma.vote.create({
-    data: { topicId, anonymousId },
-  });
+  // Create vote
+  const { error } = await supabase
+    .from('Vote')
+    .insert({ topicId, anonymousId });
+
+  if (error) return { error: error.message };
 
   revalidatePath("/");
-  const topic = await prisma.topic.findUnique({ where: { id: topicId } });
+  const { data: topic } = await supabase
+    .from('Topic')
+    .select("slug")
+    .eq("id", topicId)
+    .maybeSingle();
   if (topic) revalidatePath(`/topic/${topic.slug}`);
+
   return { success: true, voted: true };
 }
 
 export async function getVoteCount(topicId: string) {
-  return prisma.vote.count({ where: { topicId } });
+  const supabase = await createServerSupabaseClient();
+
+  const { count, error } = await supabase
+    .from('Vote')
+    .select("*", { count: "exact", head: true })
+    .eq("topicId", topicId);
+
+  if (error) return 0;
+  return count ?? 0;
 }
 
 export async function hasUserVoted(topicId: string, anonymousId: string) {
-  const vote = await prisma.vote.findUnique({
-    where: { topicId_anonymousId: { topicId, anonymousId } },
-  });
-  return !!vote;
+  const supabase = await createServerSupabaseClient();
+
+  const { data } = await supabase
+    .from('Vote')
+    .select("*")
+    .eq("topicId", topicId)
+    .eq("anonymousId", anonymousId)
+    .maybeSingle();
+
+  return !!data;
 }
 
 export async function getUserVotes(anonymousId: string) {
-  const votes = await prisma.vote.findMany({
-    where: { anonymousId },
-    select: { topicId: true },
-  });
-  return new Set(votes.map((v) => v.topicId));
+  const supabase = await createServerSupabaseClient();
+
+  const { data } = await supabase
+    .from('Vote')
+    .select("topicId")
+    .eq("anonymousId", anonymousId);
+
+  return new Set((data || []).map((v: any) => v.topicId));
 }
 
 // ─── Promote Upcoming → Active ───
@@ -133,21 +299,26 @@ export async function promoteToActive(formData: FormData) {
 
   if (!id) return { error: "Missing topic ID" };
 
-  const topic = await prisma.topic.findUnique({ where: { id } });
-  if (!topic) return { error: "Topic not found" };
+  const supabase = await createServerSupabaseClient();
+
+  const { data: topic, error: findError } = await supabase
+    .from('Topic')
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (findError || !topic) return { error: "Topic not found" };
   if (topic.status !== "UPCOMING") return { error: "Topic is not in UPCOMING status" };
 
   const endsAt = new Date();
   endsAt.setDate(endsAt.getDate() + durationDays);
 
-  await prisma.topic.update({
-    where: { id },
-    data: {
-      status: "ACTIVE",
-      durationDays,
-      endsAt,
-    },
-  });
+  const { error: updateError } = await supabase
+    .from('Topic')
+    .update({ status: "ACTIVE", endsAt: endsAt.toISOString() })
+    .eq("id", id);
+
+  if (updateError) return { error: updateError.message };
 
   revalidatePath("/");
   revalidatePath("/admin");
@@ -157,6 +328,8 @@ export async function promoteToActive(formData: FormData) {
 // ─── Comment Actions ───
 
 export async function createComment(formData: FormData) {
+  const supabase = await createServerSupabaseClient();
+
   const topicId = formData.get("topicId") as string;
   const content = formData.get("content") as string;
   const anonymousId = formData.get("anonymousId") as string;
@@ -183,61 +356,77 @@ export async function createComment(formData: FormData) {
     return { error: "Comment must be under 2000 characters" };
   }
 
-  const topic = await prisma.topic.findUnique({ where: { id: topicId } });
-  if (!topic) return { error: "Topic not found" };
+  const { data: topic, error: topicError } = await supabase
+    .from('Topic')
+    .select("*")
+    .eq("id", topicId)
+    .maybeSingle();
+
+  if (topicError || !topic) return { error: "Topic not found" };
   if (topic.status !== "ACTIVE") return { error: "Comments are only allowed on active topics." };
 
   // Rate limit: max 5 comments in the last minute per anonymousId
-  const oneMinuteAgo = new Date(Date.now() - 60000);
-  const recentCount = await prisma.comment.count({
-    where: { anonymousId, createdAt: { gte: oneMinuteAgo } },
-  });
-  if (recentCount >= 5) {
+  const oneMinuteAgo = new Date(Date.now() - 60000).toISOString();
+  const { count: recentCount } = await supabase
+    .from('Comment')
+    .select("*", { count: "exact", head: true })
+    .eq("anonymousId", anonymousId)
+    .gte("createdAt", oneMinuteAgo);
+
+  if (recentCount && recentCount >= 5) {
     return { error: "You're commenting too fast. Please wait a moment." };
   }
 
   // Look up linked user for badge code
   let finalDisplayName = displayName;
   let linkedUserId: string | null = null;
-  try {
-    const linkedUser = await prisma.user.findFirst({
-      where: {
-        linkedIds: { has: anonymousId },
-      },
-    });
-    if (linkedUser) {
-      linkedUserId = linkedUser.id;
-      // Show full badge code
-      finalDisplayName = linkedUser.badgeCode;
-    }
-  } catch {
-    // silent fail
+
+  const { data: linkedUser } = await supabase
+    .from('User')
+    .select("*")
+    .filter("linkedIds", "ov", `{${anonymousId}}`)
+    .maybeSingle();
+
+  if (linkedUser) {
+    linkedUserId = linkedUser.id;
+    finalDisplayName = linkedUser.badgeCode;
   }
 
   if (!finalDisplayName) {
     finalDisplayName = `DET-${anonymousId.substring(0, 4).toUpperCase()}`;
   }
 
-  const comment = await prisma.comment.create({
-    data: {
+  const { data: comment, error: insertError } = await supabase
+    .from('Comment')
+    .insert({
       topicId,
       content: content.trim(),
       anonymousId,
       userId: linkedUserId,
       displayName: finalDisplayName,
-      evidenceUrls: evidenceUrls && evidenceUrls.length > 0 ? JSON.stringify(evidenceUrls) : null,
-    },
-  });
+      evidenceUrls: evidenceUrls && evidenceUrls.length > 0 ? evidenceUrls : null,
+    })
+    .select()
+    .single();
+
+  if (insertError) return { error: insertError.message };
 
   revalidatePath(`/topic/${topic.slug}`);
   return { success: true, comment };
 }
 
 export async function getComments(topicId: string) {
-  return prisma.comment.findMany({
-    where: { topicId, isFlagged: false },
-    orderBy: { createdAt: "desc" },
-  });
+  const supabase = await createServerSupabaseClient();
+
+  const { data, error } = await supabase
+    .from('Comment')
+    .select("*")
+    .eq("topicId", topicId)
+    .eq("isFlagged", false)
+    .order("createdAt", { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return data || [];
 }
 
 // ─── Admin Actions ───
@@ -252,35 +441,56 @@ export async function createTopic(formData: FormData) {
   const durationDays = parseInt(formData.get("durationDays") as string) || 7;
   const imageUrl = formData.get("imageUrl") as string;
   const adminId = formData.get("adminId") as string;
-  // If status is provided, use it; otherwise default to ACTIVE (for backward compat)
   const status = (formData.get("status") as string) || "ACTIVE";
 
   if (!title?.trim() || !description?.trim() || !categoryId) {
     return { error: "Missing required fields" };
   }
 
-  const slug = generateSlug(title);
+  let slug = generateSlug(title);
+
+  const supabase = await createServerSupabaseClient();
+
+  // Ensure slug uniqueness
+  const { data: existingSlugs } = await supabase
+    .from('Topic')
+    .select("slug")
+    .like("slug", `${slug}%`);
+  if (existingSlugs) {
+    const taken = new Set(existingSlugs.map((t: any) => t.slug));
+    let counter = 1;
+    while (taken.has(slug)) {
+      slug = `${generateSlug(title)}-${counter}`;
+      counter++;
+    }
+  }
+
   const endsAt = new Date();
   endsAt.setDate(endsAt.getDate() + durationDays);
 
-  const topic = await prisma.topic.create({
-    data: {
+  const { error: insertError } = await supabase
+    .from('Topic')
+    .insert({
       title: title.trim(),
       slug,
       description: description.trim(),
       evidence: evidence?.trim() || null,
       imageUrl: imageUrl?.trim() || null,
-      durationDays: status === "UPCOMING" ? 0 : durationDays, // upcoming topics don't need duration
-      endsAt: status === "UPCOMING" ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) : endsAt, // far future for upcoming
+      durationDays: status === "UPCOMING" ? 0 : durationDays,
+      endsAt:
+        status === "UPCOMING"
+          ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
+          : endsAt.toISOString(),
       categoryId,
       status,
       createdBy: adminId || null,
-    },
-  });
+    });
+
+  if (insertError) return { error: insertError.message };
 
   revalidatePath("/");
   revalidatePath("/admin");
-  return { success: true, slug: topic.slug };
+  return { success: true, slug };
 }
 
 export async function concludeTopic(formData: FormData) {
@@ -295,52 +505,44 @@ export async function concludeTopic(formData: FormData) {
     return { error: "Invalid verdict" };
   }
 
+  const supabase = await createServerSupabaseClient();
+
   // Fetch all comments with evidence on this topic
-  const comments = await prisma.comment.findMany({
-    where: { topicId: id, evidenceUrls: { not: null } },
-    select: { id: true, evidenceUrls: true },
-  });
+  const { data: comments } = await supabase
+    .from('Comment')
+    .select("id, evidenceUrls")
+    .eq("topicId", id)
+    .not("evidenceUrls", "is", null);
 
-  // Delete evidence files and clear URLs from comments
+  // Clear evidenceUrls from comments (storage was removed)
   const evidenceCommentIds: string[] = [];
-  const deletePromises: Promise<void>[] = [];
 
-  for (const comment of comments) {
+  for (const comment of comments || []) {
     if (!comment.evidenceUrls) continue;
-
-    try {
-      const urls: string[] = JSON.parse(comment.evidenceUrls as string);
-      if (!Array.isArray(urls) || urls.length === 0) continue;
-
-      evidenceCommentIds.push(comment.id);
-      for (const url of urls) {
-        deletePromises.push(deleteEvidenceFile(url));
-      }
-    } catch {
-      // malformed JSON — skip
-    }
+    evidenceCommentIds.push(comment.id);
   }
 
-  // Run all deletes in parallel
-  await Promise.allSettled(deletePromises);
-
-  // Clear evidenceUrls from comments that had them
   if (evidenceCommentIds.length > 0) {
-    await prisma.comment.updateMany({
-      where: { id: { in: evidenceCommentIds } },
-      data: { evidenceUrls: null },
-    });
+    await supabase
+      .from('Comment')
+      .update({ evidenceUrls: null })
+      .in("id", evidenceCommentIds);
   }
 
-  const topic = await prisma.topic.update({
-    where: { id },
-    data: {
+  // Update topic
+  const { data: topic, error: updateError } = await supabase
+    .from('Topic')
+    .update({
       status: "CONCLUDED",
       verdict,
       summary: summary?.trim() || null,
-      endsAt: new Date(),
-    },
-  });
+      endsAt: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (updateError) return { error: updateError.message };
 
   revalidatePath("/");
   revalidatePath(`/topic/${topic.slug}`);
@@ -354,23 +556,11 @@ export async function deleteComment(formData: FormData) {
   const id = formData.get("id") as string;
   if (!id) return { error: "Missing comment ID" };
 
-  // Delete evidence files before removing the comment
-  const comment = await prisma.comment.findUnique({
-    where: { id },
-    select: { evidenceUrls: true },
-  });
-  if (comment?.evidenceUrls) {
-    try {
-      const urls: string[] = JSON.parse(comment.evidenceUrls as string);
-      if (Array.isArray(urls)) {
-        await Promise.allSettled(urls.map((url) => deleteEvidenceFile(url)));
-      }
-    } catch {
-      // malformed JSON — skip
-    }
-  }
+  const supabase = await createServerSupabaseClient();
 
-  await prisma.comment.delete({ where: { id } });
+  // Evidence URLs are stored as-is (storage removed)
+  // Just delete the comment
+  await supabase.from('Comment').delete().eq("id", id);
   revalidatePath("/admin/comments");
   return { success: true };
 }
@@ -380,48 +570,77 @@ export async function toggleFlagComment(formData: FormData) {
   if (!caller || caller.role !== "BUREAU") return { error: "Unauthorized" };
   const id = formData.get("id") as string;
   if (!id) return { error: "Missing comment ID" };
-  const comment = await prisma.comment.findUnique({ where: { id } });
+
+  const supabase = await createServerSupabaseClient();
+
+  const { data: comment } = await supabase
+    .from('Comment')
+    .select("isFlagged")
+    .eq("id", id)
+    .maybeSingle();
+
   if (!comment) return { error: "Comment not found" };
-  await prisma.comment.update({
-    where: { id },
-    data: { isFlagged: !comment.isFlagged },
-  });
+
+  await supabase
+    .from('Comment')
+    .update({ isFlagged: !comment.isFlagged })
+    .eq("id", id);
+
   revalidatePath("/admin/comments");
   return { success: true };
 }
 
 export async function getStats() {
-  const [topics, activeTopics, concludedTopics, upcomingTopics, totalComments, flagged] = await Promise.all([
-    prisma.topic.count(),
-    prisma.topic.count({ where: { status: "ACTIVE" } }),
-    prisma.topic.count({ where: { status: "CONCLUDED" } }),
-    prisma.topic.count({ where: { status: "UPCOMING" } }),
-    prisma.comment.count(),
-    prisma.comment.count({ where: { isFlagged: true } }),
+  const supabase = await createServerSupabaseClient();
+
+  const [
+    { count: topics },
+    { count: activeTopics },
+    { count: concludedTopics },
+    { count: upcomingTopics },
+    { count: totalComments },
+    { count: flagged },
+  ] = await Promise.all([
+    supabase.from('Topic').select("*", { count: "exact", head: true }),
+    supabase.from('Topic').select("*", { count: "exact", head: true }).eq("status", "ACTIVE"),
+    supabase.from('Topic').select("*", { count: "exact", head: true }).eq("status", "CONCLUDED"),
+    supabase.from('Topic').select("*", { count: "exact", head: true }).eq("status", "UPCOMING"),
+    supabase.from('Comment').select("*", { count: "exact", head: true }),
+    supabase.from('Comment').select("*", { count: "exact", head: true }).eq("isFlagged", true),
   ]);
 
   return {
-    totalTopics: topics,
-    activeTopics,
-    concludedTopics,
-    upcomingTopics,
-    totalComments,
-    flaggedComments: flagged,
+    totalTopics: topics ?? 0,
+    activeTopics: activeTopics ?? 0,
+    concludedTopics: concludedTopics ?? 0,
+    upcomingTopics: upcomingTopics ?? 0,
+    totalComments: totalComments ?? 0,
+    flaggedComments: flagged ?? 0,
   };
 }
 
 export async function getFlaggedComments() {
-  return prisma.comment.findMany({
-    where: { isFlagged: true },
-    include: { topic: { select: { title: true, slug: true } } },
-    orderBy: { createdAt: "desc" },
-  });
+  const supabase = await createServerSupabaseClient();
+
+  const { data, error } = await supabase
+    .from('Comment')
+    .select('*, Topic(title, slug)')
+    .eq("isFlagged", true)
+    .order("createdAt", { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return data || [];
 }
 
 export async function getAllComments() {
-  return prisma.comment.findMany({
-    include: { topic: { select: { title: true, slug: true } } },
-    orderBy: { createdAt: "desc" },
-    take: 100,
-  });
+  const supabase = await createServerSupabaseClient();
+
+  const { data, error } = await supabase
+    .from('Comment')
+    .select('*, Topic(title, slug)')
+    .order("createdAt", { ascending: false })
+    .limit(100);
+
+  if (error) throw new Error(error.message);
+  return data || [];
 }

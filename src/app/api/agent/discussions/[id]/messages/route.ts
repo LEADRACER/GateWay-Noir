@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/get-current-user";
 
 // GET /api/agent/discussions/[id]/messages — get messages for a discussion
@@ -13,23 +13,25 @@ export async function GET(
     return NextResponse.json({ error: "Not authorized" }, { status: 403 });
   }
 
-  const discussion = await prisma.agentDiscussion.findUnique({
-    where: { id },
-    select: { id: true, title: true, description: true, isOpen: true, createdById: true, updatedAt: true, createdAt: true },
-  });
+  const supabase = await createServerSupabaseClient();
+
+  const { data: discussion } = await supabase
+    .from('AgentDiscussion')
+    .select("id, title, description, isOpen, createdById, updatedAt, createdAt")
+    .eq("id", id)
+    .maybeSingle();
+
   if (!discussion) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const messages = await prisma.agentDiscussionMessage.findMany({
-    where: { discussionId: id },
-    orderBy: { createdAt: "asc" },
-    include: {
-      user: { select: { badgeCode: true, displayName: true, role: true } },
-    },
-  });
+  const { data: messages } = await supabase
+    .from('AgentDiscussionMessage')
+    .select('*, User(badgeCode, displayName, role)')
+    .eq("discussionId", id)
+    .order("createdAt", { ascending: true });
 
-  return NextResponse.json({ discussion, messages });
+  return NextResponse.json({ discussion, messages: messages || [] });
 }
 
 // POST /api/agent/discussions/[id]/messages — post a message
@@ -43,10 +45,14 @@ export async function POST(
     return NextResponse.json({ error: "Not authorized" }, { status: 403 });
   }
 
-  const discussion = await prisma.agentDiscussion.findUnique({
-    where: { id },
-    select: { isOpen: true },
-  });
+  const supabase = await createServerSupabaseClient();
+
+  const { data: discussion } = await supabase
+    .from('AgentDiscussion')
+    .select("isOpen")
+    .eq("id", id)
+    .maybeSingle();
+
   if (!discussion) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
@@ -62,22 +68,21 @@ export async function POST(
     return NextResponse.json({ error: "Message too long (max 5000 chars)" }, { status: 400 });
   }
 
-  const message = await prisma.agentDiscussionMessage.create({
-    data: {
+  const { data: message } = await supabase
+    .from('AgentDiscussionMessage')
+    .insert({
       discussionId: id,
       content: content.trim(),
       userId: user.id,
-    },
-    include: {
-      user: { select: { badgeCode: true, displayName: true, role: true } },
-    },
-  });
+    })
+    .select('*, User(badgeCode, displayName, role)')
+    .single();
 
   // Touch the discussion's updatedAt
-  await prisma.agentDiscussion.update({
-    where: { id },
-    data: { updatedAt: new Date() },
-  });
+  await supabase
+    .from('AgentDiscussion')
+    .update({ updatedAt: new Date().toISOString() })
+    .eq("id", id);
 
   return NextResponse.json({ message }, { status: 201 });
 }

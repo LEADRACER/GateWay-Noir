@@ -1,20 +1,26 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/prisma";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export async function createTask(agentId: string, adminId: string, title: string, description?: string) {
   if (!agentId || !title?.trim()) return { error: "Missing required fields" };
 
-  const task = await prisma.agentTask.create({
-    data: {
+  const supabase = await createServerSupabaseClient();
+
+  const { data: task, error } = await supabase
+    .from('AgentTask')
+    .insert({
       agentId,
       adminId,
       title: title.trim(),
       description: description?.trim() || null,
       status: "PENDING",
-    },
-  });
+    })
+    .select()
+    .single();
+
+  if (error) return { error: error.message };
 
   revalidatePath("/admin/tasks");
   revalidatePath("/agent/tasks");
@@ -23,20 +29,29 @@ export async function createTask(agentId: string, adminId: string, title: string
 
 export async function getAgentTasks(agentId: string) {
   if (!agentId) return [];
-  return prisma.agentTask.findMany({
-    where: { agentId },
-    orderBy: [{ status: "asc" }, { createdAt: "desc" }],
-  });
+
+  const supabase = await createServerSupabaseClient();
+
+  const { data } = await supabase
+    .from('AgentTask')
+    .select("*")
+    .eq("agentId", agentId)
+    .order("status", { ascending: true })
+    .order("createdAt", { ascending: false });
+
+  return data || [];
 }
 
 export async function getAllTasks() {
-  return prisma.agentTask.findMany({
-    include: {
-      agent: { select: { badgeCode: true, displayName: true } },
-      admin: { select: { badgeCode: true, displayName: true } },
-    },
-    orderBy: [{ status: "asc" }, { createdAt: "desc" }],
-  });
+  const supabase = await createServerSupabaseClient();
+
+  const { data } = await supabase
+    .from('AgentTask')
+    .select('*, "User"!agentId(badgeCode, displayName), "User"!adminId(badgeCode, displayName)')
+    .order("status", { ascending: true })
+    .order("createdAt", { ascending: false });
+
+  return data || [];
 }
 
 export async function updateTaskStatus(taskId: string, status: string) {
@@ -45,15 +60,21 @@ export async function updateTaskStatus(taskId: string, status: string) {
     return { error: "Invalid status" };
   }
 
-  const data: any = { status };
+  const supabase = await createServerSupabaseClient();
+
+  const updateData: any = { status };
   if (status === "COMPLETED") {
-    data.completedAt = new Date();
+    updateData.completedAt = new Date().toISOString();
   }
 
-  const task = await prisma.agentTask.update({
-    where: { id: taskId },
-    data,
-  });
+  const { data: task, error } = await supabase
+    .from('AgentTask')
+    .update(updateData)
+    .eq("id", taskId)
+    .select()
+    .single();
+
+  if (error) return { error: error.message };
 
   revalidatePath("/admin/tasks");
   revalidatePath("/agent/tasks");

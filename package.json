@@ -8,14 +8,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "postinstall": "prisma generate",
-    "db:push": "prisma db push",
-    "db:seed": "npx tsx prisma/seed.ts",
-    "db:studio": "prisma studio",
-    "db:reset": "prisma db push --force-reset"
+    "seed": "npx tsx prisma/seed.ts",
+    "setup-bureau": "npx tsx scripts/setup-bureau.ts"
   },
   "dependencies": {
-    "@prisma/client": "^6.5.0",
+    "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.108.2",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
@@ -23,7 +20,6 @@
     "framer-motion": "^12.41.0",
     "lucide-react": "^1.21.0",
     "next": "16.2.9",
-    "pg": "^8.22.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-hot-toast": "^2.5.2",
@@ -36,7 +32,6 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
-    "prisma": "^6.5.0",
     "tailwindcss": "^4",
     "tsx": "^4.19.0",
     "typescript": "^5"

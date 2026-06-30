@@ -1,6 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
+
+// Simple in-memory rate limiter: { key: timestamp[] }
+const voteLimits = new Map<string, number[]>();
+
+function checkRateLimit(key: string, maxVotes: number = 10, windowMs: number = 60000): boolean {
+  const now = Date.now();
+  const timestamps = voteLimits.get(key) || [];
+  const recent = timestamps.filter((t) => now - t < windowMs);
+  if (recent.length >= maxVotes) return false;
+  recent.push(now);
+  voteLimits.set(key, recent);
+  return true;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,22 +25,58 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    const existing = await prisma.vote.findUnique({
-      where: { topicId_anonymousId: { topicId, anonymousId } },
-    });
-
-    if (existing) {
-      await prisma.vote.delete({ where: { id: existing.id } });
-      revalidatePath("/");
-      return NextResponse.json({ success: true, voted: false, votes: await prisma.vote.count({ where: { topicId } }) });
+    // Rate limit: per IP (max 10 votes/min) and per anonymousId (max 3 votes/min)
+    const ip = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown";
+    if (!checkRateLimit(`ip:${ip}`)) {
+      return NextResponse.json({ error: "Too many votes — slow down" }, { status: 429 });
+    }
+    if (!checkRateLimit(`anon:${anonymousId}`, 3)) {
+      return NextResponse.json({ error: "Too many votes — slow down" }, { status: 429 });
     }
 
-    await prisma.vote.create({
-      data: { topicId, anonymousId },
-    });
+    const supabase = await createServerSupabaseClient();
+
+    // Check existing vote using composite key
+    const { data: existing } = await supabase
+      .from('Vote')
+      .select("*")
+      .eq("topicId", topicId)
+      .eq("anonymousId", anonymousId)
+      .maybeSingle();
+
+    if (existing) {
+      // Delete vote
+      await supabase
+        .from('Vote')
+        .delete()
+        .eq("topicId", topicId)
+        .eq("anonymousId", anonymousId);
+
+      revalidatePath("/");
+
+      const { count } = await supabase
+        .from('Vote')
+        .select("*", { count: "exact", head: true })
+        .eq("topicId", topicId);
+
+      return NextResponse.json({ success: true, voted: false, votes: count ?? 0 });
+    }
+
+    // Create vote
+    const { error } = await supabase
+      .from('Vote')
+      .insert({ topicId, anonymousId });
+
+    if (error) throw error;
 
     revalidatePath("/");
-    return NextResponse.json({ success: true, voted: true, votes: await prisma.vote.count({ where: { topicId } }) });
+
+    const { count } = await supabase
+      .from('Vote')
+      .select("*", { count: "exact", head: true })
+      .eq("topicId", topicId);
+
+    return NextResponse.json({ success: true, voted: true, votes: count ?? 0 });
   } catch (e) {
     console.error("Vote error:", e);
     return NextResponse.json({ error: "Something went wrong" }, { status: 500 });

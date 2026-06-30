@@ -1,20 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { generateBadgeCode } from "@/lib/badge";
 
 export async function POST(request: NextRequest) {
   try {
     const { role, displayName, anonymousId } = await request.json();
-    const badgeCode = await generateBadgeCode(role);
+    const validRole = "DETECTIVE";
+    const resolvedRole = role || "DETECTIVE";
+    if (resolvedRole !== validRole) {
+      return NextResponse.json({ success: false, error: "Only DETECTIVE role can be self-assigned" }, { status: 400 });
+    }
+    const supabase = await createServerSupabaseClient();
+    const badgeCode = await generateBadgeCode(resolvedRole);
 
-    const user = await prisma.user.create({
-      data: {
+    const { data: user, error } = await supabase
+      .from('User')
+      .insert({
         badgeCode,
         displayName: displayName || "Detective",
         role: role || "DETECTIVE",
         linkedIds: anonymousId ? [anonymousId] : [],
-      },
-    });
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
 
     return NextResponse.json({
       success: true,

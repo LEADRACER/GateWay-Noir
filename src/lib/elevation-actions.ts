@@ -1,28 +1,43 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/prisma";
-import { generateBadgeCode, reprefixBadgeCode } from "@/lib/badge";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { generateBadgeCode } from "@/lib/badge";
 import { getCurrentUser } from "@/lib/get-current-user";
 
 export async function requestElevation(userId: string, message?: string) {
   if (!userId) return { error: "Missing user ID" };
 
+  const supabase = await createServerSupabaseClient();
+
   // Check if user already has a pending request
-  const existing = await prisma.elevationRequest.findFirst({
-    where: { userId, status: "PENDING" },
-  });
+  const { data: existing } = await supabase
+    .from('ElevationRequest')
+    .select("id")
+    .eq("userId", userId)
+    .eq("status", "PENDING")
+    .maybeSingle();
+
   if (existing) return { error: "You already have a pending elevation request" };
 
   // Check user role
-  const user = await prisma.user.findUnique({ where: { id: userId } });
+  const { data: user } = await supabase
+    .from('User')
+    .select("*")
+    .eq("id", userId)
+    .maybeSingle();
+
   if (!user) return { error: "User not found" };
   if (user.role !== "DETECTIVE") return { error: "Only DETECTIVE users can request elevation" };
   if (!user.passwordHash) return { error: "Set a passcode before requesting elevation" };
 
-  const request = await prisma.elevationRequest.create({
-    data: { userId, message: message?.trim() || null, status: "PENDING" },
-  });
+  const { data: request, error } = await supabase
+    .from('ElevationRequest')
+    .insert({ userId, message: message?.trim() || null, status: "PENDING", requestedRole: "AGENT" })
+    .select()
+    .single();
+
+  if (error) return { error: error.message };
 
   revalidatePath("/admin");
   revalidatePath("/");
@@ -30,69 +45,89 @@ export async function requestElevation(userId: string, message?: string) {
 }
 
 export async function getPendingElevations() {
-  return prisma.elevationRequest.findMany({
-    where: { status: "PENDING" },
-    include: { user: { select: { badgeCode: true, displayName: true, createdAt: true } } },
-    orderBy: { createdAt: "desc" },
-  });
+  const supabase = await createServerSupabaseClient();
+
+  const { data } = await supabase
+    .from('ElevationRequest')
+    .select('*, User(badgeCode, displayName, createdAt)')
+    .eq("status", "PENDING")
+    .order("createdAt", { ascending: false });
+
+  // Supabase join returns nested objects — adapt as needed
+  return data || [];
 }
 
 export async function getApprovedElevations() {
-  return prisma.elevationRequest.findMany({
-    where: { status: "APPROVED" },
-    include: { user: { select: { badgeCode: true, displayName: true, createdAt: true } } },
-    orderBy: { updatedAt: "desc" },
-    take: 10,
-  });
+  const supabase = await createServerSupabaseClient();
+
+  const { data } = await supabase
+    .from('ElevationRequest')
+    .select('*, User(badgeCode, displayName, createdAt)')
+    .eq("status", "APPROVED")
+    .order("updatedAt", { ascending: false })
+    .limit(10);
+
+  return data || [];
 }
 
 export async function getRejectedElevations() {
-  return prisma.elevationRequest.findMany({
-    where: { status: "REJECTED" },
-    include: { user: { select: { badgeCode: true, displayName: true, createdAt: true } } },
-    orderBy: { updatedAt: "desc" },
-    take: 10,
-  });
+  const supabase = await createServerSupabaseClient();
+
+  const { data } = await supabase
+    .from('ElevationRequest')
+    .select('*, User(badgeCode, displayName, createdAt)')
+    .eq("status", "REJECTED")
+    .order("updatedAt", { ascending: false })
+    .limit(10);
+
+  return data || [];
 }
 
 export async function getMyElevationStatus(userId: string) {
   if (!userId) return null;
-  return prisma.elevationRequest.findFirst({
-    where: { userId },
-    orderBy: { createdAt: "desc" },
-  });
+
+  const supabase = await createServerSupabaseClient();
+
+  const { data } = await supabase
+    .from('ElevationRequest')
+    .select("*")
+    .eq("userId", userId)
+    .order("createdAt", { ascending: false })
+    .limit(1);
+
+  return data?.[0] || null;
 }
 
-/**
- * Approve a DETECTIVE → AGENT elevation request.
- * Preserves the user's existing badge suffix (DET-XXXX → AGT-XXXX).
- */
 export async function approveElevation(requestId: string, adminId: string) {
   const caller = await getCurrentUser();
   if (!caller || caller.role !== "BUREAU") return { error: "Unauthorized" };
   if (!requestId) return { error: "Missing request ID" };
 
-  const request = await prisma.elevationRequest.findUnique({
-    where: { id: requestId },
-    include: { user: true },
-  });
+  const supabase = await createServerSupabaseClient();
+
+  const { data: request } = await supabase
+    .from('ElevationRequest')
+    .select('*, User(*)')
+    .eq("id", requestId)
+    .maybeSingle();
+
   if (!request) return { error: "Request not found" };
   if (request.status !== "PENDING") return { error: "Request already processed" };
 
-  // Preserve suffix: DET-XXXX → AGT-XXXX
-  const newBadgeCode = await generateBadgeCode("AGENT", request.user.badgeCode);
+  const user = request.User as any;
+  const newBadgeCode = await generateBadgeCode("AGENT", user.badgeCode);
 
   // Update user role and badge code
-  await prisma.user.update({
-    where: { id: request.userId },
-    data: { role: "AGENT", badgeCode: newBadgeCode, handler: adminId },
-  });
+  await supabase
+    .from('User')
+    .update({ role: "AGENT", badgeCode: newBadgeCode, handler: adminId })
+    .eq("id", request.userId);
 
   // Mark request as approved
-  await prisma.elevationRequest.update({
-    where: { id: requestId },
-    data: { status: "APPROVED", adminId },
-  });
+  await supabase
+    .from('ElevationRequest')
+    .update({ status: "APPROVED", adminId })
+    .eq("id", requestId);
 
   revalidatePath("/admin");
   revalidatePath("/");
@@ -104,16 +139,21 @@ export async function rejectElevation(requestId: string, adminNote?: string) {
   if (!caller || caller.role !== "BUREAU") return { error: "Unauthorized" };
   if (!requestId) return { error: "Missing request ID" };
 
-  const request = await prisma.elevationRequest.findUnique({
-    where: { id: requestId },
-  });
+  const supabase = await createServerSupabaseClient();
+
+  const { data: request } = await supabase
+    .from('ElevationRequest')
+    .select("*")
+    .eq("id", requestId)
+    .maybeSingle();
+
   if (!request) return { error: "Request not found" };
   if (request.status !== "PENDING") return { error: "Request already processed" };
 
-  await prisma.elevationRequest.update({
-    where: { id: requestId },
-    data: { status: "REJECTED", adminNote: adminNote?.trim() || null },
-  });
+  await supabase
+    .from('ElevationRequest')
+    .update({ status: "REJECTED", adminNote: adminNote?.trim() || null })
+    .eq("id", requestId);
 
   revalidatePath("/admin");
   return { success: true };

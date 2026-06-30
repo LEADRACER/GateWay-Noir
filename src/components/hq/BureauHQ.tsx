@@ -52,7 +52,7 @@ export function BureauHQ({ stats, children }: BureauHQProps) {
   const handlePromoteToBureau = async (agentId: string) => {
     setPromotingId(agentId);
     try {
-      const result = await promoteToBureau(agentId);
+      const result = await promoteToBureau(agentId, badge?.badgeCode || "", badge?.id || "");
       if (result.success) {
         toast.success(`Promoted to BRU — new badge: ${result.newBadgeCode}`);
         setAgents((prev) => prev.filter((a) => a.id !== agentId));
@@ -223,7 +223,7 @@ function CreateAdminForm() {
     setError("");
     setResult(null);
     try {
-      const res = await createBureauUser(name.trim(), badge?.badgeCode);
+      const res = await createBureauUser(name.trim(), badge?.badgeCode || "");
       if (res.success) {
         setResult(res);
         setName("");

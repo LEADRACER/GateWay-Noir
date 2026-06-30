@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 const BADGE_CHARS = "CDFGHJKLMNPQRSTUVWXYZ23456789"; // no I,O,0,1
 const BADGE_PREFIXES: Record<string, string> = {
@@ -26,7 +26,6 @@ export function extractSuffix(badgeCode: string): string {
 
 /**
  * Generate a badge code with a given prefix and a given suffix.
- * If no suffix provided, generates a random one.
  */
 function generateCodeWithSuffix(prefix: string, suffix: string): string {
   return `${prefix}-${suffix.toUpperCase()}`;
@@ -36,23 +35,31 @@ function generateCodeWithSuffix(prefix: string, suffix: string): string {
  * Generate a new badge code for a role, reusing the existing suffix if provided.
  */
 export async function generateBadgeCode(role: string = "DETECTIVE", existingCode?: string): Promise<string> {
+  const supabase = await createServerSupabaseClient();
   const prefix = BADGE_PREFIXES[role] ?? "DET";
 
   // If we have an existing code, reuse its suffix
   if (existingCode) {
     const suffix = extractSuffix(existingCode);
     const newCode = generateCodeWithSuffix(prefix, suffix);
-    // Check uniqueness — the same suffix could theoretically be claimed by someone else
-    const existing = await prisma.user.findUnique({ where: { badgeCode: newCode } });
+    const { data: existing } = await supabase
+      .from('User')
+      .select("id")
+      .eq("badgeCode", newCode)
+      .maybeSingle();
     if (!existing) return newCode;
-    // Fall through to random if suffix collision (should be rare)
+    // Fall through to random if suffix collision
   }
 
   // Fallback: random suffix
   let attempts = 0;
   while (attempts < 20) {
     const code = generateCode(prefix);
-    const existing = await prisma.user.findUnique({ where: { badgeCode: code } });
+    const { data: existing } = await supabase
+      .from('User')
+      .select("id")
+      .eq("badgeCode", code)
+      .maybeSingle();
     if (!existing) return code;
     attempts++;
   }
@@ -61,7 +68,6 @@ export async function generateBadgeCode(role: string = "DETECTIVE", existingCode
 
 /**
  * Re-prefix an existing badge code to match a new role, keeping the same suffix.
- * Fast non-DB version — assumes uniqueness (caller should verify if needed).
  */
 export function reprefixBadgeCode(badgeCode: string, newRole: string): string {
   const prefix = BADGE_PREFIXES[newRole] ?? "DET";

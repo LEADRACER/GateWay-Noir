@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { revalidatePath } from "next/cache";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,10 +21,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find user by badge code
-    const user = await prisma.user.findUnique({
-      where: { badgeCode: badgeCode.toUpperCase() },
-    });
+    const supabase = await createServerSupabaseClient();
+
+    const { data: user } = await supabase
+      .from('User')
+      .select("*")
+      .eq("badgeCode", badgeCode.toUpperCase())
+      .maybeSingle();
 
     if (!user) {
       return NextResponse.json(
@@ -35,27 +38,22 @@ export async function POST(request: NextRequest) {
 
     const linkedIds: string[] = Array.isArray(user.linkedIds) ? user.linkedIds : [];
 
-    if (user.passwordHash) {
-      // Existing user — must own this badge to change password
-      if (!linkedIds.includes(anonymousId)) {
-        return NextResponse.json(
-          { success: false, error: "You don't own this badge" },
-          { status: 403 }
-        );
-      }
+    if (!linkedIds.includes(anonymousId)) {
+      return NextResponse.json(
+        { success: false, error: "You don't own this badge" },
+        { status: 403 }
+      );
     }
 
-    // Link anonymousId to this user if not already linked (first-time setup)
     const updatedLinkedIds = linkedIds.includes(anonymousId)
       ? linkedIds
       : [...linkedIds, anonymousId];
 
-    // Hash and store password
     const passwordHash = await bcrypt.hash(password, 12);
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { passwordHash, linkedIds: updatedLinkedIds },
-    });
+    await supabase
+      .from('User')
+      .update({ passwordHash, linkedIds: updatedLinkedIds })
+      .eq("id", user.id);
 
     revalidatePath("/admin");
     return NextResponse.json({ success: true });

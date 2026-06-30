@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { prisma } from "@/lib/prisma";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export interface CurrentUser {
   id: string;
@@ -15,18 +15,19 @@ export interface CurrentUser {
 
 /**
  * Server-side: detect the currently logged-in badge user from cookies.
- * Returns null if no badge is linked.
  */
 export async function getCurrentUser(): Promise<CurrentUser | null> {
   const cookieStore = await cookies();
   const anonId = cookieStore.get("noirgateway_id")?.value;
   if (!anonId) return null;
 
-  const linkedUser = await prisma.user.findFirst({
-    where: {
-      linkedIds: { has: anonId },
-    },
-  });
+  const supabase = await createServerSupabaseClient();
+
+  const { data: linkedUser } = await supabase
+    .from('User')
+    .select("*")
+    .filter("linkedIds", "ov", `{${anonId}}`)
+    .maybeSingle();
 
   if (!linkedUser) return null;
 
