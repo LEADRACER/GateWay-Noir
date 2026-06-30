@@ -125,3 +125,19 @@ export async function verifyPassword(badgeCode: string, password: string): Promi
     return { success: false, error: "Network error" };
   }
 }
+
+export async function updateBadgeName(badgeCode: string, displayName: string): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  try {
+    const res = await fetch("/api/badge/name", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ badgeCode: badgeCode.toUpperCase(), displayName }),
+    });
+    return await res.json();
+  } catch {
+    return { success: false, error: "Network error" };
+  }
+}

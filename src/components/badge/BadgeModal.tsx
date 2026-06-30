@@ -3,12 +3,14 @@
 import { useState, useEffect } from "react";
 import { X, Fingerprint, AlertCircle, CheckCircle, Smartphone, Download, Eye, EyeOff, Sparkles, LogIn } from "lucide-react";
 import { useBadge } from "./BadgeProvider";
-import { registerPhone } from "@/lib/badge-client";
+import { registerPhone, updateBadgeName } from "@/lib/badge-client";
 import { downloadBadgeSVG } from "@/lib/badge-image";
 import { extractSuffix } from "@/lib/badge-cookie";
 
+const DEFAULT_NAMES = ["Detective", "Agent", "Field Agent", "Bureau Chief", "Anonymous"];
+
 export function BadgeModal() {
-  const { badge, isNew, showBadgeModal, setShowBadgeModal, claimCode, generateBadge } = useBadge();
+  const { badge, isNew, showBadgeModal, setShowBadgeModal, claimCode, generateBadge, updateBadge } = useBadge();
   const [suffix, setSuffix] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -17,6 +19,12 @@ export function BadgeModal() {
   const [claimError, setClaimError] = useState("");
   const [claimSuccess, setClaimSuccess] = useState(false);
   const [newBadgeCode, setNewBadgeCode] = useState<string | null>(null);
+  const [showNameInput, setShowNameInput] = useState(false);
+  const [nameInput, setNameInput] = useState("");
+  const [nameSaving, setNameSaving] = useState(false);
+  const [nameError, setNameError] = useState("");
+
+  const isDefaultName = (name: string) => DEFAULT_NAMES.includes(name);
 
   useEffect(() => {
     if (showBadgeModal) {
@@ -96,6 +104,42 @@ export function BadgeModal() {
 
   const handleSaveBadge = () => {
     if (!badge) return;
+    // If name is still the default role name, prompt for custom name first
+    if (isDefaultName(badge.displayName)) {
+      setNameInput(badge.displayName);
+      setShowNameInput(true);
+      setNameError("");
+      return;
+    }
+    triggerDownload();
+  };
+
+  const handleNameSubmit = async () => {
+    if (!badge || !nameInput.trim()) return;
+    const name = nameInput.trim();
+    if (name.length < 1 || name.length > 40) return;
+    if (isDefaultName(name)) {
+      setNameError("Choose a unique name");
+      return;
+    }
+
+    setNameSaving(true);
+    setNameError("");
+
+    const result = await updateBadgeName(badge.badgeCode, name);
+    if (result.success) {
+      updateBadge({ displayName: name });
+      setShowNameInput(false);
+      setNameInput("");
+      triggerDownload();
+    } else {
+      setNameError(result.error || "Failed to update name");
+    }
+    setNameSaving(false);
+  };
+
+  const triggerDownload = () => {
+    if (!badge) return;
     downloadBadgeSVG({
       badgeCode: badge.badgeCode,
       displayName: badge.displayName,
@@ -169,16 +213,48 @@ export function BadgeModal() {
                 </p>
               )}
 
-              {/* Save Badge button */}
-              <div className="mt-3">
-                <button
-                  onClick={handleSaveBadge}
-                  className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-[#d97706]/15 border border-[#d97706]/30 text-[10px] text-[#d97706] typewriter-label hover:bg-[#d97706]/25 transition-all"
-                >
-                  <Download className="w-3 h-3" />
-                  SAVE BADGE
-                </button>
-              </div>
+              {/* Save Badge button / Name prompt */}
+              {showNameInput ? (
+                <div className="mt-3">
+                  <p className="text-[9px] text-zinc-500 mb-1.5 typewriter-label text-left">
+                    SET YOUR DISPLAY NAME FOR THE BADGE
+                  </p>
+                  <div className="flex gap-2">
+                    <input
+                      value={nameInput}
+                      onChange={(e) => setNameInput(e.target.value)}
+                      placeholder="Your name"
+                      maxLength={40}
+                      className="flex-1 bg-black/40 border border-[rgba(168,144,112,0.1)] px-2.5 py-1.5 text-[11px] font-mono text-zinc-300 outline-none focus:border-[#d97706]/40 transition-colors placeholder:text-zinc-700"
+                      onKeyDown={(e) => e.key === "Enter" && handleNameSubmit()}
+                      autoFocus
+                    />
+                    <button
+                      onClick={handleNameSubmit}
+                      disabled={nameSaving || !nameInput.trim()}
+                      className="px-3 py-1.5 bg-[#d97706]/20 border border-[#d97706]/30 text-[10px] text-[#d97706] typewriter-label hover:bg-[#d97706]/30 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                    >
+                      {nameSaving ? "..." : "SET NAME & DOWNLOAD"}
+                    </button>
+                  </div>
+                  {nameError && (
+                    <p className="flex items-center gap-1 text-[9px] text-red-400/80 mt-1.5 text-left">
+                      <AlertCircle className="w-2.5 h-2.5" />
+                      {nameError}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="mt-3">
+                  <button
+                    onClick={handleSaveBadge}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-[#d97706]/15 border border-[#d97706]/30 text-[10px] text-[#d97706] typewriter-label hover:bg-[#d97706]/25 transition-all"
+                  >
+                    <Download className="w-3 h-3" />
+                    SAVE BADGE
+                  </button>
+                </div>
+              )}
 
               {/* Save prompt for new users */}
               {isNew && (
