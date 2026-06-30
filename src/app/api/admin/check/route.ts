@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/get-current-user";
 
 export async function GET(req: NextRequest) {
+  // Primary check: does the user have a valid Supabase session as BUREAU?
+  const sessionUser = await getCurrentUser();
+  const sessionAdmin = !!(sessionUser && sessionUser.role === "BUREAU");
+
+  // Secondary check: legacy noirgateway_admin cookie
   const token = req.cookies.get("noirgateway_admin")?.value;
   const cookieAdmin = token === "authenticated";
 
@@ -24,10 +30,12 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const isAdmin = cookieAdmin || badgeAdmin;
+  const isAdmin = sessionAdmin || cookieAdmin || badgeAdmin;
 
   return NextResponse.json({
     admin: isAdmin,
+    sessionAdmin,
+    cookieAdmin,
     badgeAdmin,
     badgeCode,
   });

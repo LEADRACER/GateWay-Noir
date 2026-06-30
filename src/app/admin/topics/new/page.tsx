@@ -1,10 +1,15 @@
 import { getCategories } from "@/lib/actions";
 import { CreateTopicForm } from "./CreateTopicForm";
 import { FileText } from "lucide-react";
+import { getCurrentUser } from "@/lib/get-current-user";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
 export default async function NewTopicPage() {
+  const user = await getCurrentUser();
+  if (!user || user.role !== "BUREAU") redirect("/");
+
   const categories = await getCategories();
 
   return (

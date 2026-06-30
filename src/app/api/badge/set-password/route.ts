@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { setSessionCookie } from "@/lib/session-cookie";
 
 export async function POST(request: NextRequest) {
   try {
@@ -45,18 +46,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const updatedLinkedIds = linkedIds.includes(anonymousId)
-      ? linkedIds
-      : [...linkedIds, anonymousId];
-
     const passwordHash = await bcrypt.hash(password, 12);
     await supabase
       .from('User')
-      .update({ passwordHash, linkedIds: updatedLinkedIds })
+      .update({ passwordHash })
       .eq("id", user.id);
 
     revalidatePath("/admin");
-    return NextResponse.json({ success: true });
+
+    const res = NextResponse.json({
+      success: true,
+      user: {
+        id: user.id,
+        badgeCode: user.badgeCode,
+        displayName: user.displayName,
+        role: user.role,
+      },
+    });
+    res.headers.set("Set-Cookie", setSessionCookie(user.badgeCode));
+    return res;
   } catch (err) {
     console.error("Set password error:", err);
     return NextResponse.json(

@@ -1,10 +1,15 @@
 import { getAllComments, getFlaggedComments, deleteComment, toggleFlagComment } from "@/lib/actions";
 import { CommentsPanel } from "./CommentsPanel";
 import { FileText } from "lucide-react";
+import { getCurrentUser } from "@/lib/get-current-user";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
 export default async function CommentsPage() {
+  const user = await getCurrentUser();
+  if (!user || user.role !== "BUREAU") redirect("/");
+
   const [allComments, flaggedComments] = await Promise.all([
     getAllComments(),
     getFlaggedComments(),

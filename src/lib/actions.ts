@@ -507,6 +507,16 @@ export async function concludeTopic(formData: FormData) {
 
   const supabase = await createServerSupabaseClient();
 
+  // Verify topic exists and is ACTIVE
+  const { data: topic } = await supabase
+    .from('Topic')
+    .select("id, status, slug")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (!topic) return { error: "Topic not found" };
+  if (topic.status !== "ACTIVE") return { error: "Only active topics can be concluded" };
+
   // Fetch all comments with evidence on this topic
   const { data: comments } = await supabase
     .from('Comment')
@@ -530,7 +540,7 @@ export async function concludeTopic(formData: FormData) {
   }
 
   // Update topic
-  const { data: topic, error: updateError } = await supabase
+  const { data: updatedTopic, error: updateError } = await supabase
     .from('Topic')
     .update({
       status: "CONCLUDED",
@@ -545,8 +555,10 @@ export async function concludeTopic(formData: FormData) {
   if (updateError) return { error: updateError.message };
 
   revalidatePath("/");
-  revalidatePath(`/topic/${topic.slug}`);
+  revalidatePath(`/topic/${updatedTopic.slug}`);
   revalidatePath("/admin");
+  revalidatePath("/admin/tasks");
+  revalidatePath("/admin/comments");
   return { success: true };
 }
 
@@ -558,10 +570,28 @@ export async function deleteComment(formData: FormData) {
 
   const supabase = await createServerSupabaseClient();
 
+  // Fetch the comment to get its topicId for revalidation
+  const { data: comment } = await supabase
+    .from('Comment')
+    .select("topicId")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (!comment) return { error: "Comment not found" };
+
   // Evidence URLs are stored as-is (storage removed)
   // Just delete the comment
   await supabase.from('Comment').delete().eq("id", id);
+
   revalidatePath("/admin/comments");
+  // Also revalidate the topic page if the comment was on a topic
+  const { data: topic } = await supabase
+    .from('Topic')
+    .select("slug")
+    .eq("id", comment.topicId)
+    .maybeSingle();
+  if (topic) revalidatePath(`/topic/${topic.slug}`);
+
   return { success: true };
 }
 

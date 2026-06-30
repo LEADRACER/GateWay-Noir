@@ -35,7 +35,9 @@ export function timeRemaining(endsAt: string | Date): { days: number; hours: num
 export function getStatusColor(status: string): string {
   switch (status) {
     case "ACTIVE": return "bg-emerald-500/10 text-emerald-400 border-emerald-500/15";
+    case "UPCOMING": return "bg-blue-500/10 text-blue-400 border-blue-500/15";
     case "CONCLUDED": return "bg-amber-500/10 text-amber-400 border-amber-500/15";
+    case "ARCHIVED": return "bg-zinc-500/10 text-zinc-400 border-zinc-500/15";
     default: return "bg-zinc-500/10 text-zinc-400 border-zinc-500/15";
   }
 }

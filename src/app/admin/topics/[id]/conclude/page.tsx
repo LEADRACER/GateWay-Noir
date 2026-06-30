@@ -1,7 +1,8 @@
 import { getTopicById } from "@/lib/actions";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ConcludeTopicForm } from "./ConcludeTopicForm";
 import { Stamp } from "lucide-react";
+import { getCurrentUser } from "@/lib/get-current-user";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,9 @@ interface Props {
 
 export default async function ConcludeTopicPage({ params }: Props) {
   const { id } = await params;
+  const user = await getCurrentUser();
+  if (!user || user.role !== "BUREAU") redirect("/");
+
   const topic = await getTopicById(id);
 
   if (!topic) notFound();

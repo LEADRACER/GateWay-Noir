@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS "public"."Topic" (
   "imageUrl" TEXT,
   evidence TEXT,
   status TEXT NOT NULL DEFAULT 'ACTIVE'
-    CHECK (status IN ('ACTIVE', 'CONCLUDED', 'ARCHIVED')),
+    CHECK (status IN ('ACTIVE', 'CONCLUDED', 'UPCOMING', 'ARCHIVED')),
   "durationDays" INTEGER DEFAULT 0,
   "createdAt" TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now(),
   "endsAt" TIMESTAMP WITHOUT TIME ZONE,

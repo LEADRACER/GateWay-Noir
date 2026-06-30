@@ -17,7 +17,7 @@ async function promoteToBureau(badgeCode: string) {
     .from('User')
     .select("*")
     .eq("badgeCode", code)
-    .single();
+    .maybeSingle();
 
   if (!user) {
     console.error(`* No user found with badge code: ${code}`);

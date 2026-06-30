@@ -1,10 +1,15 @@
 import { getAllTasks, createTask } from "@/lib/task-actions";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { TasksClient } from "./TasksClient";
+import { getCurrentUser } from "@/lib/get-current-user";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminTasksPage() {
+  const user = await getCurrentUser();
+  if (!user || user.role !== "BUREAU") redirect("/");
+
   const tasks = await getAllTasks();
   const supabase = await createServerSupabaseClient();
 
