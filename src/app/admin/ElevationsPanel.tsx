@@ -33,6 +33,7 @@ interface ElevationsPanelProps {
   rejectedElevations: ElevationRequest[];
   adminId?: string;
   adminBadgeCode: string;
+  defaultTab?: "dashboard" | "elevations";
 }
 
 export function ElevationsPanel({
@@ -41,8 +42,9 @@ export function ElevationsPanel({
   rejectedElevations: initialRejected,
   adminId,
   adminBadgeCode,
+  defaultTab = "dashboard",
 }: ElevationsPanelProps) {
-  const [activeTab, setActiveTab] = useState<"dashboard" | "elevations">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "elevations">(defaultTab);
   const [pending, setPending] = useState(initialPending);
   const [approved, setApproved] = useState(initialApproved);
   const [rejected, setRejected] = useState(initialRejected);

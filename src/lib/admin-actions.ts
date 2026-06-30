@@ -1,6 +1,7 @@
 "use server";
 
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/get-current-user";
 import { reprefixBadgeCode } from "@/lib/badge";
 
 // ─── Agent Management ───
@@ -10,6 +11,13 @@ export async function createAgentUser(data: {
   role: string;
   badgeCode: string;
 }) {
+  if (data.role === "BUREAU") {
+    const caller = await getCurrentUser();
+    if (!caller || caller.role !== "BUREAU") {
+      throw new Error("Unauthorized — only BUREAU users can create BUREAU users");
+    }
+  }
+
   const supabase = await createServerSupabaseClient();
 
   const { data: user } = await supabase
@@ -29,6 +37,11 @@ export async function createAgentUser(data: {
 }
 
 export async function promoteAgentToBureau(agentUserId: string, adminBadgeCode: string, adminUserId: string) {
+  const caller = await getCurrentUser();
+  if (!caller || caller.role !== "BUREAU") {
+    return { error: "Unauthorized — only BUREAU users can promote agents" };
+  }
+
   const supabase = await createServerSupabaseClient();
 
   const { data: user } = await supabase
@@ -59,7 +72,7 @@ export async function promoteAgentToBureau(agentUserId: string, adminBadgeCode: 
       role: "BUREAU",
       badgeCode: newBadgeCode,
       isAdmin: true,
-      handler: adminUserId,
+      handler: caller.id,
     })
     .eq("id", agentUserId);
 
@@ -151,7 +164,9 @@ export async function setupBureauAdmin(code: string, passwordHash: string) {
 
 // ─── Backward-compatible aliases (old signatures) ───
 
-export const getAllAgents = getAllUsers;
+export async function getAllAgents() {
+  return getUsersByRole("AGENT");
+}
 
 export async function promoteToBureau(agentId: string, adminBadgeCode: string, adminUserId: string) {
   if (!adminBadgeCode || !adminUserId) return { error: "Admin badge code and user ID required" };
@@ -159,6 +174,10 @@ export async function promoteToBureau(agentId: string, adminBadgeCode: string, a
 }
 
 export async function createBureauUser(displayName: string, adminBadgeCode: string) {
+  const caller = await getCurrentUser();
+  if (!caller || caller.role !== "BUREAU") {
+    throw new Error("Unauthorized — only BUREAU users can create Bureau users");
+  }
   if (!adminBadgeCode) throw new Error("Admin badge code is required to create a Bureau user");
   return createAgentUser({
     displayName,

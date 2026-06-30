@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode } from "react";
 import { BadgeUser, checkBadgeStatus, claimBadge, setPassword, verifyPassword, generateBadgeCode } from "@/lib/badge-client";
 import { saveBadgeCodeToCookie, getBadgeCodeFromCookie } from "@/lib/badge-cookie";
 
@@ -52,6 +52,7 @@ export function BadgeProvider({ children, initialUser }: { children: ReactNode; 
   const [showBadgeModal, setShowBadgeModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordVerified, setPasswordVerified] = useState(!!initialUser);
+  const hasServerSeed = useRef(!!initialUser);
 
   const updateBadge = useCallback((updates: Partial<BadgeUser>) => {
     setBadge((prev) => (prev ? { ...prev, ...updates } : null));
@@ -102,7 +103,7 @@ export function BadgeProvider({ children, initialUser }: { children: ReactNode; 
       if (status.isNew) {
         setShowBadgeModal(true);
       }
-    } else {
+    } else if (!hasServerSeed.current) {
       setBadge(null);
     }
     setLoading(false);

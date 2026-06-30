@@ -53,6 +53,11 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // Only AGENT users can be promoted to BUREAU via this endpoint
+    if (user.role !== "AGENT") {
+      return NextResponse.json({ error: "Only AGENT users can be promoted to BUREAU" }, { status: 400 });
+    }
+
     // Re-prefix badge code
     const prefix = getBadgePrefix("BUREAU");
     const suffix = user.badgeCode.split("-")[1] || user.badgeCode.slice(-4);

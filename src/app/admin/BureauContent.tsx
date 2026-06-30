@@ -68,6 +68,7 @@ export function BureauContent({ stats, upcomingTopics, pendingElevations, approv
           rejectedElevations={rejectedElevations}
           adminId={adminId}
           adminBadgeCode={adminBadgeCode}
+          defaultTab="elevations"
         />
 
         {/* AGT → BRU promotion */}

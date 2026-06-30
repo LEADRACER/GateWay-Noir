@@ -1,8 +1,13 @@
 "use server";
 
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/get-current-user";
 
 export async function updateAgentProfile(userId: string, data: { displayName?: string; bio?: string; phone?: string }) {
+  const caller = await getCurrentUser();
+  if (!caller) return { error: "Not authenticated" };
+  if (caller.id !== userId) return { error: "You can only update your own profile" };
+
   const supabase = await createServerSupabaseClient();
 
   const { data: user } = await supabase
