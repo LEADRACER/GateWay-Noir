@@ -8,10 +8,11 @@ import { Navbar } from "@/components/layout/Navbar";
 import { RotatingLiquidText } from "@/components/layout/RotatingLiquidText";
 import { Footer } from "@/components/layout/Footer";
 import { Toaster } from "react-hot-toast";
+import type { BadgeUser } from "@/lib/badge-client";
 
-export function ClientLayout({ children }: { children: ReactNode }) {
+export function ClientLayout({ children, initialUser }: { children: ReactNode; initialUser?: BadgeUser | null }) {
   return (
-    <BadgeProvider>
+    <BadgeProvider initialUser={initialUser}>
       <Navbar />
       <main className="flex-1 pt-16 flex flex-col items-center">
         {children}

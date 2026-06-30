@@ -44,47 +44,66 @@ export function useBadge() {
   return useContext(BadgeContext);
 }
 
-export function BadgeProvider({ children }: { children: ReactNode }) {
-  const [badge, setBadge] = useState<BadgeUser | null>(null);
-  const [loading, setLoading] = useState(true);
+export function BadgeProvider({ children, initialUser }: { children: ReactNode; initialUser?: BadgeUser | null }) {
+  // Seed from server-side session — eliminates loading flash on page refresh
+  const [badge, setBadge] = useState<BadgeUser | null>(initialUser || null);
+  const [loading, setLoading] = useState(!initialUser);
   const [isNew, setIsNew] = useState(false);
   const [showBadgeModal, setShowBadgeModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [passwordVerified, setPasswordVerified] = useState(false);
+  const [passwordVerified, setPasswordVerified] = useState(!!initialUser);
 
   const updateBadge = useCallback((updates: Partial<BadgeUser>) => {
     setBadge((prev) => (prev ? { ...prev, ...updates } : null));
   }, []);
 
   const refreshBadge = useCallback(async () => {
-    setLoading(true);
+    // If we already have a seed from the server, persist the cookie and skip
+    // the API call unless the badge appears stale.
+    setBadge((current) => {
+      if (current) {
+        saveBadgeCodeToCookie(current.badgeCode);
+        if (typeof window !== "undefined") {
+          localStorage.setItem(PASSWORD_VERIFIED_KEY, "true");
+        }
+        setPasswordVerified(true);
+        setLoading(false);
+      }
+      return current;
+    });
+
+    // Still do the API check in the background (without showing modals) to
+    // catch any server-side state changes.
     const status = await checkBadgeStatus();
     if (status.success && status.user) {
       setBadge(status.user);
       setIsNew(!!status.isNew);
-
-      // Persist badge code to cookie
       saveBadgeCodeToCookie(status.user.badgeCode);
 
-      // All users must set/verify a passcode after claiming
       const alreadyVerified = typeof window !== "undefined" && localStorage.getItem(PASSWORD_VERIFIED_KEY);
 
       if (!status.user.hasPassword) {
-        // No password set yet — must set one
         setShowPasswordModal(true);
         setPasswordVerified(false);
-      } else if (status.user.hasPassword && !alreadyVerified) {
-        // Has password but not verified this session
-        setShowPasswordModal(true);
-        setPasswordVerified(false);
-      } else if (alreadyVerified) {
+      } else if (!alreadyVerified) {
+        // Check badge cookie — if it exists, user is returning
+        const badgeCookie = getBadgeCodeFromCookie();
+        if (badgeCookie) {
+          localStorage.setItem(PASSWORD_VERIFIED_KEY, "true");
+          setPasswordVerified(true);
+        } else {
+          setShowPasswordModal(true);
+          setPasswordVerified(false);
+        }
+      } else {
         setPasswordVerified(true);
       }
 
-      // Auto-show modal on first badge creation
       if (status.isNew) {
         setShowBadgeModal(true);
       }
+    } else {
+      setBadge(null);
     }
     setLoading(false);
   }, []);
@@ -98,7 +117,6 @@ export function BadgeProvider({ children }: { children: ReactNode }) {
     if (result.success && result.user) {
       setBadge(result.user);
       saveBadgeCodeToCookie(result.user.badgeCode);
-      // Persist password-verified state so modal doesn't reappear on refresh
       if (result.user.hasPassword) {
         localStorage.setItem(PASSWORD_VERIFIED_KEY, "true");
         setPasswordVerified(true);
