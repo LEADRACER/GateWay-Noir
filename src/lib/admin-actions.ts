@@ -173,6 +173,38 @@ export async function promoteToBureau(agentId: string, adminBadgeCode: string, a
   return promoteAgentToBureau(agentId, adminBadgeCode, adminUserId);
 }
 
+export async function demoteAgent(agentUserId: string) {
+  const caller = await getCurrentUser();
+  if (!caller || caller.role !== "BUREAU") {
+    return { error: "Unauthorized — only BUREAU users can demote agents" };
+  }
+
+  const supabase = await createServerSupabaseClient();
+
+  const { data: user } = await supabase
+    .from('User')
+    .select("*")
+    .eq("id", agentUserId)
+    .maybeSingle();
+
+  if (!user) return { error: "User not found" };
+  if (user.role !== "AGENT") return { error: "Only AGENT users can be demoted" };
+
+  const newBadgeCode = reprefixBadgeCode(user.badgeCode, "DETECTIVE");
+
+  await supabase
+    .from('User')
+    .update({
+      role: "DETECTIVE",
+      badgeCode: newBadgeCode,
+      isAdmin: false,
+      handler: null,
+    })
+    .eq("id", agentUserId);
+
+  return { success: true, newBadgeCode };
+}
+
 export async function createBureauUser(displayName: string, adminBadgeCode: string) {
   const caller = await getCurrentUser();
   if (!caller || caller.role !== "BUREAU") {

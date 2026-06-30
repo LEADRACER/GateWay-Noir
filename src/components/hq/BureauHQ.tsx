@@ -4,10 +4,10 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   Scale, MessageSquare, CheckCircle2, Sparkles, AlertCircle,
-  Fingerprint, Users, UserPlus,
+  Fingerprint, Users, UserPlus, UserMinus, Loader2,
 } from "lucide-react";
 import { useBadge } from "@/components/badge/BadgeProvider";
-import { getAllAgents, promoteToBureau, createBureauUser } from "@/lib/admin-actions";
+import { getAllAgents, promoteToBureau, demoteAgent, createBureauUser } from "@/lib/admin-actions";
 import toast from "react-hot-toast";
 
 interface AgentUser {
@@ -35,6 +35,7 @@ export function BureauHQ({ stats, children }: BureauHQProps) {
   const [agents, setAgents] = useState<AgentUser[]>([]);
   const [activeTab, setActiveTab] = useState<"dashboard" | "agents" | "elevations">("dashboard");
   const [promotingId, setPromotingId] = useState<string | null>(null);
+  const [demotingId, setDemotingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchAgents();
@@ -63,6 +64,22 @@ export function BureauHQ({ stats, children }: BureauHQProps) {
       toast.error("Network error");
     }
     setPromotingId(null);
+  };
+
+  const handleDemote = async (agentId: string) => {
+    setDemotingId(agentId);
+    try {
+      const result = await demoteAgent(agentId);
+      if (result.success) {
+        toast.success(`Demoted to DET — new badge: ${result.newBadgeCode}`);
+        setAgents((prev) => prev.filter((a) => a.id !== agentId));
+      } else {
+        toast.error(result.error || "Failed to demote");
+      }
+    } catch {
+      toast.error("Network error");
+    }
+    setDemotingId(null);
   };
 
   return (
@@ -172,18 +189,32 @@ export function BureauHQ({ stats, children }: BureauHQProps) {
                           {agent.phone && <span>• {agent.phone}</span>}
                         </div>
                       </div>
-                      <button
-                        onClick={() => handlePromoteToBureau(agent.id)}
-                        disabled={promotingId === agent.id}
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-medium bg-[#d97706]/15 border border-[#d97706]/30 text-[#d97706] typewriter-label hover:bg-[#d97706]/25 disabled:opacity-40 transition-colors"
-                      >
-                        {promotingId === agent.id ? (
-                          <Loader2 className="w-3 h-3 animate-spin" />
-                        ) : (
-                          <UserPlus className="w-3 h-3" />
-                        )}
-                        PROMOTE TO BRU
-                      </button>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => handleDemote(agent.id)}
+                          disabled={demotingId === agent.id}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-medium bg-red-500/10 border border-red-500/25 text-red-400 typewriter-label hover:bg-red-500/20 disabled:opacity-40 transition-colors"
+                        >
+                          {demotingId === agent.id ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <UserMinus className="w-3 h-3" />
+                          )}
+                          DEMOTE
+                        </button>
+                        <button
+                          onClick={() => handlePromoteToBureau(agent.id)}
+                          disabled={promotingId === agent.id}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-medium bg-[#d97706]/15 border border-[#d97706]/30 text-[#d97706] typewriter-label hover:bg-[#d97706]/25 disabled:opacity-40 transition-colors"
+                        >
+                          {promotingId === agent.id ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <UserPlus className="w-3 h-3" />
+                          )}
+                          PROMOTE TO BRU
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -281,19 +312,5 @@ function CreateAdminForm() {
         </p>
       )}
     </>
-  );
-}
-
-function Loader2({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className || "w-3 h-3 animate-spin"}
-      xmlns="http://www.w3.org/2000/svg"
-      fill="none"
-      viewBox="0 0 24 24"
-    >
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-    </svg>
   );
 }
