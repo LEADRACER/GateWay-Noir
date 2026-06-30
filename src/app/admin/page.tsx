@@ -2,7 +2,7 @@ import { getStats, getUpcomingTopics } from "@/lib/actions";
 import { getPendingElevations, getApprovedElevations, getRejectedElevations } from "@/lib/elevation-actions";
 import { getAllAgents } from "@/lib/admin-actions";
 import { getCurrentUser } from "@/lib/get-current-user";
-import { FileText } from "lucide-react";
+import { safeToISOString } from "@/lib/session-cookie";
 import { ElevationsPanel } from "./ElevationsPanel";
 import { BureauContent } from "./BureauContent";
 import { DetHQ } from "@/components/hq/DetHQ";
@@ -43,33 +43,33 @@ export default async function AdminPage() {
 
   const serializedPending = pendingElevations.map((e: any) => ({
     ...e,
-    createdAt: e.createdAt.toISOString(),
-    updatedAt: e.updatedAt.toISOString(),
-    user: { ...e.user, createdAt: e.user.createdAt.toISOString() },
+    createdAt: safeToISOString(e.createdAt),
+    updatedAt: safeToISOString(e.updatedAt),
+    user: { ...e.user, createdAt: safeToISOString(e.user?.createdAt) },
   }));
 
   const serializedApproved = approvedElevations.map((e: any) => ({
     ...e,
-    createdAt: e.createdAt.toISOString(),
-    updatedAt: e.updatedAt.toISOString(),
-    user: { ...e.user, createdAt: e.user.createdAt.toISOString() },
+    createdAt: safeToISOString(e.createdAt),
+    updatedAt: safeToISOString(e.updatedAt),
+    user: { ...e.user, createdAt: safeToISOString(e.user?.createdAt) },
   }));
 
   const serializedRejected = rejectedElevations.map((e: any) => ({
     ...e,
-    createdAt: e.createdAt.toISOString(),
-    updatedAt: e.updatedAt.toISOString(),
-    user: { ...e.user, createdAt: e.user.createdAt.toISOString() },
+    createdAt: safeToISOString(e.createdAt),
+    updatedAt: safeToISOString(e.updatedAt),
+    user: { ...e.user, createdAt: safeToISOString(e.user?.createdAt) },
   }));
 
   const serializedUpcoming = upcomingTopics.map((t: any) => ({
     ...t,
-    createdAt: t.createdAt.toISOString(),
+    createdAt: safeToISOString(t.createdAt),
   }));
 
   const serializedAgents = agents.map((a: any) => ({
     ...a,
-    createdAt: a.createdAt.toISOString(),
+    createdAt: safeToISOString(a.createdAt),
   }));
 
   return (
