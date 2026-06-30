@@ -22,24 +22,24 @@ export async function POST(request: NextRequest) {
     }
 
     const pwd = password.trim();
-    const rawCode = badgeCode.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const cleaned = badgeCode.toUpperCase().replace(/[^A-Z0-9-]/g, "");
 
     const supabase = await createServerSupabaseClient();
 
-    // Find user — suffix (4 chars) or full badge code
+    // Find user — suffix (4 chars, no dash) or full badge code (with dash)
     let user;
-    if (rawCode.length === 4) {
+    if (cleaned.length === 4) {
       const { data } = await supabase
         .from('User')
         .select("*")
-        .like("badgeCode", `%-${rawCode}`)
+        .like("badgeCode", `%-${cleaned}`)
         .maybeSingle();
       user = data;
     } else {
       const { data } = await supabase
         .from('User')
         .select("*")
-        .eq("badgeCode", rawCode)
+        .eq("badgeCode", cleaned)
         .maybeSingle();
       user = data;
     }
@@ -54,7 +54,8 @@ export async function POST(request: NextRequest) {
     const linkedIds: string[] = Array.isArray(user.linkedIds) ? user.linkedIds : [];
 
     // If already linked to this anonymousId, return success
-    if (linkedIds.includes(anonymousId)) {
+    // (but only if they also have a password set — otherwise fall through to set it)
+    if (linkedIds.includes(anonymousId) && user.passwordHash) {
       const res = NextResponse.json({
         success: true,
         alreadyClaimed: true,
@@ -63,13 +64,11 @@ export async function POST(request: NextRequest) {
           badgeCode: user.badgeCode,
           displayName: user.displayName,
           role: user.role,
-          hasPassword: !!user.passwordHash,
+          hasPassword: true,
           isAdmin: user.isAdmin,
         },
       });
-      if (user.passwordHash) {
-        res.headers.set("Set-Cookie", setSessionCookie(user.badgeCode));
-      }
+      res.headers.set("Set-Cookie", setSessionCookie(user.badgeCode));
       return res;
     }
 
@@ -91,6 +90,7 @@ export async function POST(request: NextRequest) {
     linkedIds.push(anonymousId);
 
     // Password: verify existing OR set new
+    let hasPassword = !!user.passwordHash;
     if (user.passwordHash) {
       const valid = await bcrypt.compare(pwd, user.passwordHash);
       if (!valid) {
@@ -109,6 +109,7 @@ export async function POST(request: NextRequest) {
         .from('User')
         .update({ linkedIds, passwordHash })
         .eq("id", user.id);
+      hasPassword = true; // we just set it
     }
 
     // Merge votes
@@ -134,7 +135,7 @@ export async function POST(request: NextRequest) {
         badgeCode: user.badgeCode,
         displayName: user.displayName,
         role: user.role,
-        hasPassword: !!user.passwordHash,
+        hasPassword,
         isAdmin: user.isAdmin,
       },
     });
