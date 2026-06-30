@@ -9,6 +9,7 @@ import {
 import { useBadge } from "@/components/badge/BadgeProvider";
 import { getAllAgents, promoteToBureau, demoteAgent, createBureauUser } from "@/lib/admin-actions";
 import toast from "react-hot-toast";
+import Link from "next/link";
 
 interface AgentUser {
   id: string;
@@ -123,6 +124,13 @@ export function BureauHQ({ stats, children }: BureauHQProps) {
           <Fingerprint className="w-3 h-3" />
           ELEVATIONS
         </button>
+        <Link
+          href="/agent/discussions"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium text-zinc-600 hover:text-amber-400 typewriter-label transition-colors border border-transparent hover:border-[rgba(168,144,112,0.08)]"
+        >
+          <MessageSquare className="w-3 h-3" />
+          DISCUSSIONS
+        </Link>
       </div>
 
       {/* Dashboard Tab */}
