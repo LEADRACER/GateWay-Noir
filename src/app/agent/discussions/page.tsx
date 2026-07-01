@@ -78,7 +78,7 @@ export default function AgentDiscussionsPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto py-8 px-4" style={{ maxWidth: '80%' }}>
+    <div className="max-w-5xl mx-auto py-8 px-4">
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
         {/* Header */}
         <div className="flex items-center justify-between mb-6">

@@ -5,6 +5,19 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { generateBadgeCode } from "@/lib/badge";
 import { getCurrentUser } from "@/lib/get-current-user";
 
+/**
+ * Normalize Supabase PostgREST join key from table name `User` → `user`.
+ */
+function normalizeUserJoin<T>(obj: T): T {
+  if (!obj) return obj;
+  const o = obj as Record<string, any>;
+  if (o.User) {
+    o.user = o.User;
+    delete o.User;
+  }
+  return obj;
+}
+
 export async function requestElevation(userId: string, message?: string) {
   if (!userId) return { error: "Missing user ID" };
 
@@ -53,8 +66,7 @@ export async function getPendingElevations() {
     .eq("status", "PENDING")
     .order("createdAt", { ascending: false });
 
-  // Supabase join returns nested objects — adapt as needed
-  return data || [];
+  return (data || []).map(normalizeUserJoin);
 }
 
 export async function getApprovedElevations() {
@@ -67,7 +79,7 @@ export async function getApprovedElevations() {
     .order("updatedAt", { ascending: false })
     .limit(10);
 
-  return data || [];
+  return (data || []).map(normalizeUserJoin);
 }
 
 export async function getRejectedElevations() {
@@ -80,7 +92,7 @@ export async function getRejectedElevations() {
     .order("updatedAt", { ascending: false })
     .limit(10);
 
-  return data || [];
+  return (data || []).map(normalizeUserJoin);
 }
 
 export async function getMyElevationStatus(userId: string) {

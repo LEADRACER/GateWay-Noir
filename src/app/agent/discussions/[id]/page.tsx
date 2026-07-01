@@ -167,7 +167,7 @@ export default function DiscussionDetailPage() {
   const canClose = discussion.createdById === badge.id || badge.role === "BUREAU";
 
   return (
-    <div className="max-w-3xl mx-auto py-8 px-4">
+    <div className="max-w-5xl mx-auto py-8 px-4">
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
         {/* Header */}
         <button
