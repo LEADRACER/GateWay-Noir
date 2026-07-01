@@ -145,6 +145,7 @@ export function BadgeModal() {
       badgeCode: badge.badgeCode,
       displayName: badge.displayName,
       role: badge.role as 'DETECTIVE' | 'AGENT' | 'BUREAU',
+      phone: badge.phone,
       stats: { votes: badge.voteCount, comments: badge.commentCount }
     });
   };

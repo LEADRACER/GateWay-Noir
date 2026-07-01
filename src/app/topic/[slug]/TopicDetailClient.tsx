@@ -19,7 +19,7 @@ export function TopicDetailClient({ topic }: TopicDetailClientProps) {
   const caseId = `GWN-${topic.id.slice(0, 8).toUpperCase()}`;
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6" style={{ maxWidth: '80%' }}>
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
       {/* Back Button */}
       <Link
         href="/"
