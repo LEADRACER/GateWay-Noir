@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
-import { Scale, Menu, X, Sparkles, Fingerprint, ShieldCheck, ListChecks, User } from "lucide-react";
+import { Scale, Menu, X, Sparkles, Fingerprint, ShieldCheck, ListChecks, User, Smartphone } from "lucide-react";
 import { useBadge } from "@/components/badge/BadgeProvider";
-import { RoleAvatar } from "@/components/badge/RoleAvatar";
 
 export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -54,13 +53,21 @@ export function Navbar() {
               </Link>
             )}
 
-            <button
-              onClick={() => setShowBadgeModal(true)}
-              className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 text-zinc-500 hover:text-[#d97706] border border-transparent hover:border-[#d97706]/20 transition-all typewriter-label"
-            >
-              {badge ? <RoleAvatar role={badge.role} size="sm" /> : <Fingerprint className="w-3 h-3" />}
-              {badge ? badge.badgeCode : "BADGE"}
-            </button>
+            <div className="relative">
+              <button
+                onClick={() => setShowBadgeModal(true)}
+                className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 text-zinc-500 hover:text-[#d97706] border border-transparent hover:border-[#d97706]/20 transition-all typewriter-label"
+              >
+                <Fingerprint className="w-3.5 h-3.5" />
+                {badge ? badge.badgeCode : "BADGE"}
+              </button>
+              {badge && !badge.phone && (
+                <span
+                  title="WhatsApp number not registered — update your profile"
+                  className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-400 border border-[#060608]"
+                />
+              )}
+            </div>
             <Link
               href="/admin/topics/new"
               className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 bg-[#d97706] text-black font-semibold typewriter-label"
@@ -98,10 +105,18 @@ export function Navbar() {
               </Link>
             )}
 
-            <button onClick={() => { setShowBadgeModal(true); setMobileOpen(false); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-zinc-400 hover:text-zinc-200">
-              <Fingerprint className="w-3.5 h-3.5" />
-              {badge ? badge.badgeCode : "MY BADGE"}
-            </button>
+            <div className="relative inline-flex">
+              <button onClick={() => { setShowBadgeModal(true); setMobileOpen(false); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-zinc-400 hover:text-zinc-200">
+                <Fingerprint className="w-3.5 h-3.5" />
+                {badge ? badge.badgeCode : "MY BADGE"}
+              </button>
+              {badge && !badge.phone && (
+                <span
+                  title="WhatsApp number not registered — update your profile"
+                  className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-400 border border-[#060608]"
+                />
+              )}
+            </div>
             <Link href="/admin/topics/new" className="block px-3 py-2 text-sm bg-[#d97706] text-black font-semibold" onClick={() => setMobileOpen(false)}>+ New Case File</Link>
           </div>
         </div>

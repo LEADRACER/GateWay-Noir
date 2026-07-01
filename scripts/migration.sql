@@ -83,7 +83,23 @@ CREATE INDEX IF NOT EXISTS idx_discussion_created_by ON "public"."AgentDiscussio
 CREATE INDEX IF NOT EXISTS idx_discussion_message_discussion ON "public"."AgentDiscussionMessage"("discussionId");
 
 -- ═══════════════════════════════════════════════════════════════════════════
--- 4. FIX MISSING DEFAULTS ON PRIMARY KEY COLUMNS
+-- 5. WHATSAPP NOTIFICATION QUEUE COLUMNS
+-- ═══════════════════════════════════════════════════════════════════════════
+
+-- Topic: track whether a concluded topic has been announced via WhatsApp
+ALTER TABLE "public"."Topic"
+  ADD COLUMN IF NOT EXISTS "announced" BOOLEAN NOT NULL DEFAULT false;
+
+-- ElevationRequest: track whether WhatsApp notification has been sent
+ALTER TABLE "public"."ElevationRequest"
+  ADD COLUMN IF NOT EXISTS "notified" BOOLEAN NOT NULL DEFAULT false;
+
+-- AgentTask: track whether WhatsApp notification has been sent
+ALTER TABLE "public"."AgentTask"
+  ADD COLUMN IF NOT EXISTS "notified" BOOLEAN NOT NULL DEFAULT false;
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- 6. FIX MISSING DEFAULTS ON PRIMARY KEY COLUMNS
 -- ═══════════════════════════════════════════════════════════════════════════
 -- Several tables were created without DEFAULT gen_random_uuid() on the id
 -- column, so INSERTs that omit id fail with null violation.

@@ -54,7 +54,8 @@ CREATE TABLE IF NOT EXISTS "public"."Topic" (
   summary TEXT,
   "createdBy" TEXT REFERENCES "public"."User"(id) ON DELETE SET NULL,
   "categoryId" TEXT REFERENCES "public"."Category"(id) ON DELETE SET NULL,
-  "updatedAt" TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now()
+  "updatedAt" TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now(),
+  "announced" BOOLEAN NOT NULL DEFAULT false
 );
 
 -- ============================================================================
@@ -115,7 +116,8 @@ CREATE TABLE IF NOT EXISTS "public"."ElevationRequest" (
   message TEXT,
   "adminNote" TEXT,
   "createdAt" TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now(),
-  "updatedAt" TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now()
+  "updatedAt" TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now(),
+  "notified" BOOLEAN NOT NULL DEFAULT false
 );
 
 -- ============================================================================
@@ -132,7 +134,8 @@ CREATE TABLE IF NOT EXISTS "public"."AgentTask" (
     CHECK (status IN ('PENDING', 'ASSIGNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED')),
   "createdAt" TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now(),
   "completedAt" TIMESTAMP WITHOUT TIME ZONE,
-  "updatedAt" TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now()
+  "updatedAt" TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now(),
+  "notified" BOOLEAN NOT NULL DEFAULT false
 );
 
 -- ============================================================================

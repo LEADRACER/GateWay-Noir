@@ -38,6 +38,7 @@ export interface Topic {
   createdBy: string | null;
   categoryId: string | null;
   updatedAt: string;
+  announced: boolean;
 }
 
 export interface Comment {
@@ -81,6 +82,7 @@ export interface ElevationRequest {
   adminNote: string | null;
   createdAt: string;
   updatedAt: string;
+  notified: boolean;
 }
 
 export interface AgentTask {
@@ -93,6 +95,7 @@ export interface AgentTask {
   completedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  notified: boolean;
 }
 
 export interface AgentDiscussion {

@@ -36,3 +36,7 @@ prisma/migrations/
 .kilo/
 .vercel
 .env*
+
+# whatsapp auth directory
+whatsapp-auth/
+announcer.log

@@ -70,7 +70,7 @@ export async function getPendingElevations() {
 
   const { data, error } = await supabase
     .from('ElevationRequest')
-    .select('*, User(badgeCode, displayName, createdAt)')
+    .select('*, User!userId(badgeCode, displayName, createdAt)')
     .eq("status", "PENDING")
     .order("createdAt", { ascending: false });
 
@@ -87,7 +87,7 @@ export async function getApprovedElevations() {
 
   const { data, error } = await supabase
     .from('ElevationRequest')
-    .select('*, User(badgeCode, displayName, createdAt)')
+    .select('*, User!userId(badgeCode, displayName, createdAt)')
     .eq("status", "APPROVED")
     .order("updatedAt", { ascending: false })
     .limit(10);
@@ -105,7 +105,7 @@ export async function getRejectedElevations() {
 
   const { data, error } = await supabase
     .from('ElevationRequest')
-    .select('*, User(badgeCode, displayName, createdAt)')
+    .select('*, User!userId(badgeCode, displayName, createdAt)')
     .eq("status", "REJECTED")
     .order("updatedAt", { ascending: false })
     .limit(10);
@@ -142,7 +142,7 @@ export async function approveElevation(requestId: string, adminId: string) {
 
   const { data: request } = await supabase
     .from('ElevationRequest')
-    .select('*, User(*)')
+    .select('*, User!userId(*)')
     .eq("id", requestId)
     .maybeSingle();
 

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import { updateAgentProfile, getAgentProfile } from "@/lib/profile-actions";
 import { useBadge } from "@/components/badge/BadgeProvider";
+import { Smartphone } from "lucide-react";
 
 interface ProfileData {
   id: string;
@@ -47,6 +48,13 @@ export function AgentProfileClient() {
 
   const handleSave = async () => {
     if (!profile) return;
+
+    // Enforce phone/WhatsApp registration
+    if (!phone.trim()) {
+      toast.error("Phone number is required for WhatsApp notifications");
+      return;
+    }
+
     setSaving(true);
     try {
       const result = await updateAgentProfile(profile.id, {
@@ -99,6 +107,19 @@ export function AgentProfileClient() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-10">
+      {/* WhatsApp Required Banner */}
+      {!profile.phone && (
+        <div className="mb-6 p-3 bg-amber/10 border border-amber/30 flex items-start gap-2.5">
+          <Smartphone className="w-4 h-4 text-amber shrink-0 mt-0.5" />
+          <div>
+            <p className="text-xs text-amber font-semibold uppercase tracking-wider">WhatsApp Number Required</p>
+            <p className="text-[11px] text-amber/70 mt-0.5">
+              You must register your phone number to receive WhatsApp notifications for tasks, elevations, and case updates.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-zinc-100 tracking-tight">Agent Profile</h1>
@@ -169,14 +190,26 @@ export function AgentProfileClient() {
 
           {/* Phone */}
           <div>
-            <label className="block text-xs text-zinc-500 mb-1.5">Phone (WhatsApp)</label>
+            <label className="block text-xs text-zinc-500 mb-1.5">
+              Phone (WhatsApp) <span className="text-red-400/80">*required</span>
+            </label>
             <input
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              className="w-full bg-[#08080a] border border-[rgba(168,144,112,0.15)] rounded-md px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-manila/40 transition-colors"
+              className={`w-full bg-[#08080a] border ${
+                !phone.trim() && profile.phone === null
+                  ? 'border-amber/40'
+                  : 'border-[rgba(168,144,112,0.15)]'
+              } rounded-md px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-manila/40 transition-colors`}
               placeholder="+1 (555) 000-0000"
             />
+            {!phone.trim() && !profile.phone && (
+              <p className="text-[10px] text-amber/60 mt-1 flex items-center gap-1">
+                <Smartphone className="w-3 h-3" />
+                Required for WhatsApp notifications (elevations, tasks, case updates)
+              </p>
+            )}
           </div>
         </div>
 
