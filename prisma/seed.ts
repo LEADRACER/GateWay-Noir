@@ -350,6 +350,8 @@ async function main() {
       userId: detUser.id,
       message: "I've been investigating for months. Requesting promotion to Field Agent.",
       status: "PENDING",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     });
     console.log(`  ✓ Pending elevation request from ${detUser.badgeCode}`);
   }

@@ -46,7 +46,14 @@ export async function requestElevation(userId: string, message?: string) {
 
   const { data: request, error } = await supabase
     .from('ElevationRequest')
-    .insert({ userId, message: message?.trim() || null, status: "PENDING", requestedRole: "AGENT" })
+    .insert({
+      userId,
+      message: message?.trim() || null,
+      status: "PENDING",
+      requestedRole: "AGENT",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    })
     .select()
     .single();
 
@@ -132,13 +139,13 @@ export async function approveElevation(requestId: string, adminId: string) {
   // Update user role and badge code
   await supabase
     .from('User')
-    .update({ role: "AGENT", badgeCode: newBadgeCode, handler: adminId })
+    .update({ role: "AGENT", badgeCode: newBadgeCode, handler: adminId, updatedAt: new Date().toISOString() })
     .eq("id", request.userId);
 
   // Mark request as approved
   await supabase
     .from('ElevationRequest')
-    .update({ status: "APPROVED", adminId })
+    .update({ status: "APPROVED", adminId, updatedAt: new Date().toISOString() })
     .eq("id", requestId);
 
   revalidatePath("/admin");
@@ -164,7 +171,7 @@ export async function rejectElevation(requestId: string, adminNote?: string) {
 
   await supabase
     .from('ElevationRequest')
-    .update({ status: "REJECTED", adminNote: adminNote?.trim() || null })
+    .update({ status: "REJECTED", adminNote: adminNote?.trim() || null, updatedAt: new Date().toISOString() })
     .eq("id", requestId);
 
   revalidatePath("/admin");

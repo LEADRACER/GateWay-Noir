@@ -52,6 +52,10 @@ ALTER TABLE "public"."Topic"
 ALTER TABLE "public"."AgentTask"
   ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now();
 
+-- ElevationRequest: ensure updatedAt has a default (table created without it in some envs)
+ALTER TABLE "public"."ElevationRequest"
+  ALTER COLUMN "updatedAt" SET DEFAULT now();
+
 -- Comment: add parentId (forward-looking, for threaded replies)
 ALTER TABLE "public"."Comment"
   ADD COLUMN IF NOT EXISTS "parentId" TEXT REFERENCES "public"."Comment"(id) ON DELETE SET NULL;
