@@ -111,7 +111,7 @@ async function initClient() {
 
   sock = makeWASocket({
     auth: state,
-    printQRInTerminal: true,
+    printQRInTerminal: false,
     syncFullHistory: false,
     markOnlineOnConnect: false,
     browser: ["Noir:GateWay", "Chrome", "1.0.0"],
@@ -119,9 +119,18 @@ async function initClient() {
 
   sock.ev.on("creds.update", saveCreds);
 
-  sock.ev.on("connection.update", (update) => {
+  sock.ev.on("connection.update", async (update) => {
     const { connection, lastDisconnect, qr } = update;
-    if (qr) log("QR_CODE", "Scan with WhatsApp to authenticate");
+    if (qr) {
+      // Print QR to stdout (Baileys printQRInTerminal writes to stderr — invisible)
+      try {
+        const { default: qrTerm } = await import("qrcode-terminal");
+        qrTerm.generate(qr, { small: true });
+      } catch {
+        console.log(`\n  QR CODE (scan with WhatsApp):\n  ${qr}\n`);
+      }
+      log("QR_CODE", "Scan with WhatsApp to authenticate");
+    }
     if (connection === "open") { ready = true; log("CONNECTED", "WhatsApp connected"); }
     if (connection === "close") {
       ready = false;
