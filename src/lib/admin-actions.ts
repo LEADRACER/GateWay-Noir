@@ -211,9 +211,14 @@ export async function createBureauUser(displayName: string, adminBadgeCode: stri
     throw new Error("Unauthorized — only BUREAU users can create Bureau users");
   }
   if (!adminBadgeCode) throw new Error("Admin badge code is required to create a Bureau user");
+
+  const supabase = await createServerSupabaseClient();
+  const { generateBadgeCode } = await import("@/lib/badge");
+  const newBadgeCode = await generateBadgeCode("BUREAU");
+
   return createAgentUser({
     displayName,
     role: "BUREAU",
-    badgeCode: adminBadgeCode,
+    badgeCode: newBadgeCode,
   });
 }

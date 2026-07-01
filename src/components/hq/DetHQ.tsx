@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Fingerprint, Smartphone, ArrowUp, AlertCircle, CheckCircle, User, Scale } from "lucide-react";
+import { Smartphone, AlertCircle, CheckCircle, Scale, ArrowUp } from "lucide-react";
 import { useBadge } from "@/components/badge/BadgeProvider";
 import { registerPhone } from "@/lib/badge-client";
 import { requestElevation, getMyElevationStatus } from "@/lib/elevation-actions";
+import { BadgeCard } from "@/components/badge/BadgeCard";
+import { RoleAvatar } from "@/components/badge/RoleAvatar";
 
 interface ElevationStatus {
   status: string;
@@ -93,39 +95,50 @@ export function DetHQ() {
 
   return (
     <div className="space-y-4 max-w-2xl">
-      {/* Identity Card */}
+      {/* Badge Hero Card */}
       <motion.div
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-[#111113] border border-[rgba(168,144,112,0.12)] rounded-lg p-6"
+        className="bg-[#111113] border-2 border-[rgba(168,144,112,0.12)] p-6"
       >
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Badge Code</p>
-            <p className="text-lg font-mono font-bold text-[#d97706]">{badge.badgeCode}</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-zinc-500" />
-            <span className="text-[10px] text-zinc-500 font-medium uppercase tracking-wider">DETECTIVE</span>
+        <div className="flex flex-col items-center mb-4">
+          <RoleAvatar role={badge.role} size="lg" className="mb-2" />
+          <div className="flex justify-center">
+            <BadgeCard badge={badge} />
           </div>
         </div>
 
-        <p className="text-xs text-zinc-500 mb-3">
-          {badge.displayName || "Unnamed Detective"}
-        </p>
+        {/* Quick stats row */}
+        <div className="grid grid-cols-2 gap-3 mt-4">
+          <div className="bg-[#0a0a0c] border border-[rgba(168,144,112,0.06)] p-3 text-center">
+            <p className="text-sm font-bold text-blue-400">{badge.voteCount ?? 0}</p>
+            <p className="text-[9px] text-zinc-600 typewriter-label">VOTES</p>
+          </div>
+          <div className="bg-[#0a0a0c] border border-[rgba(168,144,112,0.06)] p-3 text-center">
+            <p className="text-sm font-bold text-blue-400">{badge.commentCount ?? 0}</p>
+            <p className="text-[9px] text-zinc-600 typewriter-label">COMMENTS</p>
+          </div>
+        </div>
 
+        {/* Handler info */}
         {badge.handler && (
-          <div className="flex items-center gap-2 p-2 bg-[#0a0a0c] border border-[rgba(168,144,112,0.06)] rounded mb-3">
-            <Scale className="w-3 h-3 text-[#d97706] opacity-50" />
+          <div className="flex items-center gap-2 p-2 bg-[#0a0a0c] border border-[rgba(168,144,112,0.06)] mt-3">
+            <Scale className="w-3 h-3 text-blue-400 opacity-50" />
             <span className="text-[10px] text-zinc-500">
-              Working under: <span className="text-[#d97706] font-mono">{badge.handler}</span>
+              Working under: <span className="text-blue-400 font-mono">{badge.handler}</span>
             </span>
           </div>
         )}
+      </motion.div>
 
-        {/* Phone registration */}
-        <div className="border-t border-[rgba(168,144,112,0.06)] pt-4 mt-4">
-          <h3 className="text-[10px] text-zinc-500 typewriter-label mb-2">PHONE REGISTRATION</h3>
+      {/* Phone Registration */}
+      <motion.div
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.05 }}
+        className="bg-[#111113] border border-[rgba(168,144,112,0.12)] p-6"
+      >
+        <h3 className="text-[10px] text-zinc-500 typewriter-label mb-2">PHONE REGISTRATION</h3>
           {badge.phone ? (
             <div className="flex items-center gap-1.5 text-[10px] text-green-500/70">
               <Smartphone className="w-3 h-3" />
@@ -162,7 +175,6 @@ export function DetHQ() {
               Phone registered
             </p>
           )}
-        </div>
       </motion.div>
 
       {/* Elevation Section */}

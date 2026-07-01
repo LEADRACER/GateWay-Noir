@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
 import { Scale, Menu, X, Sparkles, Fingerprint, ShieldCheck, ListChecks, User } from "lucide-react";
 import { useBadge } from "@/components/badge/BadgeProvider";
+import { RoleAvatar } from "@/components/badge/RoleAvatar";
 
 export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -57,7 +58,7 @@ export function Navbar() {
               onClick={() => setShowBadgeModal(true)}
               className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 text-zinc-500 hover:text-[#d97706] border border-transparent hover:border-[#d97706]/20 transition-all typewriter-label"
             >
-              <Fingerprint className="w-3 h-3" />
+              {badge ? <RoleAvatar role={badge.role} size="sm" /> : <Fingerprint className="w-3 h-3" />}
               {badge ? badge.badgeCode : "BADGE"}
             </button>
             <Link

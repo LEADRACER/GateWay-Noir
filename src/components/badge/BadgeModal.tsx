@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Fingerprint, AlertCircle, CheckCircle, Smartphone, Download, Eye, EyeOff, Sparkles, LogIn } from "lucide-react";
+import { X, Fingerprint, AlertCircle, CheckCircle, Smartphone, Download, Eye, EyeOff, Sparkles } from "lucide-react";
 import { useBadge } from "./BadgeProvider";
 import { registerPhone, updateBadgeName } from "@/lib/badge-client";
-import { downloadBadgeSVG } from "@/lib/badge-image";
+import { downloadBadgeSVG, getDataURL } from "@/lib/badge-image";
 import { extractSuffix } from "@/lib/badge-cookie";
+import { BadgeCard } from "./BadgeCard";
 
 const DEFAULT_NAMES = ["Detective", "Agent", "Field Agent", "Bureau Chief", "Anonymous"];
 
@@ -182,6 +183,9 @@ export function BadgeModal() {
           ) : badge && !newBadgeCode ? (
             /* Already claimed — show badge info */
             <div className="text-center">
+              <div className="flex justify-center mb-4">
+                <BadgeCard badge={badge} />
+              </div>
               <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#d97706]/10 border border-[#d97706]/20 mb-3">
                 <Fingerprint className="w-3 h-3 text-[#d97706]" />
                 <span className="text-[13px] font-mono font-bold text-[#d97706] tracking-wider">
@@ -525,7 +529,7 @@ export function BadgeModal() {
                   disabled={claiming || suffix.length !== 4 || password.length !== 8}
                   className="px-3 py-1.5 bg-[#d97706]/20 border border-[#d97706]/30 text-[10px] text-[#d97706] typewriter-label hover:bg-[#d97706]/30 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                 >
-                  {claiming ? "..." : <LogIn className="w-3 h-3" />}
+                  {claiming ? "..." : <Sparkles className="w-3 h-3" />}
                 </button>
               </div>
 

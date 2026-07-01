@@ -11,7 +11,8 @@ import { getCurrentUser } from "@/lib/get-current-user";
 function normalizeUserJoin<T>(obj: T): T {
   if (!obj) return obj;
   const o = obj as Record<string, any>;
-  if (o.User) {
+  // Handle both null (orphaned record) and actual joined data
+  if ('User' in o) {
     o.user = o.User;
     delete o.User;
   }
@@ -67,11 +68,16 @@ export async function requestElevation(userId: string, message?: string) {
 export async function getPendingElevations() {
   const supabase = await createServerSupabaseClient();
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('ElevationRequest')
     .select('*, User(badgeCode, displayName, createdAt)')
     .eq("status", "PENDING")
     .order("createdAt", { ascending: false });
+
+  if (error) {
+    console.error("getPendingElevations error:", error);
+    return [];
+  }
 
   return (data || []).map(normalizeUserJoin);
 }
@@ -79,12 +85,17 @@ export async function getPendingElevations() {
 export async function getApprovedElevations() {
   const supabase = await createServerSupabaseClient();
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('ElevationRequest')
     .select('*, User(badgeCode, displayName, createdAt)')
     .eq("status", "APPROVED")
     .order("updatedAt", { ascending: false })
     .limit(10);
+
+  if (error) {
+    console.error("getApprovedElevations error:", error);
+    return [];
+  }
 
   return (data || []).map(normalizeUserJoin);
 }
@@ -92,12 +103,17 @@ export async function getApprovedElevations() {
 export async function getRejectedElevations() {
   const supabase = await createServerSupabaseClient();
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('ElevationRequest')
     .select('*, User(badgeCode, displayName, createdAt)')
     .eq("status", "REJECTED")
     .order("updatedAt", { ascending: false })
     .limit(10);
+
+  if (error) {
+    console.error("getRejectedElevations error:", error);
+    return [];
+  }
 
   return (data || []).map(normalizeUserJoin);
 }

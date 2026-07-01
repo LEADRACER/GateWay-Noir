@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   ClipboardList, Play, CheckCircle2, Clock, Loader2, FileX,
-  User, Smartphone, AlertCircle, CheckCircle, Scale, Save,
+  Smartphone, AlertCircle, CheckCircle, Scale, Save,
   MessageSquare, ArrowUpRight,
 } from "lucide-react";
 import toast from "react-hot-toast";
@@ -13,6 +13,8 @@ import { registerPhone } from "@/lib/badge-client";
 import { getAgentProfile, updateAgentProfile } from "@/lib/profile-actions";
 import { getAgentTasks, updateTaskStatus } from "@/lib/task-actions";
 import { formatDate } from "@/lib/utils";
+import { BadgeCard } from "@/components/badge/BadgeCard";
+import { RoleAvatar } from "@/components/badge/RoleAvatar";
 
 interface Task {
   id: string;
@@ -174,30 +176,41 @@ export function AgentHQ() {
 
   return (
     <div className="space-y-4 max-w-2xl">
+      {/* Badge Hero Card */}
       <motion.div
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-[#111113] border border-[rgba(168,144,112,0.12)] rounded-lg p-4"
+        className="bg-[#111113] border-2 border-[rgba(168,144,112,0.12)] p-6"
       >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-9 h-9 rounded-full bg-[#d97706]/10 border border-[#d97706]/20">
-              <User className="w-4 h-4 text-[#d97706]" />
-            </div>
-            <div>
-              <p className="text-sm font-mono font-bold text-[#d97706]">{badge.badgeCode}</p>
-              <p className="text-[10px] text-zinc-500">{badge.displayName}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-[#d97706]/10 border border-[#d97706]/20">
-            <span className="text-[10px] font-medium text-[#d97706] typewriter-label">FIELD AGENT</span>
+        <div className="flex flex-col items-center mb-4">
+          <RoleAvatar role={badge.role} size="lg" className="mb-2" />
+          <div className="flex justify-center">
+            <BadgeCard badge={badge} />
           </div>
         </div>
+
+        {/* Stats row */}
+        <div className="grid grid-cols-3 gap-3 mt-4">
+          <div className="bg-[#0a0a0c] border border-[rgba(168,144,112,0.06)] p-3 text-center">
+            <p className="text-sm font-bold text-amber-400">{profile?.voteCount ?? 0}</p>
+            <p className="text-[9px] text-zinc-600 typewriter-label">VOTES</p>
+          </div>
+          <div className="bg-[#0a0a0c] border border-[rgba(168,144,112,0.06)] p-3 text-center">
+            <p className="text-sm font-bold text-amber-400">{profile?.commentCount ?? 0}</p>
+            <p className="text-[9px] text-zinc-600 typewriter-label">COMMENTS</p>
+          </div>
+          <div className="bg-[#0a0a0c] border border-[rgba(168,144,112,0.06)] p-3 text-center">
+            <p className="text-sm font-bold text-amber-400">{Object.values(profile?.taskCounts || {}).reduce((a: number, b: number) => a + b, 0)}</p>
+            <p className="text-[9px] text-zinc-600 typewriter-label">TASKS</p>
+          </div>
+        </div>
+
+        {/* Handler info */}
         {profile?.handlerInfo && (
-          <div className="flex items-center gap-2 mt-3 p-2 bg-[#0a0a0c] border border-[rgba(168,144,112,0.06)] rounded">
-            <Scale className="w-3 h-3 text-[#d97706] opacity-50" />
+          <div className="flex items-center gap-2 mt-3 p-2 bg-[#0a0a0c] border border-[rgba(168,144,112,0.06)]">
+            <Scale className="w-3 h-3 text-amber-400 opacity-50" />
             <span className="text-[10px] text-zinc-500">
-              Handler: <span className="text-[#d97706] font-mono">{profile.handlerInfo.badgeCode}</span> — {profile.handlerInfo.displayName}
+              Handler: <span className="text-amber-400 font-mono">{profile.handlerInfo.badgeCode}</span> — {profile.handlerInfo.displayName}
             </span>
           </div>
         )}
@@ -224,7 +237,7 @@ export function AgentHQ() {
               : "text-zinc-600 hover:text-zinc-400 border border-transparent"
           }`}
         >
-          <User className="w-3 h-3" />
+          <RoleAvatar role={badge.role} size="sm" />
           PROFILE
         </button>
         <div className="flex-1" />

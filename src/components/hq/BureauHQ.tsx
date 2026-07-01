@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   Scale, MessageSquare, CheckCircle2, Sparkles, AlertCircle,
-  Fingerprint, Users, UserPlus, UserMinus, Loader2,
+  Users, UserPlus, UserMinus, Loader2,
 } from "lucide-react";
 import { useBadge } from "@/components/badge/BadgeProvider";
 import { getAllAgents, promoteToBureau, demoteAgent, createBureauUser } from "@/lib/admin-actions";
@@ -34,7 +34,7 @@ interface BureauHQProps {
 export function BureauHQ({ stats, children }: BureauHQProps) {
   const { badge } = useBadge();
   const [agents, setAgents] = useState<AgentUser[]>([]);
-  const [activeTab, setActiveTab] = useState<"dashboard" | "agents" | "elevations">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "agents">("dashboard");
   const [promotingId, setPromotingId] = useState<string | null>(null);
   const [demotingId, setDemotingId] = useState<string | null>(null);
 
@@ -112,17 +112,6 @@ export function BureauHQ({ stats, children }: BureauHQProps) {
               {agents.length}
             </span>
           )}
-        </button>
-        <button
-          onClick={() => setActiveTab("elevations")}
-          className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium typewriter-label transition-colors ${
-            activeTab === "elevations"
-              ? "bg-[#0d0d0f] text-zinc-200 border border-[rgba(168,144,112,0.12)]"
-              : "text-zinc-600 hover:text-zinc-400 border border-transparent"
-          }`}
-        >
-          <Fingerprint className="w-3 h-3" />
-          ELEVATIONS
         </button>
         <Link
           href="/agent/discussions"
@@ -239,11 +228,6 @@ export function BureauHQ({ stats, children }: BureauHQProps) {
             </div>
           </div>
         </motion.div>
-      )}
-
-      {/* Elevations Tab — renders existing ElevationsPanel via children slot */}
-      {activeTab === "elevations" && children && (
-        <div>{children}</div>
       )}
     </div>
   );
