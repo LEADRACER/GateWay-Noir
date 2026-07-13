@@ -45,11 +45,20 @@ export async function getAgentTasks(agentId: string) {
 export async function getAllTasks() {
   const supabase = await createServerSupabaseClient();
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('AgentTask')
-    .select('*, "User"!agentId(badgeCode, displayName), "User"!adminId(badgeCode, displayName)')
+    .select(`
+      *,
+      agent:User!agentId(badgeCode, displayName),
+      admin:User!adminId(badgeCode, displayName)
+    `)
     .order("status", { ascending: true })
     .order("createdAt", { ascending: false });
+
+  if (error) {
+    console.error("getAllTasks error:", error);
+    return [];
+  }
 
   return data || [];
 }

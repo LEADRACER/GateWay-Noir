@@ -501,7 +501,7 @@ export async function concludeTopic(formData: FormData) {
   const summary = formData.get("summary") as string;
 
   if (!id || !verdict) return { error: "Missing required fields" };
-  if (!["SOLVED", "CONFIRMED", "UNSOLVED"].includes(verdict)) {
+  if (!["BUSTED", "TRUE", "INCONCLUSIVE"].includes(verdict)) {
     return { error: "Invalid verdict" };
   }
 
@@ -547,6 +547,7 @@ export async function concludeTopic(formData: FormData) {
       verdict,
       summary: summary?.trim() || null,
       endsAt: new Date().toISOString(),
+      announced: false,
     })
     .eq("id", id)
     .select()

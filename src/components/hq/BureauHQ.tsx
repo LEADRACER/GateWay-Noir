@@ -4,12 +4,14 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   Scale, MessageSquare, CheckCircle2, Sparkles, AlertCircle,
-  Users, UserPlus, UserMinus, Loader2,
+  Users, UserPlus, UserMinus, Loader2, ShieldCheck, ListChecks, User, Trash2, Gavel, FileText
 } from "lucide-react";
 import { useBadge } from "@/components/badge/BadgeProvider";
 import { getAllAgents, promoteToBureau, demoteAgent, createBureauUser } from "@/lib/admin-actions";
+import { getActiveAndConcludedTopics, concludeTopic } from "@/lib/actions";
 import toast from "react-hot-toast";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 interface AgentUser {
   id: string;
@@ -19,6 +21,15 @@ interface AgentUser {
   phone: string | null;
   handler: string | null;
   createdAt: Date | string;
+}
+
+interface Topic {
+  id: string;
+  title: string;
+  slug: string;
+  status: string;
+  announced: boolean;
+  createdAt: string;
 }
 
 interface BureauHQProps {
@@ -33,13 +44,17 @@ interface BureauHQProps {
 
 export function BureauHQ({ stats, children }: BureauHQProps) {
   const { badge } = useBadge();
+  const router = useRouter();
   const [agents, setAgents] = useState<AgentUser[]>([]);
-  const [activeTab, setActiveTab] = useState<"dashboard" | "agents">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "agents" | "cases">("dashboard");
   const [promotingId, setPromotingId] = useState<string | null>(null);
   const [demotingId, setDemotingId] = useState<string | null>(null);
+  const [concludingId, setConcludingId] = useState<string | null>(null);
+  const [activeCases, setActiveCases] = useState<Topic[]>([]);
 
   useEffect(() => {
     fetchAgents();
+    fetchActiveCases();
   }, []);
 
   const fetchAgents = async () => {
@@ -51,11 +66,41 @@ export function BureauHQ({ stats, children }: BureauHQProps) {
     }
   };
 
+  const fetchActiveCases = async () => {
+    try {
+      const data = await getActiveAndConcludedTopics();
+      const filtered = (data as any[]).filter(t => t.status === "ACTIVE" || (t.status === "CONCLUDED" && !t.announced));
+      setActiveCases(filtered);
+    } catch {
+      console.error("Failed to fetch active cases");
+    }
+  };
+
+  const handleConclude = async (topicId: string, verdict: string) => {
+    setConcludingId(topicId);
+    try {
+      const formData = new FormData();
+      formData.set("id", topicId);
+      formData.set("verdict", verdict);
+      formData.set("summary", "Verdict delivered via HQ quick actions");
+      const result = await concludeTopic(formData);
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success("Verdict delivered!");
+        fetchActiveCases();
+      }
+    } catch {
+      toast.error("Failed to conclude topic");
+    }
+    setConcludingId(null);
+  };
+
   const handlePromoteToBureau = async (agentId: string) => {
     setPromotingId(agentId);
     try {
       const result = await promoteToBureau(agentId, badge?.badgeCode || "", badge?.id || "");
-      if (result.success) {
+      if ("success" in result && result.success) {
         toast.success(`Promoted to BRU — new badge: ${result.newBadgeCode}`);
         setAgents((prev) => prev.filter((a) => a.id !== agentId));
       } else {
@@ -71,7 +116,7 @@ export function BureauHQ({ stats, children }: BureauHQProps) {
     setDemotingId(agentId);
     try {
       const result = await demoteAgent(agentId);
-      if (result.success) {
+      if ("success" in result && result.success) {
         toast.success(`Demoted to DET — new badge: ${result.newBadgeCode}`);
         setAgents((prev) => prev.filter((a) => a.id !== agentId));
       } else {
@@ -110,6 +155,22 @@ export function BureauHQ({ stats, children }: BureauHQProps) {
           {agents.length > 0 && (
             <span className="inline-flex items-center justify-center w-4 h-4 bg-zinc-600 text-black text-[8px] font-bold">
               {agents.length}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab("cases")}
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium typewriter-label transition-colors ${
+            activeTab === "cases"
+              ? "bg-[#0d0d0f] text-zinc-200 border border-[rgba(168,144,112,0.12)]"
+              : "text-zinc-600 hover:text-zinc-400 border border-transparent"
+          }`}
+        >
+          <FileText className="w-3 h-3" />
+          CASES
+          {activeCases.length > 0 && (
+            <span className="inline-flex items-center justify-center w-4 h-4 bg-amber-500/20 text-amber-400 text-[8px] font-bold">
+              {activeCases.length}
             </span>
           )}
         </button>
@@ -225,6 +286,82 @@ export function BureauHQ({ stats, children }: BureauHQProps) {
                 </div>
                 <CreateAdminForm />
               </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Cases Tab */}
+      {activeTab === "cases" && (
+        <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}>
+          <div className="bg-[#111113] border border-[rgba(168,144,112,0.08)] rounded">
+            <div className="h-0.5 evidence-tape" />
+            <div className="p-4">
+              <div className="flex items-center gap-2 mb-4">
+                <FileText className="w-4 h-4 text-[#d97706] opacity-50" />
+                <h2 className="text-xs font-semibold text-zinc-300 typewriter-label">ACTIVE CASES</h2>
+              </div>
+
+              {activeCases.length === 0 ? (
+                <div className="text-center py-8">
+                  <FileText className="w-6 h-6 text-zinc-700 mx-auto mb-2 opacity-50" />
+                  <p className="text-zinc-600 text-[10px] typewriter-label">NO ACTIVE CASES</p>
+                  <p className="text-zinc-700 text-[10px] mt-0.5">All investigations are concluded or announced</p>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  {activeCases.map((topic) => (
+                    <div
+                      key={topic.id}
+                      className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-[#0a0a0c] border border-[rgba(168,144,112,0.06)] rounded"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-xs font-mono font-bold text-[#d97706]">{topic.status}</span>
+                          <span className="text-xs text-zinc-300 truncate">{topic.title}</span>
+                        </div>
+                        <div className="text-[9px] text-zinc-500">
+                          Created {new Date(topic.createdAt).toLocaleDateString()}
+                          {topic.status === "CONCLUDED" && <span className="ml-2 text-amber-400">• CONCLUDED (not announced)</span>}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        {topic.status === "ACTIVE" && (
+                          <>
+                            <button
+                              onClick={() => handleConclude(topic.id, "BUSTED")}
+                              disabled={concludingId === topic.id}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-medium bg-red-500/10 border border-red-500/25 text-red-400 typewriter-label hover:bg-red-500/20 disabled:opacity-40 transition-colors"
+                            >
+                              {concludingId === topic.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Gavel className="w-3 h-3" />}
+                              BUSTED
+                            </button>
+                            <button
+                              onClick={() => handleConclude(topic.id, "TRUE")}
+                              disabled={concludingId === topic.id}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-medium bg-green-500/10 border border-green-500/25 text-green-400 typewriter-label hover:bg-green-500/20 disabled:opacity-40 transition-colors"
+                            >
+                              {concludingId === topic.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
+                              TRUE
+                            </button>
+                            <button
+                              onClick={() => handleConclude(topic.id, "INCONCLUSIVE")}
+                              disabled={concludingId === topic.id}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-medium bg-amber-500/10 border border-amber-500/25 text-amber-400 typewriter-label hover:bg-amber-500/20 disabled:opacity-40 transition-colors"
+                            >
+                              {concludingId === topic.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <AlertCircle className="w-3 h-3" />}
+                              INCONCLUSIVE
+                            </button>
+                          </>
+                        )}
+                        {topic.status === "CONCLUDED" && !topic.announced && (
+                          <span className="text-[9px] text-amber-400 typewriter-label">PENDING ANNOUNCEMENT</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </motion.div>

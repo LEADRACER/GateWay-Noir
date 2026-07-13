@@ -59,9 +59,9 @@ export function ConcludeTopicForm({ topic }: { topic: Topic }) {
         name="verdict"
         placeholder="Select verdict..."
         options={[
-          { value: "SOLVED", label: "🚫 SOLVED — Evidence disproves the allegation" },
-          { value: "CONFIRMED", label: "✅ CONFIRMED — Evidence supports the allegation" },
-          { value: "UNSOLVED", label: "❓ UNSOLVED — Insufficient evidence" },
+          { value: "BUSTED", label: "🚫 BUSTED — Evidence disproves the allegation" },
+          { value: "TRUE", label: "✅ TRUE — Evidence supports the allegation" },
+          { value: "INCONCLUSIVE", label: "❓ INCONCLUSIVE — Insufficient evidence" },
         ]}
         required
       />
