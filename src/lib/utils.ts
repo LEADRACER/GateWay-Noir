@@ -44,9 +44,9 @@ export function getStatusColor(status: string): string {
 
 export function getVerdictColor(verdict: string | null): string {
   switch (verdict) {
-    case "SOLVED": return "bg-red-500/10 text-red-400 border-red-500/15";
-    case "CONFIRMED": return "bg-emerald-500/10 text-emerald-400 border-emerald-500/15";
-    case "UNSOLVED": return "bg-amber-500/10 text-amber-400 border-amber-500/15";
+    case "BUSTED": return "bg-red-500/10 text-red-400 border-red-500/15";
+    case "TRUE": return "bg-emerald-500/10 text-emerald-400 border-emerald-500/15";
+    case "INCONCLUSIVE": return "bg-amber-500/10 text-amber-400 border-amber-500/15";
     default: return "bg-zinc-500/10 text-zinc-400 border-zinc-500/15";
   }
 }
