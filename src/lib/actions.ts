@@ -660,7 +660,12 @@ export async function getFlaggedComments() {
     .order("createdAt", { ascending: false });
 
   if (error) throw new Error(error.message);
-  return data || [];
+  
+  // Normalize Topic -> topic for client compatibility
+  return (data || []).map((comment: any) => ({
+    ...comment,
+    topic: comment.Topic ? { title: comment.Topic.title, slug: comment.Topic.slug } : null,
+  }));
 }
 
 export async function getAllComments() {
@@ -673,5 +678,10 @@ export async function getAllComments() {
     .limit(100);
 
   if (error) throw new Error(error.message);
-  return data || [];
+  
+  // Normalize Topic -> topic for client compatibility
+  return (data || []).map((comment: any) => ({
+    ...comment,
+    topic: comment.Topic ? { title: comment.Topic.title, slug: comment.Topic.slug } : null,
+  }));
 }
