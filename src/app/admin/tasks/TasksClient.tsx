@@ -98,9 +98,7 @@ export function TasksClient({ tasks: initialTasks, agents, createTask }: TasksCl
     }
     setSubmitting(true);
     try {
-      // Use a placeholder adminId — in production this would come from session
-      const adminId = "admin";
-      const result = await createTask(selectedAgentId, adminId, title, description);
+      const result = await createTask(selectedAgentId, title, description);
       if (result?.success) {
         toast.success("Task assigned");
         setTitle("");

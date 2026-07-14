@@ -31,7 +31,7 @@ export function formatElevationApproved(
     ``,
     `You are now a Field Agent of the Gateway:Noir Bureau of Investigation.`,
     `Access your profile and tasks at:`,
-    `https://noirgateway.app/agent/tasks`,
+    `https://gate-way-noir.vercel.app/agent/tasks`,
     ``,
     `— Gateway Noir Bureau`,
   ].join("\n");
@@ -69,7 +69,7 @@ export function formatTaskAssigned(
     `"${title}"`,
     ``,
     `View & respond:`,
-    `https://noirgateway.app/agent/tasks`,
+    `https://gate-way-noir.vercel.app/agent/tasks`,
     ``,
     `— Gateway Noir Bureau`,
   ].join("\n");
@@ -109,7 +109,7 @@ export function formatTopicConcluded(
     `VERDICT: ${verdict}`,
     ``,
     `Read the full case:`,
-    `https://noirgateway.app/topic/${slug}`,
+    `https://gate-way-noir.vercel.app/topic/${slug}`,
     ``,
     `— Gateway Noir Bureau`,
   ].join("\n");

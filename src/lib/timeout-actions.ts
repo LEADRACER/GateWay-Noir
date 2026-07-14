@@ -39,6 +39,7 @@ export async function processTopicTimeouts() {
         verdict: "UNSOLVED",
         summary: "Case timed out — no verdict was delivered before the deadline.",
         endsAt: now,
+        announced: false,
       })
       .in("id", ids);
 

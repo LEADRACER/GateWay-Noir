@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
 
     await supabase
       .from('User')
-      .update({ phone: cleaned })
+      .update({ phone: cleaned, whatsappId: null })
       .eq("badgeCode", badgeCode);
 
     revalidatePath("/");

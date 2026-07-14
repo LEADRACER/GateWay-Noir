@@ -2,9 +2,16 @@
 
 import { revalidatePath } from "next/cache";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/get-current-user";
 
-export async function createTask(agentId: string, adminId: string, title: string, description?: string) {
+export async function createTask(agentId: string, title: string, description?: string) {
   if (!agentId || !title?.trim()) return { error: "Missing required fields" };
+
+  // Get current admin user from session
+  const currentUser = await getCurrentUser();
+  if (!currentUser || currentUser.role !== "BUREAU") {
+    return { error: "Unauthorized: Only BUREAU admins can assign tasks" };
+  }
 
   const supabase = await createServerSupabaseClient();
 
@@ -12,7 +19,7 @@ export async function createTask(agentId: string, adminId: string, title: string
     .from('AgentTask')
     .insert({
       agentId,
-      adminId,
+      adminId: currentUser.id,
       title: title.trim(),
       description: description?.trim() || null,
       status: "PENDING",

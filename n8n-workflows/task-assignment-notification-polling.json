@@ -1,0 +1,229 @@
+{
+  "name": "Noir:GateWay - Task Assignment Notification (Polling)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": 30,
+          "unit": "seconds"
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger (30s)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": "public",
+        "table": "topic",
+        "options": {
+          "where": {
+            "conditions": {
+              "string": [
+                {
+                  "key": "status",
+                  "operation": "equal",
+                  "value": "ASSIGNED"
+                },
+                {
+                  "key": "notified",
+                  "operation": "equal",
+                  "value": false
+                }
+              ],
+              "combinator": "and"
+            }
+          },
+          "orderBy": {
+            "field": "created_at",
+            "direction": "ASC"
+          },
+          "limit": 50
+        }
+      },
+      "id": "supabase-query",
+      "name": "Supabase: Query Unnotified ASSIGNED Topics",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        500,
+        300
+      ],
+      "credentials": {
+        "supabaseApi": "supabase-pooler"
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "split-items",
+      "name": "Split Items (Loop)",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 1,
+      "position": [
+        750,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "key": "assignee_phone",
+              "operation": "notEmpty",
+              "value": ""
+            }
+          ]
+        }
+      },
+      "id": "if-has-phone",
+      "name": "IF: Has Assignee Phone?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        750,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://waha:3000/api/sendText",
+        "method": "POST",
+        "jsonParameters": true,
+        "options": {},
+        "headerParametersJson": "{\n  \"Content-Type\": \"application/json\",\n  \"X-Api-Key\": \"noir-waha-73db2c943a37ad4ae5f87e8bec72f7f0\"\n}",
+        "bodyParametersJson": "{\n  \"session\": \"noir-gateway\",\n  \"chatId\": \"{{ $json.assignee_phone }}@c.us\",\n  \"text\": \"🎯 *New Task Assigned*\\n\\n*Topic:* {{ $json.title }}\\n*Priority:* {{ $json.priority }}\\n*Assigned by:* {{ $json.assigned_by_name }}\\n*Due:* {{ $json.due_date ? $json.due_date : 'No deadline' }}\\n\\n{{ $json.description ? 'Description: ' + $json.description : '' }}\"\n}"
+      },
+      "id": "waha-send",
+      "name": "WAHA: Send Task Assignment WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1000,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "schema": "public",
+        "table": "topic",
+        "options": {},
+        "data": {
+          "notified": true,
+          "notified_at": "={{ new Date().toISOString() }}"
+        },
+        "where": {
+          "conditions": {
+            "string": [
+              {
+                "key": "id",
+                "operation": "equal",
+                "value": "={{ $json.id }}"
+              }
+            ]
+          }
+        }
+      },
+      "id": "supabase-update",
+      "name": "Supabase: Mark Topic Notified",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        400
+      ],
+      "credentials": {
+        "supabaseApi": "supabase-pooler"
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger (30s)": {
+      "main": [
+        [
+          {
+            "node": "Supabase: Query Unnotified ASSIGNED Topics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: Query Unnotified ASSIGNED Topics": {
+      "main": [
+        [
+          {
+            "node": "Split Items (Loop)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Items (Loop)": {
+      "main": [
+        [
+          {
+            "node": "IF: Has Assignee Phone?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Has Assignee Phone?": {
+      "main": [
+        [
+          {
+            "node": "WAHA: Send Task Assignment WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Supabase: Mark Topic Notified",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WAHA: Send Task Assignment WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "Supabase: Mark Topic Notified",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: Mark Topic Notified": {
+      "main": [
+        [
+          {
+            "node": "Split Items (Loop)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "task-assignment-notification-polling"
+}

@@ -25,6 +25,8 @@ import * as path from "path";
 import { log } from "./logger";
 
 const AUTH_DIR = path.resolve(process.cwd(), "whatsapp-auth");
+const DM_TIMEOUT = 15000; // 15s max per DM attempt
+let GROUP_JID = ""; // set via setGroupJid()
 
 let sock: WASocket | null = null;
 let connectionReady = false;
@@ -137,9 +139,16 @@ function waitForConnection(timeoutMs: number): Promise<void> {
 }
 
 /**
- * Send a text message to a phone number or JID.
- * Phone numbers should be in international format (e.g., 919876543210).
- * The function auto-formats to JID.
+ * Set the default group JID for fallback delivery.
+ */
+export function setGroupJid(jid: string): void {
+  GROUP_JID = jid;
+  log("CONFIG", `Group JID set to ${jid}`);
+}
+
+/**
+ * Send a text message to a phone number or JID with timeout protection.
+ * Returns `true` on delivery, `false` on failure/timeout.
  */
 export async function sendText(to: string, text: string): Promise<boolean> {
   if (!sock) {
@@ -148,24 +157,42 @@ export async function sendText(to: string, text: string): Promise<boolean> {
   }
 
   try {
-    // Format phone to JID if it's a plain number
     const jid = to.includes("@") ? to : `${to}@s.whatsapp.net`;
 
-    await sock.sendMessage(jid, { text });
-    log("SENT", `Message sent to ${jid}: ${text.substring(0, 50)}...`);
+    await Promise.race([
+      sock.sendMessage(jid, { text }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("Timed out")), DM_TIMEOUT)),
+    ]);
+    log("SENT", `DM to ${jid}: ${text.substring(0, 50)}...`);
     return true;
   } catch (err: any) {
-    log("ERROR", `Failed to send message: ${err.message}`);
+    log("DM_FAIL", `to ${to}: ${err.message}`);
     return false;
   }
 }
 
 /**
- * Send a text message to a group.
- * Group JID must include the @g.us suffix.
+ * Send a text message to the default group (group JID must be set via setGroupJid).
+ * Falls back to JID-based sendText if called with a group JID argument.
  */
-export async function sendGroupText(groupJid: string, text: string): Promise<boolean> {
-  return sendText(groupJid, text);
+export async function sendGroupText(text: string, groupJid?: string): Promise<boolean> {
+  const jid = groupJid || GROUP_JID;
+  if (!jid) {
+    log("GROUP_FAIL", "No group JID configured — call setGroupJid() first");
+    return false;
+  }
+
+  try {
+    await Promise.race([
+      sock!.sendMessage(jid, { text }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("Timed out")), DM_TIMEOUT)),
+    ]);
+    log("SENT", `Group ${jid}: ${text.substring(0, 50)}...`);
+    return true;
+  } catch (err: any) {
+    log("GROUP_FAIL", `${jid}: ${err.message}`);
+    return false;
+  }
 }
 
 /**

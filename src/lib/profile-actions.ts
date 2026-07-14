@@ -22,7 +22,10 @@ export async function updateAgentProfile(userId: string, data: { displayName?: s
   const updateData: any = {};
   if (data.displayName !== undefined) updateData.displayName = data.displayName.trim();
   if (data.bio !== undefined) updateData.bio = data.bio.trim();
-  if (data.phone !== undefined) updateData.phone = data.phone.trim();
+  if (data.phone !== undefined) {
+    updateData.phone = data.phone.trim();
+    updateData.whatsappId = null; // reset to trigger group re-invite on next announcer tick
+  }
 
   const { data: updated, error } = await supabase
     .from('User')
