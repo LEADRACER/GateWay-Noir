@@ -3,7 +3,7 @@ services:
     image: devlikeapro/waha:latest
     container_name: noir-gateway-waha
     ports:
-      - "3001:3000"
+      - "3002:3000"
     volumes:
       - /root/noir-waha-data/sessions:/app/sessions
       - /root/noir-waha-data/config:/app/config
