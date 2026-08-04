@@ -12,7 +12,6 @@ import {
   Lock,
   MessageSquare,
   Pencil,
-  Trash2,
   Check,
   X,
 } from "lucide-react";
@@ -52,7 +51,6 @@ export default function DiscussionDetailPage() {
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [saving, setSaving] = useState(false);
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const fetchMessages = async () => {
     try {
@@ -176,30 +174,6 @@ export default function DiscussionDetailPage() {
     }
   };
 
-  const handleDelete = async () => {
-    if (!confirmingDelete) {
-      setConfirmingDelete(true);
-      setTimeout(() => setConfirmingDelete(false), 3000);
-      return;
-    }
-    try {
-      const res = await fetch(`/api/agent/discussions/${params.id}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        toast.success("Discussion deleted");
-        router.push("/agent/discussions");
-      } else {
-        const data = await res.json().catch(() => ({}));
-        toast.error(data.error || "Failed to delete");
-        setConfirmingDelete(false);
-      }
-    } catch {
-      toast.error("Network error");
-      setConfirmingDelete(false);
-    }
-  };
-
   if (badgeLoading || loading) {
     return (
       <div className="max-w-3xl mx-auto py-16 flex items-center justify-center">
@@ -316,17 +290,6 @@ export default function DiscussionDetailPage() {
                 >
                   <Pencil className="w-3 h-3" />
                   EDIT
-                </button>
-                <button
-                  onClick={handleDelete}
-                  className={`inline-flex items-center gap-1 px-2 py-1 text-[9px] font-medium border typewriter-label transition-colors ${
-                    confirmingDelete
-                      ? "bg-red-600/90 text-white border-red-500/50 hover:bg-red-500"
-                      : "text-zinc-500 border-[rgba(168,144,112,0.1)] hover:text-red-400 hover:border-red-500/40"
-                  }`}
-                >
-                  <Trash2 className="w-3 h-3" />
-                  {confirmingDelete ? "CONFIRM?" : "DELETE"}
                 </button>
                 {discussion.isOpen ? (
                   <button

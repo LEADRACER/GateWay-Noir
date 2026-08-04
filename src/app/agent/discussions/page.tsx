@@ -13,10 +13,8 @@ import {
   Users,
   ArrowRight,
   Loader2,
-  Trash2,
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
-import toast from "react-hot-toast";
 
 interface Discussion {
   id: string;
@@ -36,7 +34,6 @@ export default function AgentDiscussionsPage() {
   const [discussions, setDiscussions] = useState<Discussion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
   const fetchDiscussions = useCallback(async () => {
     setLoading(true);
@@ -62,34 +59,6 @@ export default function AgentDiscussionsPage() {
   useEffect(() => {
     if (!badgeLoading) fetchDiscussions();
   }, [badgeLoading, fetchDiscussions]);
-
-  const handleDelete = async (d: Discussion) => {
-    if (confirmingId !== d.id) {
-      setConfirmingId(d.id);
-      setTimeout(
-        () => setConfirmingId((cur) => (cur === d.id ? null : cur)),
-        3000
-      );
-      return;
-    }
-    try {
-      const res = await fetch(`/api/agent/discussions/${d.id}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        setDiscussions((prev) => prev.filter((x) => x.id !== d.id));
-        setConfirmingId(null);
-        toast.success("Discussion deleted");
-      } else {
-        const data = await res.json().catch(() => ({}));
-        toast.error(data.error || "Failed to delete");
-        setConfirmingId(null);
-      }
-    } catch {
-      toast.error("Network error");
-      setConfirmingId(null);
-    }
-  };
 
   if (badgeLoading) {
     return (
@@ -148,64 +117,39 @@ export default function AgentDiscussionsPage() {
           </div>
         ) : (
           <div className="space-y-1">
-            {discussions.map((d) => {
-              const canDelete =
-                d.createdById === badge.id || badge.role === "BUREAU";
-              return (
-                <div
-                  key={d.id}
-                  className="group flex items-stretch gap-1"
-                >
-                  <button
-                    onClick={() => router.push(`/agent/discussions/${d.id}`)}
-                    className="flex-1 min-w-0 text-left bg-[#111113] border border-[rgba(168,144,112,0.06)] hover:border-[rgba(168,144,112,0.16)] transition-colors p-3"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <h3 className="text-xs font-medium text-zinc-300 truncate group-hover:text-zinc-200 transition-colors">
-                            {d.title}
-                          </h3>
-                          {!d.isOpen && (
-                            <CheckCircle2 className="w-3 h-3 text-zinc-600 shrink-0" />
-                          )}
-                        </div>
-                        {d.description && (
-                          <p className="text-[10px] text-zinc-600 line-clamp-1 mb-1">{d.description}</p>
-                        )}
-                        <div className="flex items-center gap-2 text-[9px] text-zinc-700">
-                          <span className="font-mono">{d.createdBy.badgeCode}</span>
-                          <span>•</span>
-                          <Clock className="w-2.5 h-2.5 inline" />
-                          <span>{formatDate(d.createdAt)}</span>
-                          <span>•</span>
-                          <MessageSquare className="w-2.5 h-2.5 inline" />
-                          <span>{d._count.messages}</span>
-                        </div>
-                      </div>
-                      <ArrowRight className="w-3 h-3 text-zinc-700 group-hover:text-zinc-500 transition-colors shrink-0 mt-1" />
-                    </div>
-                  </button>
-                  {canDelete && (
-                    <button
-                      onClick={() => handleDelete(d)}
-                      title={confirmingId === d.id ? "Click again to confirm" : "Delete discussion"}
-                      className={`shrink-0 flex items-center justify-center border transition-colors ${
-                        confirmingId === d.id
-                          ? "w-20 bg-red-600/90 text-white border-red-500/50 hover:bg-red-500"
-                          : "w-9 bg-[#111113] text-zinc-600 border-[rgba(168,144,112,0.06)] hover:text-red-400 hover:border-red-500/40"
-                      }`}
-                    >
-                      {confirmingId === d.id ? (
-                        <span className="text-[9px] font-medium typewriter-label">CONFIRM?</span>
-                      ) : (
-                        <Trash2 className="w-3.5 h-3.5" />
+            {discussions.map((d) => (
+              <button
+                key={d.id}
+                onClick={() => router.push(`/agent/discussions/${d.id}`)}
+                className="w-full text-left group bg-[#111113] border border-[rgba(168,144,112,0.06)] hover:border-[rgba(168,144,112,0.16)] transition-colors p-3"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <h3 className="text-xs font-medium text-zinc-300 truncate group-hover:text-zinc-200 transition-colors">
+                        {d.title}
+                      </h3>
+                      {!d.isOpen && (
+                        <CheckCircle2 className="w-3 h-3 text-zinc-600 shrink-0" />
                       )}
-                    </button>
-                  )}
+                    </div>
+                    {d.description && (
+                      <p className="text-[10px] text-zinc-600 line-clamp-1 mb-1">{d.description}</p>
+                    )}
+                    <div className="flex items-center gap-2 text-[9px] text-zinc-700">
+                      <span className="font-mono">{d.createdBy.badgeCode}</span>
+                      <span>•</span>
+                      <Clock className="w-2.5 h-2.5 inline" />
+                      <span>{formatDate(d.createdAt)}</span>
+                      <span>•</span>
+                      <MessageSquare className="w-2.5 h-2.5 inline" />
+                      <span>{d._count.messages}</span>
+                    </div>
+                  </div>
+                  <ArrowRight className="w-3 h-3 text-zinc-700 group-hover:text-zinc-500 transition-colors shrink-0 mt-1" />
                 </div>
-              );
-            })}
+              </button>
+            ))}
           </div>
         )}
       </motion.div>

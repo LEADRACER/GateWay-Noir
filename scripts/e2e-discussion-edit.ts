@@ -37,16 +37,16 @@ async function main() {
   const id = created.discussion?.id;
   if (!id) { console.log("  aborting — no id"); process.exit(1); }
 
-  // 2) EDIT as creator (BUREAU)
+  // 2) EDIT name + description as creator (BUREAU)
   const edit = await fetch(BASE + `/api/agent/discussions/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json", Cookie: bru },
-    body: JSON.stringify({ title: "E2E EDITED", description: "" }),
+    body: JSON.stringify({ title: "E2E EDITED", description: "edited desc" }),
   });
   const edited = await edit.json();
-  check("PATCH edit (BRU)", edit.status === 200 && edited.discussion?.title === "E2E EDITED", `-> ${edit.status} title="${edited.discussion?.title}"`);
+  check("PATCH edit (BRU)", edit.status === 200 && edited.discussion?.title === "E2E EDITED" && edited.discussion?.description === "edited desc", `-> ${edit.status} title="${edited.discussion?.title}" desc="${edited.discussion?.description}"`);
 
-  // 3) EDIT with empty title -> 400
+  // 3) EDIT empty title -> 400
   const bad = await fetch(BASE + `/api/agent/discussions/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json", Cookie: bru },
@@ -54,31 +54,46 @@ async function main() {
   });
   check("PATCH empty title -> 400", bad.status === 400, `-> ${bad.status}`);
 
-  // 4) DELETE as non-creator AGENT -> 403
+  // 4) EDIT as non-creator AGENT -> 403
   const forbidden = await fetch(BASE + `/api/agent/discussions/${id}`, {
-    method: "DELETE",
-    headers: { Cookie: agt },
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Cookie: agt },
+    body: JSON.stringify({ title: "hijack" }),
   });
-  check("DELETE as other AGENT -> 403", forbidden.status === 403, `-> ${forbidden.status}`);
+  check("PATCH as other AGENT -> 403", forbidden.status === 403, `-> ${forbidden.status}`);
 
-  // 5) DISCUSSION still exists after 403
+  // 5) title unchanged after 403
   const after403 = await fetch(BASE + "/api/agent/discussions", { headers: { Cookie: bru } });
   const list1 = await after403.json();
-  check("row survived 403", Array.isArray(list1.discussions) && list1.discussions.some((d: any) => d.id === id));
+  const row = list1.discussions?.find((d: any) => d.id === id);
+  check("row survived 403, title intact", row?.title === "E2E EDITED", `-> "${row?.title}"`);
 
-  // 6) DELETE as creator (BUREAU)
-  const del = await fetch(BASE + `/api/agent/discussions/${id}`, { method: "DELETE", headers: { Cookie: bru } });
-  check("DELETE as creator (BRU)", del.status === 200, `-> ${del.status}`);
+  // 6) EDIT description only (title untouched)
+  const descOnly = await fetch(BASE + `/api/agent/discussions/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Cookie: bru },
+    body: JSON.stringify({ description: "" }),
+  });
+  const descResult = await descOnly.json();
+  check("PATCH description-only (clear)", descOnly.status === 200 && descResult.discussion?.title === "E2E EDITED" && descResult.discussion?.description === null, `-> ${descOnly.status}`);
 
-  // 7) gone from list, original untouched
-  const afterDel = await fetch(BASE + "/api/agent/discussions", { headers: { Cookie: bru } });
-  const list2 = await afterDel.json();
-  check("row removed", Array.isArray(list2.discussions) && !list2.discussions.some((d: any) => d.id === id));
-  check("original 'Test Discussion' intact", list2.discussions?.some((d: any) => d.title === "Test Discussion"));
+  // 7) cleanup temp row — no app DELETE endpoint by design, remove via service-role
+  const supabaseUrl = get("NEXT_PUBLIC_SUPABASE_URL");
+  const serviceRole = get("SUPABASE_SERVICE_ROLE_KEY");
+  const cleanup = await fetch(`${supabaseUrl}/rest/v1/AgentDiscussion?id=eq.${id}`, {
+    method: "DELETE",
+    headers: {
+      apikey: serviceRole,
+      Authorization: `Bearer ${serviceRole}`,
+      Prefer: "return=minimal",
+    },
+  });
+  check("cleanup temp row (service-role)", cleanup.status === 204, `-> ${cleanup.status}`);
 
-  // 8) DELETE again -> 404
-  const again = await fetch(BASE + `/api/agent/discussions/${id}`, { method: "DELETE", headers: { Cookie: bru } });
-  check("DELETE missing -> 404", again.status === 404, `-> ${again.status}`);
+  // 8) confirm gone
+  const afterClean = await fetch(BASE + "/api/agent/discussions", { headers: { Cookie: bru } });
+  const list2 = await afterClean.json();
+  check("temp row removed", !list2.discussions?.some((d: any) => d.id === id));
 
   console.log(`\n${pass} passed / ${fail} failed`);
   process.exit(fail ? 1 : 0);
