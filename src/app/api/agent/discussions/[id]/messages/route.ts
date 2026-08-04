@@ -27,7 +27,7 @@ export async function GET(
 
   const { data: messages } = await supabase
     .from('AgentDiscussionMessage')
-    .select('*, User(badgeCode, displayName, role)')
+    .select('*, user:User(badgeCode, displayName, role)')
     .eq("discussionId", id)
     .order("createdAt", { ascending: true });
 
@@ -75,7 +75,7 @@ export async function POST(
       content: content.trim(),
       userId: user.id,
     })
-    .select('*, User(badgeCode, displayName, role)')
+    .select('*, user:User(badgeCode, displayName, role)')
     .single();
 
   // SECURITY/BUG: check insert errors — no silent fake success

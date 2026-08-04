@@ -13,7 +13,7 @@ export async function GET() {
 
   const { data: discussions } = await supabase
     .from('AgentDiscussion')
-    .select('*, User(badgeCode, displayName)')
+    .select('*, createdBy:User(badgeCode, displayName)')
     .order("updatedAt", { ascending: false });
 
   // Get message counts
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
       description: description?.trim() || null,
       createdById: user.id,
     })
-    .select('*, User(badgeCode, displayName)')
+    .select('*, createdBy:User(badgeCode, displayName)')
     .single();
 
   // SECURITY/BUG: check insert errors — previously returned 201 without persisting
