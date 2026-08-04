@@ -116,37 +116,37 @@ export default function AgentDiscussionsPage() {
             <p className="text-zinc-700 text-[10px] mt-1">Start the first conversation in the Agent Channel</p>
           </div>
         ) : (
-          <div className="space-y-1">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {discussions.map((d) => (
               <button
                 key={d.id}
                 onClick={() => router.push(`/agent/discussions/${d.id}`)}
-                className="w-full text-left group bg-[#111113] border border-[rgba(168,144,112,0.06)] hover:border-[rgba(168,144,112,0.16)] transition-colors p-3"
+                className="w-full text-left group bg-[#111113] border border-[rgba(168,144,112,0.06)] hover:border-[rgba(168,144,112,0.16)] transition-colors p-3 flex flex-col min-h-[132px]"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <h3 className="text-xs font-medium text-zinc-300 truncate group-hover:text-zinc-200 transition-colors">
-                        {d.title}
-                      </h3>
-                      {!d.isOpen && (
-                        <CheckCircle2 className="w-3 h-3 text-zinc-600 shrink-0" />
-                      )}
-                    </div>
-                    {d.description && (
-                      <p className="text-[10px] text-zinc-600 line-clamp-1 mb-1">{d.description}</p>
-                    )}
-                    <div className="flex items-center gap-2 text-[9px] text-zinc-700">
-                      <span className="font-mono">{d.createdBy.badgeCode}</span>
-                      <span>•</span>
-                      <Clock className="w-2.5 h-2.5 inline" />
-                      <span>{formatDate(d.createdAt)}</span>
-                      <span>•</span>
-                      <MessageSquare className="w-2.5 h-2.5 inline" />
-                      <span>{d._count.messages}</span>
-                    </div>
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="text-xs font-medium text-zinc-300 truncate group-hover:text-zinc-200 transition-colors">
+                    {d.title}
+                  </h3>
+                  {!d.isOpen && (
+                    <CheckCircle2 className="w-3 h-3 text-zinc-600 shrink-0" />
+                  )}
+                </div>
+                {d.description && (
+                  <p className="text-[10px] text-zinc-600 line-clamp-2 mb-2">
+                    {d.description}
+                  </p>
+                )}
+                <div className="mt-auto flex items-center justify-between gap-2 pt-2 border-t border-[rgba(168,144,112,0.05)]">
+                  <div className="flex items-center gap-2 text-[9px] text-zinc-700">
+                    <span className="font-mono">{d.createdBy.badgeCode}</span>
+                    <span>•</span>
+                    <Clock className="w-2.5 h-2.5 inline" />
+                    <span>{formatDate(d.createdAt)}</span>
+                    <span>•</span>
+                    <MessageSquare className="w-2.5 h-2.5 inline" />
+                    <span>{d._count.messages}</span>
                   </div>
-                  <ArrowRight className="w-3 h-3 text-zinc-700 group-hover:text-zinc-500 transition-colors shrink-0 mt-1" />
+                  <ArrowRight className="w-3 h-3 text-zinc-700 group-hover:text-zinc-500 transition-colors shrink-0" />
                 </div>
               </button>
             ))}
