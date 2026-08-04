@@ -2,6 +2,8 @@
 
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/get-current-user";
+import { normalizePhone } from "@/lib/phone";
+import { getHandlerBadgeInfo } from "@/lib/handler";
 
 export async function updateAgentProfile(userId: string, data: { displayName?: string; bio?: string; phone?: string }) {
   const caller = await getCurrentUser();
@@ -23,7 +25,16 @@ export async function updateAgentProfile(userId: string, data: { displayName?: s
   if (data.displayName !== undefined) updateData.displayName = data.displayName.trim();
   if (data.bio !== undefined) updateData.bio = data.bio.trim();
   if (data.phone !== undefined) {
-    updateData.phone = data.phone.trim();
+    const trimmed = data.phone.trim();
+    if (trimmed === "") {
+      updateData.phone = null; // allow clearing
+    } else {
+      const normalized = normalizePhone(trimmed);
+      if (!normalized) {
+        return { error: "Invalid phone number — use a 10-digit Indian number or +<countrycode><number>" };
+      }
+      updateData.phone = normalized;
+    }
     updateData.whatsappId = null; // reset to trigger group re-invite on next announcer tick
   }
 
@@ -51,15 +62,10 @@ export async function getAgentProfile(userId: string) {
 
   if (!user) return null;
 
-  // Get handler info if exists
+  // Get handler info if exists — resolved to the handler's badge identity
   let handlerInfo = null;
   if (user.handler) {
-    const { data: handler } = await supabase
-      .from('User')
-      .select("badgeCode, displayName, id")
-      .eq("id", user.handler)
-      .maybeSingle();
-    if (handler) handlerInfo = handler;
+    handlerInfo = await getHandlerBadgeInfo(supabase, user.handler);
   }
 
   // Get vote and comment counts

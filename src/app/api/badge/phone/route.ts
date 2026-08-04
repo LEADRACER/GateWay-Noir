@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/get-current-user";
+import { normalizePhone } from "@/lib/phone";
+import { getHandlerBadgeInfo } from "@/lib/handler";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
@@ -26,10 +28,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Basic validation
-    const cleaned = phone.replace(/[\s\-\(\)\.\,\*\#]/g, "");
-    if (!/^\+?[0-9]{7,15}$/.test(cleaned)) {
-      return NextResponse.json({ success: false, error: "Invalid phone number format" });
+    // Basic validation + India-first (+91) normalization to E.164
+    const normalized = normalizePhone(phone);
+    if (!normalized) {
+      return NextResponse.json({
+        success: false,
+        error: "Invalid phone number — use a 10-digit Indian number or +<countrycode><number>",
+      });
     }
 
     const supabase = await createServerSupabaseClient();
@@ -50,11 +55,21 @@ export async function POST(request: NextRequest) {
 
     await supabase
       .from('User')
-      .update({ phone: cleaned, whatsappId: null })
+      .update({ phone: normalized, whatsappId: null })
       .eq("badgeCode", badgeCode);
 
+    // Resolve the agent's handler to the handler's BADGE code — the identifier
+    // used for display and WA addressing in agent-facing flows.
+    let handlerBadge: string | null = null;
+    let handlerName: string | null = null;
+    if (user.handler) {
+      const h = await getHandlerBadgeInfo(supabase, user.handler);
+      handlerBadge = h?.badgeCode ?? null;
+      handlerName = h?.displayName ?? null;
+    }
+
     revalidatePath("/");
-    return NextResponse.json({ success: true, phone: cleaned });
+    return NextResponse.json({ success: true, phone: normalized, handlerBadge, handlerName });
   } catch (err) {
     console.error("Badge phone error:", err);
     return NextResponse.json({ success: false, error: "Failed to register phone" });
