@@ -37,6 +37,11 @@ export async function createTask(agentId: string, title: string, description?: s
 export async function getAgentTasks(agentId: string) {
   if (!agentId) return [];
 
+  // SECURITY: agents may only read their own tasks (BUREAU reads all).
+  const caller = await getCurrentUser();
+  if (!caller) return [];
+  if (caller.role !== "BUREAU" && caller.id !== agentId) return [];
+
   const supabase = await createServerSupabaseClient();
 
   const { data } = await supabase
@@ -50,6 +55,10 @@ export async function getAgentTasks(agentId: string) {
 }
 
 export async function getAllTasks() {
+  // SECURITY: BUREAU-only listing.
+  const caller = await getCurrentUser();
+  if (!caller || caller.role !== "BUREAU") return [];
+
   const supabase = await createServerSupabaseClient();
 
   const { data, error } = await supabase
@@ -76,7 +85,22 @@ export async function updateTaskStatus(taskId: string, status: string) {
     return { error: "Invalid status" };
   }
 
+  // SECURITY: the assigned agent or BUREAU may update a task — nobody else.
+  const caller = await getCurrentUser();
+  if (!caller) return { error: "Unauthorized" };
+
   const supabase = await createServerSupabaseClient();
+
+  const { data: existing } = await supabase
+    .from('AgentTask')
+    .select("agentId")
+    .eq("id", taskId)
+    .maybeSingle();
+
+  if (!existing) return { error: "Task not found" };
+  if (caller.role !== "BUREAU" && existing.agentId !== caller.id) {
+    return { error: "Unauthorized — you can only update your own tasks" };
+  }
 
   const updateData: any = { status };
   if (status === "COMPLETED") {

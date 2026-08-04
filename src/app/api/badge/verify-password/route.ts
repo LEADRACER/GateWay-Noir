@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { setSessionCookie } from "@/lib/session-cookie";
+import { checkRateLimit, clientIp } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,6 +22,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Rate limit login attempts (brute-force protection)
+    const ip = clientIp(request);
+    if (!checkRateLimit(`login:ip:${ip}`, 30, 60_000)) {
+      return NextResponse.json(
+        { success: false, error: "Too many attempts — try again later" },
+        { status: 429 }
+      );
+    }
+    if (!checkRateLimit(`login:code:${badgeCode.toUpperCase()}`, 5, 60_000)) {
+      return NextResponse.json(
+        { success: false, error: "Too many attempts for this badge — try again later" },
+        { status: 429 }
+      );
+    }
+
     const supabase = await createServerSupabaseClient();
 
     const { data: user } = await supabase
@@ -29,24 +45,20 @@ export async function POST(request: NextRequest) {
       .eq("badgeCode", badgeCode.toUpperCase())
       .maybeSingle();
 
-    if (!user) {
+    if (!user || !user.passwordHash) {
+      // SECURITY: uniform error — no existence oracle. (404 "User not found"
+      // vs 400 "No password set" vs 401 "Invalid password" lets attackers
+      // enumerate valid badge codes.)
       return NextResponse.json(
-        { success: false, error: "User not found" },
-        { status: 404 }
-      );
-    }
-
-    if (!user.passwordHash) {
-      return NextResponse.json(
-        { success: false, error: "No password set for this account" },
-        { status: 400 }
+        { success: false, error: "Invalid badge code or passcode" },
+        { status: 401 }
       );
     }
 
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) {
       return NextResponse.json(
-        { success: false, error: "Invalid password" },
+        { success: false, error: "Invalid badge code or passcode" },
         { status: 401 }
       );
     }

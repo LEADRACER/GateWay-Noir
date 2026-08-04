@@ -68,7 +68,7 @@ export async function POST(
     return NextResponse.json({ error: "Message too long (max 5000 chars)" }, { status: 400 });
   }
 
-  const { data: message } = await supabase
+  const { data: message, error: insertError } = await supabase
     .from('AgentDiscussionMessage')
     .insert({
       discussionId: id,
@@ -77,6 +77,12 @@ export async function POST(
     })
     .select('*, User(badgeCode, displayName, role)')
     .single();
+
+  // SECURITY/BUG: check insert errors — no silent fake success
+  if (insertError) {
+    console.error("Failed to send message:", insertError);
+    return NextResponse.json({ error: "Failed to send message" }, { status: 500 });
+  }
 
   // Touch the discussion's updatedAt
   await supabase

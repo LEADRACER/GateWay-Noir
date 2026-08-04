@@ -1,5 +1,6 @@
 "use server";
 
+import bcrypt from "bcryptjs";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/get-current-user";
 import { reprefixBadgeCode } from "@/lib/badge";
@@ -11,14 +12,21 @@ export async function createAgentUser(data: {
   role: string;
   badgeCode: string;
 }) {
-  if (data.role === "BUREAU") {
-    const caller = await getCurrentUser();
-    if (!caller || caller.role !== "BUREAU") {
-      throw new Error("Unauthorized — only BUREAU users can create BUREAU users");
-    }
+  // SECURITY: creating ANY account (AGT/BUREAU/DET) is BUREAU-only.
+  // Previously, anyone could mint AGENT accounts via this action.
+  const caller = await getCurrentUser();
+  if (!caller || caller.role !== "BUREAU") {
+    throw new Error("Unauthorized — only BUREAU users can create accounts");
   }
 
   const supabase = await createServerSupabaseClient();
+
+  // SECURITY: start the account with a random temporary passcode instead of no
+  // password. An unclaimed badge with a NULL passwordHash used to let anyone
+  // who guessed the 4-char code claim it (account takeover). The temp passcode
+  // is returned once so the admin can hand it over.
+  const temporaryPassword = String(Math.floor(10000000 + Math.random() * 90000000));
+  const passwordHash = await bcrypt.hash(temporaryPassword, 10);
 
   const { data: user } = await supabase
     .from('User')
@@ -28,12 +36,13 @@ export async function createAgentUser(data: {
       role: data.role || "AGENT",
       isAdmin: false,
       linkedIds: [],
+      passwordHash,
     })
     .select()
     .single();
 
   if (!user) throw new Error("Failed to create user");
-  return user;
+  return { ...user, temporaryPassword };
 }
 
 export async function promoteAgentToBureau(agentUserId: string, adminBadgeCode: string, adminUserId: string) {
@@ -80,6 +89,10 @@ export async function promoteAgentToBureau(agentUserId: string, adminBadgeCode: 
 }
 
 export async function getUsersByRole(role: string) {
+  // SECURITY: BUREAU-only listing.
+  const caller = await getCurrentUser();
+  if (!caller || caller.role !== "BUREAU") return [];
+
   const supabase = await createServerSupabaseClient();
 
   const { data } = await supabase
@@ -92,6 +105,10 @@ export async function getUsersByRole(role: string) {
 }
 
 export async function getAllUsers() {
+  // SECURITY: BUREAU-only listing.
+  const caller = await getCurrentUser();
+  if (!caller || caller.role !== "BUREAU") return [];
+
   const supabase = await createServerSupabaseClient();
 
   const { data } = await supabase

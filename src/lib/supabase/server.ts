@@ -6,7 +6,12 @@ export async function createServerSupabaseClient() {
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    // SECURITY: the server-side client uses the SERVICE ROLE key (never shipped
+    // to the browser). RLS is enabled on every table, so the public anon key is
+    // locked down completely; the service role bypasses RLS and keeps the app
+    // working. The anon fallback only covers environments missing the key.
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
         getAll() {

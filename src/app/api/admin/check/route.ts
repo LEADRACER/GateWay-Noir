@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const isAdmin = sessionAdmin || cookieAdmin || badgeAdmin;
+  const isAdmin = sessionAdmin || badgeAdmin; // cookieAdmin is client-spoofable; never trusted
 
   return NextResponse.json({
     admin: isAdmin,

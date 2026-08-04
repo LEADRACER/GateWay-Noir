@@ -440,7 +440,6 @@ export async function createTopic(formData: FormData) {
   const categoryId = formData.get("categoryId") as string;
   const durationDays = parseInt(formData.get("durationDays") as string) || 7;
   const imageUrl = formData.get("imageUrl") as string;
-  const adminId = formData.get("adminId") as string;
   const status = (formData.get("status") as string) || "ACTIVE";
 
   if (!title?.trim() || !description?.trim() || !categoryId) {
@@ -483,7 +482,7 @@ export async function createTopic(formData: FormData) {
           : endsAt.toISOString(),
       categoryId,
       status,
-      createdBy: adminId || null,
+      createdBy: caller.id, // SECURITY: from the session, never the form
     });
 
   if (insertError) return { error: insertError.message };
@@ -651,6 +650,10 @@ export async function getStats() {
 }
 
 export async function getFlaggedComments() {
+  // SECURITY: BUREAU-only — comment moderation panel.
+  const caller = await getCurrentUser();
+  if (!caller || caller.role !== "BUREAU") return [];
+
   const supabase = await createServerSupabaseClient();
 
   const { data, error } = await supabase
@@ -669,6 +672,10 @@ export async function getFlaggedComments() {
 }
 
 export async function getAllComments() {
+  // SECURITY: BUREAU-only — comment moderation panel.
+  const caller = await getCurrentUser();
+  if (!caller || caller.role !== "BUREAU") return [];
+
   const supabase = await createServerSupabaseClient();
 
   const { data, error } = await supabase

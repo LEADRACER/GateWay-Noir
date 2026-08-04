@@ -374,7 +374,7 @@ function CreateAdminForm() {
   const { badge } = useBadge();
   const [name, setName] = useState("");
   const [creating, setCreating] = useState(false);
-  const [result, setResult] = useState<{ badgeCode: string } | null>(null);
+  const [result, setResult] = useState<{ badgeCode: string; temporaryPassword: string } | null>(null);
   const [error, setError] = useState("");
 
   const handleCreate = async () => {
@@ -404,7 +404,10 @@ function CreateAdminForm() {
           <span className="text-[10px] text-green-400/80 typewriter-label">ADMIN BADGE CREATED</span>
         </div>
         <p className="text-xs font-mono font-bold text-[#d97706] mb-1">{result.badgeCode}</p>
-        <p className="text-[9px] text-zinc-500 mb-2">Share this code with the new admin to claim.</p>
+        <p className="text-[9px] text-zinc-500 mb-1">
+          Passcode: <span className="font-mono text-[#d97706]">{result.temporaryPassword}</span>
+        </p>
+        <p className="text-[9px] text-zinc-500 mb-2">Share the code + passcode with the new admin. They sign in via passcode, then claim on their device.</p>
         <button
           onClick={() => setResult(null)}
           className="text-[9px] text-zinc-600 hover:text-zinc-400 typewriter-label transition-colors"

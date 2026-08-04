@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
 
   const supabase = await createServerSupabaseClient();
 
-  const { data: discussion } = await supabase
+  const { data: discussion, error: insertError } = await supabase
     .from('AgentDiscussion')
     .insert({
       title: title.trim(),
@@ -53,6 +53,12 @@ export async function POST(req: NextRequest) {
     })
     .select('*, User(badgeCode, displayName)')
     .single();
+
+  // SECURITY/BUG: check insert errors — previously returned 201 without persisting
+  if (insertError) {
+    console.error("Failed to create discussion:", insertError);
+    return NextResponse.json({ error: "Failed to create discussion" }, { status: 500 });
+  }
 
   return NextResponse.json({ discussion }, { status: 201 });
 }

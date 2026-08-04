@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { setSessionCookie } from "@/lib/session-cookie";
+import { checkRateLimit, clientIp } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,6 +24,21 @@ export async function POST(request: NextRequest) {
 
     const pwd = password.trim();
     const cleaned = badgeCode.toUpperCase().replace(/[^A-Z0-9-]/g, "");
+
+    // Rate limit claims (anti-enumeration + anti-brute-force)
+    const ip = clientIp(request);
+    if (!checkRateLimit(`claim:ip:${ip}`, 20, 60_000)) {
+      return NextResponse.json(
+        { success: false, error: "Too many attempts — try again later" },
+        { status: 429 }
+      );
+    }
+    if (!checkRateLimit(`claim:code:${cleaned}`, 5, 60_000)) {
+      return NextResponse.json(
+        { success: false, error: "Too many attempts for this badge — try again later" },
+        { status: 429 }
+      );
+    }
 
     const supabase = await createServerSupabaseClient();
 
@@ -52,6 +68,17 @@ export async function POST(request: NextRequest) {
     }
 
     const linkedIds: string[] = Array.isArray(user.linkedIds) ? user.linkedIds : [];
+
+    // SECURITY: an unclaimed badge (no passcode set yet) may only be claimed by
+    // the anonymousId that generated/received it (linkedIds). Admin-created
+    // badges ship with a temporary passcode, so a stranger who guesses the
+    // 4-char code can never set a password on them — kills enumeration takeover.
+    if (!user.passwordHash && !linkedIds.includes(anonymousId)) {
+      return NextResponse.json(
+        { success: false, error: "This badge is not linked to this device. Use the device that generated it." },
+        { status: 403 }
+      );
+    }
 
     // If already linked to this anonymousId, return success
     // (but only if they also have a password set — otherwise fall through to set it)

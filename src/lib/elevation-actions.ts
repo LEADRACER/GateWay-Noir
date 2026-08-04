@@ -20,7 +20,13 @@ function normalizeUserJoin<T>(obj: T): T {
 }
 
 export async function requestElevation(userId: string, message?: string) {
-  if (!userId) return { error: "Missing user ID" };
+  // SECURITY: the request must be bound to the signed-in caller. DETECTIVES can
+  // only request elevation for themselves; BUREAU may request on behalf of a DET.
+  const caller = await getCurrentUser();
+  if (!caller) return { error: "Unauthorized — log in with your badge first" };
+
+  const targetId = caller.role === "BUREAU" ? userId : caller.id;
+  if (!targetId) return { error: "Missing user ID" };
 
   const supabase = await createServerSupabaseClient();
 
@@ -28,7 +34,7 @@ export async function requestElevation(userId: string, message?: string) {
   const { data: existing } = await supabase
     .from('ElevationRequest')
     .select("id")
-    .eq("userId", userId)
+    .eq("userId", targetId)
     .eq("status", "PENDING")
     .maybeSingle();
 
@@ -38,7 +44,7 @@ export async function requestElevation(userId: string, message?: string) {
   const { data: user } = await supabase
     .from('User')
     .select("*")
-    .eq("id", userId)
+    .eq("id", targetId)
     .maybeSingle();
 
   if (!user) return { error: "User not found" };
@@ -48,7 +54,7 @@ export async function requestElevation(userId: string, message?: string) {
   const { data: request, error } = await supabase
     .from('ElevationRequest')
     .insert({
-      userId,
+      userId: targetId,
       message: message?.trim() || null,
       status: "PENDING",
       requestedRole: "AGENT",
@@ -119,14 +125,18 @@ export async function getRejectedElevations() {
 }
 
 export async function getMyElevationStatus(userId: string) {
-  if (!userId) return null;
+  // SECURITY: DETECTIVES can only inspect their own status.
+  const caller = await getCurrentUser();
+  if (!caller) return null;
+  const targetId = caller.role === "BUREAU" ? userId : caller.id;
+  if (!targetId) return null;
 
   const supabase = await createServerSupabaseClient();
 
   const { data } = await supabase
     .from('ElevationRequest')
     .select("*")
-    .eq("userId", userId)
+    .eq("userId", targetId)
     .order("createdAt", { ascending: false })
     .limit(1);
 

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/get-current-user";
+import { checkRateLimit, clientIp } from "@/lib/rate-limit";
 
 const DEFAULT_NAMES = ["Detective", "Agent", "Field Agent", "Bureau Chief", "Anonymous"];
 
@@ -11,6 +13,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { success: false, error: "badgeCode and displayName are required" },
         { status: 400 }
+      );
+    }
+
+    // SECURITY: only a signed-in user may set a display name, and only on
+    // their own badge (or as BUREAU). This also kills the 404-vs-200 code
+    // existence oracle — outsiders get a uniform 403 before any lookup.
+    const caller = await getCurrentUser();
+    if (!caller) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 403 }
+      );
+    }
+    const ip = clientIp(request);
+    if (!checkRateLimit(`name:ip:${ip}`, 15, 60_000)) {
+      return NextResponse.json(
+        { success: false, error: "Too many attempts — try again later" },
+        { status: 429 }
       );
     }
 
@@ -34,7 +54,7 @@ export async function POST(request: NextRequest) {
 
     const { data: user, error: findError } = await supabase
       .from('User')
-      .select("id")
+      .select("id, badgeCode, role")
       .eq("badgeCode", badgeCode)
       .maybeSingle();
 
@@ -42,6 +62,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { success: false, error: "Badge not found" },
         { status: 404 }
+      );
+    }
+
+    if (user.badgeCode !== caller.badgeCode && caller.role !== "BUREAU") {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 403 }
       );
     }
 
