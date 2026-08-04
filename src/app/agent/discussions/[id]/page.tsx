@@ -11,6 +11,10 @@ import {
   CheckCircle2,
   Lock,
   MessageSquare,
+  Pencil,
+  Trash2,
+  Check,
+  X,
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import toast from "react-hot-toast";
@@ -44,6 +48,11 @@ export default function DiscussionDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const fetchMessages = async () => {
     try {
@@ -133,6 +142,64 @@ export default function DiscussionDetailPage() {
     }
   };
 
+  const startEdit = () => {
+    if (!discussion) return;
+    setEditTitle(discussion.title);
+    setEditDescription(discussion.description || "");
+    setEditing(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editTitle.trim() || saving) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/agent/discussions/${params.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: editTitle.trim(),
+          description: editDescription.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (data.discussion) {
+        setDiscussion(data.discussion);
+        setEditing(false);
+        toast.success("Discussion updated");
+      } else {
+        toast.error(data.error || "Failed to update");
+      }
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirmingDelete) {
+      setConfirmingDelete(true);
+      setTimeout(() => setConfirmingDelete(false), 3000);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/agent/discussions/${params.id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        toast.success("Discussion deleted");
+        router.push("/agent/discussions");
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error || "Failed to delete");
+        setConfirmingDelete(false);
+      }
+    } catch {
+      toast.error("Network error");
+      setConfirmingDelete(false);
+    }
+  };
+
   if (badgeLoading || loading) {
     return (
       <div className="max-w-3xl mx-auto py-16 flex items-center justify-center">
@@ -181,42 +248,103 @@ export default function DiscussionDetailPage() {
         <div className="bg-[#111113] border border-[rgba(168,144,112,0.08)] p-4 mb-4">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 mb-0.5">
-                <MessageSquare className="w-3.5 h-3.5 text-amber-400/60 shrink-0" />
-                <h1 className="text-sm font-semibold text-zinc-200 truncate">
-                  {discussion.title}
-                </h1>
-                {!discussion.isOpen && (
-                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[8px] font-medium bg-zinc-800 text-zinc-500 typewriter-label">
-                    <CheckCircle2 className="w-2 h-2" />
-                    CLOSED
-                  </span>
-                )}
-              </div>
-              {discussion.description && (
-                <p className="text-[11px] text-zinc-500 mt-1">{discussion.description}</p>
+              {editing ? (
+                <div className="space-y-2">
+                  <input
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    maxLength={200}
+                    placeholder="Title"
+                    className="w-full bg-[#0a0a0c] border border-[rgba(168,144,112,0.1)] px-2.5 py-1.5 text-sm text-zinc-200 placeholder:text-zinc-700 focus:outline-none focus:border-[rgba(168,144,112,0.25)] transition-colors"
+                  />
+                  <textarea
+                    value={editDescription}
+                    onChange={(e) => setEditDescription(e.target.value)}
+                    maxLength={2000}
+                    rows={3}
+                    placeholder="Description (optional)"
+                    className="w-full bg-[#0a0a0c] border border-[rgba(168,144,112,0.1)] px-2.5 py-1.5 text-[11px] text-zinc-400 placeholder:text-zinc-700 focus:outline-none focus:border-[rgba(168,144,112,0.25)] transition-colors resize-none"
+                  />
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <MessageSquare className="w-3.5 h-3.5 text-amber-400/60 shrink-0" />
+                    <h1 className="text-sm font-semibold text-zinc-200 truncate">
+                      {discussion.title}
+                    </h1>
+                    {!discussion.isOpen && (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[8px] font-medium bg-zinc-800 text-zinc-500 typewriter-label">
+                        <CheckCircle2 className="w-2 h-2" />
+                        CLOSED
+                      </span>
+                    )}
+                  </div>
+                  {discussion.description && (
+                    <p className="text-[11px] text-zinc-500 mt-1">{discussion.description}</p>
+                  )}
+                  <p className="text-[9px] text-zinc-700 mt-1">
+                    Opened {formatDate(discussion.createdAt)} · {messages.length} message{messages.length !== 1 ? "s" : ""}
+                  </p>
+                </>
               )}
-              <p className="text-[9px] text-zinc-700 mt-1">
-                Opened {formatDate(discussion.createdAt)} · {messages.length} message{messages.length !== 1 ? "s" : ""}
-              </p>
             </div>
 
-            {canClose && discussion.isOpen && (
-              <button
-                onClick={handleClose}
-                className="shrink-0 px-2 py-1 text-[9px] font-medium text-zinc-500 border border-[rgba(168,144,112,0.1)] hover:text-zinc-300 hover:border-[rgba(168,144,112,0.2)] typewriter-label transition-colors"
-              >
-                CLOSE
-              </button>
-            )}
-            {canClose && !discussion.isOpen && (
-              <button
-                onClick={handleReopen}
-                className="shrink-0 px-2 py-1 text-[9px] font-medium text-zinc-500 border border-[rgba(168,144,112,0.1)] hover:text-zinc-300 hover:border-[rgba(168,144,112,0.2)] typewriter-label transition-colors"
-              >
-                REOPEN
-              </button>
-            )}
+            {editing ? (
+              <div className="flex gap-1.5 shrink-0">
+                <button
+                  onClick={handleSaveEdit}
+                  disabled={!editTitle.trim() || saving}
+                  className="inline-flex items-center gap-1 px-2 py-1 text-[9px] font-medium bg-amber-600 text-black disabled:opacity-40 disabled:cursor-not-allowed hover:bg-amber-500 typewriter-label transition-colors"
+                >
+                  {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                  SAVE
+                </button>
+                <button
+                  onClick={() => setEditing(false)}
+                  className="inline-flex items-center gap-1 px-2 py-1 text-[9px] font-medium text-zinc-500 border border-[rgba(168,144,112,0.1)] hover:text-zinc-300 hover:border-[rgba(168,144,112,0.2)] typewriter-label transition-colors"
+                >
+                  <X className="w-3 h-3" />
+                  CANCEL
+                </button>
+              </div>
+            ) : canClose ? (
+              <div className="flex gap-1.5 shrink-0">
+                <button
+                  onClick={startEdit}
+                  className="inline-flex items-center gap-1 px-2 py-1 text-[9px] font-medium text-zinc-500 border border-[rgba(168,144,112,0.1)] hover:text-zinc-300 hover:border-[rgba(168,144,112,0.2)] typewriter-label transition-colors"
+                >
+                  <Pencil className="w-3 h-3" />
+                  EDIT
+                </button>
+                <button
+                  onClick={handleDelete}
+                  className={`inline-flex items-center gap-1 px-2 py-1 text-[9px] font-medium border typewriter-label transition-colors ${
+                    confirmingDelete
+                      ? "bg-red-600/90 text-white border-red-500/50 hover:bg-red-500"
+                      : "text-zinc-500 border-[rgba(168,144,112,0.1)] hover:text-red-400 hover:border-red-500/40"
+                  }`}
+                >
+                  <Trash2 className="w-3 h-3" />
+                  {confirmingDelete ? "CONFIRM?" : "DELETE"}
+                </button>
+                {discussion.isOpen ? (
+                  <button
+                    onClick={handleClose}
+                    className="inline-flex items-center gap-1 px-2 py-1 text-[9px] font-medium text-zinc-500 border border-[rgba(168,144,112,0.1)] hover:text-zinc-300 hover:border-[rgba(168,144,112,0.2)] typewriter-label transition-colors"
+                  >
+                    CLOSE
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleReopen}
+                    className="inline-flex items-center gap-1 px-2 py-1 text-[9px] font-medium text-zinc-500 border border-[rgba(168,144,112,0.1)] hover:text-zinc-300 hover:border-[rgba(168,144,112,0.2)] typewriter-label transition-colors"
+                  >
+                    REOPEN
+                  </button>
+                )}
+              </div>
+            ) : null}
           </div>
         </div>
 

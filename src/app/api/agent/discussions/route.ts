@@ -50,6 +50,8 @@ export async function POST(req: NextRequest) {
       title: title.trim(),
       description: description?.trim() || null,
       createdById: user.id,
+      // updatedAt has NO DB default — explicit set or insert fails 23502
+      updatedAt: new Date().toISOString(),
     })
     .select('*, createdBy:User(badgeCode, displayName)')
     .single();
