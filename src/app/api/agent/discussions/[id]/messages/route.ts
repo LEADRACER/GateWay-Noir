@@ -17,7 +17,7 @@ export async function GET(
 
   const { data: discussion } = await supabase
     .from('AgentDiscussion')
-    .select("id, title, description, isOpen, createdById, updatedAt, createdAt")
+    .select("id, title, description, isOpen, summary, createdById, updatedAt, createdAt")
     .eq("id", id)
     .maybeSingle();
 

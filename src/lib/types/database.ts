@@ -103,6 +103,7 @@ export interface AgentDiscussion {
   title: string;
   description: string | null;
   isOpen: boolean;
+  summary: string | null;  // SEALED summary of the previous session (set on reopen)
   createdById: string;  // NOTE: DB column is "createdById", not "createdBy"
   createdAt: string;
   updatedAt: string;

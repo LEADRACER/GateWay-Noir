@@ -23,6 +23,7 @@ interface Discussion {
   title: string;
   description: string | null;
   isOpen: boolean;
+  summary: string | null;
   createdById: string;
   createdAt: string;
   updatedAt: string;
@@ -133,6 +134,7 @@ export default function DiscussionDetailPage() {
       const data = await res.json();
       if (data.discussion) {
         setDiscussion(data.discussion);
+        await fetchMessages(); // old session was sealed server-side — refetch wiped state
         toast.success("Discussion reopened");
       }
     } catch {
@@ -310,6 +312,20 @@ export default function DiscussionDetailPage() {
             ) : null}
           </div>
         </div>
+
+        {/* Sealed summary — previous session, read-only */}
+        {discussion.summary ? (
+          <div className="bg-[#0d0c0a] border border-[rgba(217,119,6,0.2)] p-3 mb-3">
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <Lock className="w-3 h-3 text-amber-500/70" />
+              <span className="text-[9px] text-amber-500/80 typewriter-label tracking-wider">
+                SEALED FILE — PREVIOUS SESSION SUMMARY
+              </span>
+              <span className="ml-auto text-[8px] text-amber-700/60 typewriter-label">READ-ONLY</span>
+            </div>
+            <p className="text-[11px] text-amber-100/60 leading-relaxed">{discussion.summary}</p>
+          </div>
+        ) : null}
 
         {/* Messages */}
         <div className="space-y-2 mb-4 max-h-[60vh] overflow-y-auto">
