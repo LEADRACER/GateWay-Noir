@@ -21,10 +21,11 @@ interface Discussion {
   title: string;
   description: string | null;
   isOpen: boolean;
+  visibility: "all" | "invited";
   createdById: string;
   createdAt: string;
   updatedAt: string;
-  createdBy: { badgeCode: string; displayName: string };
+  createdBy: { badgeCode: string; displayName: string } | null;
   _count: { messages: number };
 }
 
@@ -130,6 +131,13 @@ export default function AgentDiscussionsPage() {
                   {!d.isOpen && (
                     <CheckCircle2 className="w-3 h-3 text-zinc-600 shrink-0" />
                   )}
+                  <span className={`inline-flex items-center px-1.5 py-0.5 text-[7px] font-medium rounded ${
+                    d.visibility === "all"
+                      ? "bg-blue-500/20 text-blue-400 border border-blue-500/20"
+                      : "bg-amber-500/20 text-amber-400 border border-amber-500/20"
+                  } typewriter-label`}>
+                    {d.visibility === "all" ? "ALL" : "INVITE"}
+                  </span>
                 </div>
                 {d.description && (
                   <p className="text-[10px] text-zinc-600 line-clamp-2 mb-2">
@@ -138,7 +146,7 @@ export default function AgentDiscussionsPage() {
                 )}
                 <div className="mt-auto flex items-center justify-between gap-2 pt-2 border-t border-[rgba(168,144,112,0.05)]">
                   <div className="flex items-center gap-2 text-[9px] text-zinc-700">
-                    <span className="font-mono">{d.createdBy.badgeCode}</span>
+                    <span className="font-mono">{d.createdBy?.badgeCode ?? "?"}</span>
                     <span>•</span>
                     <Clock className="w-2.5 h-2.5 inline" />
                     <span>{formatDate(d.createdAt)}</span>

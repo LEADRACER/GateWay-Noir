@@ -22,6 +22,34 @@ export interface User {
   updatedAt: string;
 }
 
+export interface AgentDiscussion {
+  id: string;
+  title: string;
+  description: string | null;
+  isOpen: boolean;
+  visibility: "all" | "invited";
+  summary: string | null;
+  createdById: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AgentDiscussionMessage {
+  id: string;
+  discussionId: string;
+  userId: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface DiscussionParticipant {
+  id: string;
+  discussionId: string;
+  userId: string;
+  invitedBy: string | null;
+  joinedAt: string;
+}
+
 export interface Topic {
   id: string;
   title: string;
@@ -29,11 +57,11 @@ export interface Topic {
   description: string | null;
   imageUrl: string | null;
   evidence: string | null;
-  status: "ACTIVE" | "CONCLUDED" | "ARCHIVED";
+  status: "ACTIVE" | "CONCLUDED" | "ARCHIVED" | "UPCOMING";
   durationDays: number;
   createdAt: string;
   endsAt: string | null;
-  verdict: "SOLVED" | "CONFIRMED" | "UNSOLVED" | null;
+  verdict: "SOLVED" | "CONFIRMED" | "UNSOLVED" | "BUSTED" | "TRUE" | "INCONCLUSIVE" | null;
   summary: string | null;
   createdBy: string | null;
   categoryId: string | null;
@@ -96,25 +124,6 @@ export interface AgentTask {
   createdAt: string;
   updatedAt: string;
   notified: boolean;
-}
-
-export interface AgentDiscussion {
-  id: string;
-  title: string;
-  description: string | null;
-  isOpen: boolean;
-  summary: string | null;  // SEALED summary of the previous session (set on reopen)
-  createdById: string;  // NOTE: DB column is "createdById", not "createdBy"
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface AgentDiscussionMessage {
-  id: string;
-  discussionId: string;
-  userId: string;
-  content: string;  // NOTE: DB column is "content", not "body"
-  createdAt: string;
 }
 
 // Row helpers for Supabase inserts/updates

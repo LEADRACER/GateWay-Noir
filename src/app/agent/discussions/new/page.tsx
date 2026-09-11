@@ -1,18 +1,52 @@
 "use client";
 
 import { useBadge } from "@/components/badge/BadgeProvider";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowLeft, Send, Loader2 } from "lucide-react";
+import { ArrowLeft, Send, Loader2, Users, Lock, ChevronDown } from "lucide-react";
 import toast from "react-hot-toast";
+
+interface Agent {
+  id: string;
+  badgeCode: string;
+  displayName: string;
+  role: string;
+}
 
 export default function NewDiscussionPage() {
   const { badge, loading: badgeLoading } = useBadge();
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [visibility, setVisibility] = useState<"all" | "invited">("all");
+  const [selectedAgents, setSelectedAgents] = useState<string[]>([]);
+  const [availableAgents, setAvailableAgents] = useState<Agent[]>([]);
+  const [loadingAgents, setLoadingAgents] = useState(false);
+  const [showAgentPicker, setShowAgentPicker] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // Load available agents for BRU
+  useEffect(() => {
+    if (badge?.role === "BUREAU") {
+      loadAgents();
+    }
+  }, [badge]);
+
+  const loadAgents = async () => {
+    setLoadingAgents(true);
+    try {
+      const res = await fetch("/api/agent/users");
+      if (res.ok) {
+        const data = await res.json();
+        setAvailableAgents(data.agents || []);
+      }
+    } catch {
+      // silent fail
+    } finally {
+      setLoadingAgents(false);
+    }
+  };
 
   if (badgeLoading) return null;
 
@@ -24,22 +58,37 @@ export default function NewDiscussionPage() {
     );
   }
 
+  const isBureau = badge.role === "BUREAU";
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
 
     setSubmitting(true);
     try {
+      const body: any = {
+        title: title.trim(),
+        description: description.trim() || undefined,
+      };
+
+      if (isBureau) {
+        body.visibility = visibility;
+        if (visibility === "invited") {
+          body.participantIds = selectedAgents;
+        }
+      }
+
       const res = await fetch("/api/agent/discussions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: title.trim(),
-          description: description.trim() || undefined,
-        }),
+        body: JSON.stringify(body),
       });
 
       const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || "Failed to create discussion");
+        return;
+      }
       if (data.discussion) {
         toast.success("Discussion created");
         router.push(`/agent/discussions/${data.discussion.id}`);
@@ -51,6 +100,14 @@ export default function NewDiscussionPage() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const toggleAgent = (agentId: string) => {
+    setSelectedAgents(prev =>
+      prev.includes(agentId)
+        ? prev.filter(id => id !== agentId)
+        : [...prev, agentId]
+    );
   };
 
   return (
@@ -89,6 +146,111 @@ export default function NewDiscussionPage() {
             />
           </div>
 
+          {isBureau && (
+            <div className="space-y-3">
+              <label className="text-[10px] text-zinc-600 typewriter-label block mb-1">VISIBILITY</label>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setVisibility("all")}
+                  className={`flex items-center gap-2 px-3 py-2 border rounded ${
+                    visibility === "all"
+                      ? "border-amber-500/50 bg-amber-500/10 text-amber-400"
+                      : "border-[rgba(168,144,112,0.1)] text-zinc-500 hover:border-[rgba(168,144,112,0.2)]"
+                  } transition-colors`}
+                >
+                  <Lock className={`w-3 h-3 ${visibility === "all" ? "text-amber-400" : ""}`} />
+                  <span className="text-xs font-medium">ALL AGENTS</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setVisibility("invited")}
+                  className={`flex items-center gap-2 px-3 py-2 border rounded ${
+                    visibility === "invited"
+                      ? "border-amber-500/50 bg-amber-500/10 text-amber-400"
+                      : "border-[rgba(168,144,112,0.1)] text-zinc-500 hover:border-[rgba(168,144,112,0.2)]"
+                  } transition-colors`}
+                >
+                  <Users className={`w-3 h-3 ${visibility === "invited" ? "text-amber-400" : ""}`} />
+                  <span className="text-xs font-medium">INVITED ONLY</span>
+                </button>
+              </div>
+
+              {visibility === "invited" && (
+                <div className="space-y-2">
+                  <label className="text-[10px] text-zinc-600 typewriter-label block mb-1">
+                    SELECT AGENTS ({selectedAgents.length})
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowAgentPicker(true)}
+                    disabled={loadingAgents}
+                    className="w-full px-3 py-2 border border-[rgba(168,144,112,0.1)] rounded text-sm text-zinc-400 hover:border-[rgba(168,144,112,0.2)] transition-colors flex items-center justify-between"
+                  >
+                    {selectedAgents.length > 0 ? (
+                      <>
+                        <span className="text-zinc-200">{selectedAgents.length} agent{selectedAgents.length !== 1 ? "s" : ""} selected</span>
+                        <ChevronDown className="w-4 h-4" />
+                      </>
+                    ) : (
+                      <>
+                        <span>Click to select agents...</span>
+                        <ChevronDown className="w-4 h-4" />
+                      </>
+                    )}
+                  </button>
+
+                  {showAgentPicker && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="absolute z-10 w-full bg-[#111113] border border-[rgba(168,144,112,0.1)] rounded mt-1 max-h-60 overflow-auto"
+                    >
+                      {loadingAgents ? (
+                        <div className="p-4 text-center text-zinc-500 text-sm">Loading agents...</div>
+                      ) : availableAgents.length === 0 ? (
+                        <div className="p-4 text-center text-zinc-500 text-sm">No agents available</div>
+                      ) : (
+                        <div className="p-1 max-h-56 overflow-auto">
+                          {availableAgents.map((agent) => (
+                            <label
+                              key={agent.id}
+                              className={`flex items-center gap-2 px-3 py-2 hover:bg-[#0a0a0c] transition-colors ${
+                                selectedAgents.includes(agent.id) ? "bg-amber-500/10" : ""
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedAgents.includes(agent.id)}
+                                onChange={() => toggleAgent(agent.id)}
+                                className="w-4 h-4 accent-amber-500"
+                              />
+                              <span className="text-xs font-mono text-amber-400">{agent.badgeCode}</span>
+                              <span className="text-xs text-zinc-400">{agent.displayName}</span>
+                              <span className={`text-[9px] px-1.5 py-0.5 rounded ${
+                                agent.role === "BUREAU" ? "bg-amber-500/20 text-amber-400" :
+                                agent.role === "AGENT" ? "bg-blue-500/20 text-blue-400" :
+                                "bg-zinc-500/20 text-zinc-500"
+                              }`}>
+                                {agent.role}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setShowAgentPicker(false)}
+                        className="w-full px-3 py-2 border-t border-[rgba(168,144,112,0.1)] text-xs text-zinc-500 hover:text-zinc-300"
+                      >
+                        DONE
+                      </button>
+                    </motion.div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
           <button
             type="submit"
             disabled={!title.trim() || submitting}

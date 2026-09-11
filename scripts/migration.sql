@@ -61,7 +61,41 @@ ALTER TABLE "public"."Comment"
   ADD COLUMN IF NOT EXISTS "parentId" TEXT REFERENCES "public"."Comment"(id) ON DELETE SET NULL;
 
 -- ═══════════════════════════════════════════════════════════════════════════
--- 3. ADD MISSING INDEXES
+-- 3. ADD DISCUSSION SUMMARY COLUMN (matches TypeScript type)
+-- ═══════════════════════════════════════════════════════════════════════════
+
+ALTER TABLE "public"."AgentDiscussion"
+  ADD COLUMN IF NOT EXISTS "summary" TEXT;
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- 4. ADD DISCUSSION VISIBILITY + PARTICIPANT SYSTEM
+-- ═══════════════════════════════════════════════════════════════════════════
+
+ALTER TABLE "public"."AgentDiscussion"
+  ADD COLUMN IF NOT EXISTS "visibility" TEXT NOT NULL DEFAULT 'all'
+    CHECK (visibility IN ('all', 'invited'));
+
+CREATE TABLE IF NOT EXISTS "public"."DiscussionParticipant" (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  "discussionId" TEXT NOT NULL REFERENCES "public"."AgentDiscussion"(id) ON DELETE CASCADE,
+  "userId" TEXT NOT NULL REFERENCES "public"."User"(id) ON DELETE CASCADE,
+  "joinedAt" TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now(),
+  "invitedBy" TEXT REFERENCES "public"."User"(id) ON DELETE SET NULL,
+  UNIQUE("discussionId", "userId")
+);
+
+-- Backfill: existing discussions get creator as participant
+INSERT INTO "public"."DiscussionParticipant" ("discussionId", "userId", "invitedBy")
+SELECT id, "createdById", "createdById" FROM "public"."AgentDiscussion"
+ON CONFLICT DO NOTHING;
+
+CREATE INDEX IF NOT EXISTS idx_discussion_participant_user 
+  ON "public"."DiscussionParticipant"("userId");
+CREATE INDEX IF NOT EXISTS idx_discussion_participant_discussion 
+  ON "public"."DiscussionParticipant"("discussionId");
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- 5. ADD MISSING INDEXES
 -- ═══════════════════════════════════════════════════════════════════════════
 
 CREATE INDEX IF NOT EXISTS idx_user_badge_code ON "public"."User"("badgeCode");

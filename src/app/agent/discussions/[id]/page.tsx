@@ -1,7 +1,7 @@
 "use client";
 
 import { useBadge } from "@/components/badge/BadgeProvider";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
@@ -14,6 +14,11 @@ import {
   Pencil,
   Check,
   X,
+  AlertTriangle,
+  Users,
+  UserPlus,
+  UserMinus,
+  ChevronDown,
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import toast from "react-hot-toast";
@@ -23,6 +28,7 @@ interface Discussion {
   title: string;
   description: string | null;
   isOpen: boolean;
+  visibility: "all" | "invited";
   summary: string | null;
   createdById: string;
   createdAt: string;
@@ -34,6 +40,20 @@ interface Message {
   content: string;
   createdAt: string;
   user: { badgeCode: string; displayName: string; role: string };
+}
+
+interface Agent {
+  id: string;
+  badgeCode: string;
+  displayName: string;
+  role: string;
+}
+
+interface Participant {
+  id: string;
+  userId: string;
+  user: Agent;
+  joinedAt: string;
 }
 
 export default function DiscussionDetailPage() {
@@ -52,6 +72,53 @@ export default function DiscussionDetailPage() {
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // Reopen confirmation (prevents accidental data loss)
+  const [showReopenConfirm, setShowReopenConfirm] = useState(false);
+
+  // Polling interval for real-time updates
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Participant management (BRU only)
+  const [participants, setParticipants] = useState<Participant[]>([]);
+  const [showParticipantPanel, setShowParticipantPanel] = useState(false);
+  const [availableAgents, setAvailableAgents] = useState<Agent[]>([]);
+  const [loadingAgents, setLoadingAgents] = useState(false);
+  const [selectedAgentIds, setSelectedAgentIds] = useState<string[]>([]);
+
+  const loadParticipants = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/agent/discussions/${params.id}/participants`);
+      if (res.ok) {
+        const data = await res.json();
+        setParticipants(data.participants || []);
+      }
+    } catch {
+      // silent fail
+    }
+  }, [params.id]);
+
+  const loadAvailableAgents = async () => {
+    setLoadingAgents(true);
+    try {
+      const res = await fetch("/api/agent/users");
+      if (res.ok) {
+        const data = await res.json();
+        setAvailableAgents(data.agents || []);
+      }
+    } catch {
+      // silent fail
+    } finally {
+      setLoadingAgents(false);
+    }
+  };
+
+  // Load participants on mount for BRU
+  useEffect(() => {
+    if (!badgeLoading && badge?.role === "BUREAU" && discussion?.visibility === "invited") {
+      loadParticipants();
+    }
+  }, [badgeLoading, badge?.role, discussion?.visibility, loadParticipants]);
 
   const fetchMessages = async () => {
     try {
@@ -76,6 +143,21 @@ export default function DiscussionDetailPage() {
   useEffect(() => {
     if (!badgeLoading) fetchMessages();
   }, [badgeLoading, params.id]);
+
+  // Polling for real-time message updates
+  useEffect(() => {
+    if (!discussion?.isOpen) return;
+    
+    pollIntervalRef.current = setInterval(() => {
+      fetchMessages();
+    }, 10000); // 10 second interval
+
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+      }
+    };
+  }, [discussion?.isOpen, fetchMessages]);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -124,7 +206,12 @@ export default function DiscussionDetailPage() {
     }
   };
 
-  const handleReopen = async () => {
+  const handleReopen = () => {
+    setShowReopenConfirm(true);
+  };
+
+  const handleConfirmReopen = async () => {
+    setShowReopenConfirm(false);
     try {
       const res = await fetch(`/api/agent/discussions/${params.id}`, {
         method: "PATCH",
@@ -308,10 +395,206 @@ export default function DiscussionDetailPage() {
                     REOPEN
                   </button>
                 )}
+                {badge.role === "BUREAU" && discussion.visibility === "invited" && (
+                  <button
+                    onClick={() => {
+                      setShowParticipantPanel(true);
+                      loadAvailableAgents();
+                    }}
+                    className="inline-flex items-center gap-1 px-2 py-1 text-[9px] font-medium text-zinc-500 border border-[rgba(168,144,112,0.1)] hover:text-zinc-300 hover:border-[rgba(168,144,112,0.2)] typewriter-label transition-colors"
+                  >
+                    <Users className="w-3 h-3" />
+                    PARTICIPANTS
+                  </button>
+                )}
               </div>
             ) : null}
           </div>
         </div>
+
+        {/* Reopen Confirmation Dialog */}
+        {showReopenConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="w-full max-w-md bg-[#111113] border-2 border-[rgba(220,38,38,0.3)] rounded-lg p-6"
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <AlertTriangle className="w-4 h-4 text-red-400" />
+                <h3 className="text-sm font-semibold text-zinc-200 typewriter-label">CONFIRM REOPEN</h3>
+              </div>
+              <p className="text-xs text-zinc-500 mb-4 leading-relaxed">
+                Reopening this discussion will <span className="text-red-400 font-medium">permanently delete all previous messages</span>.
+                A short summary of the previous session will be saved as a sealed file (read-only).
+              </p>
+              <p className="text-[10px] text-zinc-600 mb-6">
+                This action cannot be undone. Are you sure?
+              </p>
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={() => setShowReopenConfirm(false)}
+                  className="flex-1 px-3 py-2 text-[9px] font-medium text-zinc-500 border border-[rgba(168,144,112,0.1)] hover:text-zinc-300 hover:border-[rgba(168,144,112,0.2)] typewriter-label transition-colors"
+                >
+                  CANCEL
+                </button>
+                <button
+                  onClick={handleConfirmReopen}
+                  className="flex-1 px-3 py-2 text-[9px] font-medium bg-red-600 text-black hover:bg-red-500 typewriter-label transition-colors"
+                >
+                  REOPEN & WIPE HISTORY
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Participant Management Panel (BRU only, for invited discussions) */}
+        {showParticipantPanel && badge.role === "BUREAU" && discussion.visibility === "invited" && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="w-full max-w-lg bg-[#111113] border-2 border-[rgba(168,144,112,0.2)] rounded-lg p-6 max-h-[80vh] overflow-hidden"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-amber-400/70" />
+                  <h3 className="text-sm font-semibold text-zinc-200 typewriter-label">MANAGE PARTICIPANTS</h3>
+                </div>
+                <button
+                  onClick={() => setShowParticipantPanel(false)}
+                  className="text-zinc-500 hover:text-zinc-300"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Current Participants */}
+              <div className="mb-4">
+                <h4 className="text-[9px] text-zinc-500 typewriter-label mb-2">CURRENT PARTICIPANTS ({participants.length})</h4>
+                {participants.length === 0 ? (
+                  <p className="text-[10px] text-zinc-600">No participants yet</p>
+                ) : (
+                  <div className="space-y-1.5 max-h-40 overflow-auto">
+                    {participants.map((p) => (
+                      <div
+                        key={p.id}
+                        className="flex items-center justify-between p-2 bg-[#0a0a0c] border border-[rgba(168,144,112,0.06)] rounded"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-mono text-amber-400">{p.user.badgeCode}</span>
+                          <span className="text-xs text-zinc-400">{p.user.displayName}</span>
+                          <span className={`text-[8px] px-1.5 py-[1px] rounded ${
+                            p.user.role === "BUREAU" ? "bg-amber-500/20 text-amber-400" :
+                            p.user.role === "AGENT" ? "bg-blue-500/20 text-blue-400" :
+                            "bg-zinc-500/20 text-zinc-500"
+                          }`}>
+                            {p.user.role}
+                          </span>
+                        </div>
+                        {p.userId !== discussion.createdById && (
+                          <button
+                            onClick={async () => {
+                              try {
+                                await fetch(`/api/agent/discussions/${params.id}`, {
+                                  method: "PATCH",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({
+                                    participantIds: participants.filter(p2 => p2.userId !== p.userId).map(p2 => p2.userId),
+                                  }),
+                                });
+                                loadParticipants();
+                              } catch {
+                                toast.error("Failed to remove participant");
+                              }
+                            }}
+                            className="text-red-400/70 hover:text-red-400 text-[10px]"
+                          >
+                            <UserMinus className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Add Participants */}
+              <div className="mb-4">
+                <h4 className="text-[9px] text-zinc-500 typewriter-label mb-2">ADD PARTICIPANTS</h4>
+                {loadingAgents ? (
+                  <div className="p-4 text-center text-zinc-500 text-sm">Loading agents...</div>
+                ) : (
+                  <div className="max-h-56 overflow-auto space-y-1">
+                    {availableAgents
+                      .filter((a) => !participants.some(p => p.userId === a.id))
+                      .map((agent) => (
+                        <label
+                          key={agent.id}
+                          className={`flex items-center gap-2 px-3 py-2 hover:bg-[#0a0a0c] transition-colors ${
+                            selectedAgentIds.includes(agent.id) ? "bg-amber-500/10" : ""
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedAgentIds.includes(agent.id)}
+                            onChange={() => setSelectedAgentIds(prev =>
+                              prev.includes(agent.id)
+                                ? prev.filter(id => id !== agent.id)
+                                : [...prev, agent.id]
+                            )}
+                            className="w-4 h-4 accent-amber-500"
+                          />
+                          <span className="text-xs font-mono text-amber-400">{agent.badgeCode}</span>
+                          <span className="text-xs text-zinc-400">{agent.displayName}</span>
+                          <span className={`text-[9px] px-1.5 py-[1px] rounded ${
+                            agent.role === "BUREAU" ? "bg-amber-500/20 text-amber-400" :
+                            agent.role === "AGENT" ? "bg-blue-500/20 text-blue-400" :
+                            "bg-zinc-500/20 text-zinc-500"
+                          }`}>
+                            {agent.role}
+                          </span>
+                        </label>
+                      ))}
+                  </div>
+                )}
+                {selectedAgentIds.length > 0 && (
+                  <button
+                    onClick={async () => {
+                      try {
+                        await fetch(`/api/agent/discussions/${params.id}`, {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            participantIds: [...new Set([...participants.map(p => p.userId), ...selectedAgentIds])],
+                          }),
+                        });
+                        setSelectedAgentIds([]);
+                        loadParticipants();
+                        toast.success("Participants added");
+                      } catch {
+                        toast.error("Failed to add participants");
+                      }
+                    }}
+                    className="w-full mt-2 px-3 py-2 text-[9px] font-medium bg-amber-600 text-black hover:bg-amber-500 typewriter-label transition-colors"
+                  >
+                    ADD {selectedAgentIds.length} PARTICIPANT{selectedAgentIds.length !== 1 ? "S" : ""}
+                  </button>
+                )}
+              </div>
+
+              <div className="flex gap-2 justify-end pt-4 border-t border-[rgba(168,144,112,0.1)]">
+                <button
+                  onClick={() => setShowParticipantPanel(false)}
+                  className="flex-1 px-3 py-2 text-[9px] font-medium text-zinc-500 border border-[rgba(168,144,112,0.1)] hover:text-zinc-300 hover:border-[rgba(168,144,112,0.2)] typewriter-label transition-colors"
+                >
+                  DONE
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
 
         {/* Sealed summary — previous session, read-only */}
         {discussion.summary ? (

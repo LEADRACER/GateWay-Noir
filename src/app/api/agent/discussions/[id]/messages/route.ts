@@ -2,6 +2,28 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/get-current-user";
 
+// Check if user has access to discussion
+async function checkDiscussionAccess(supabase: any, user: any, discussion: any): Promise<boolean> {
+  // BUREAU has access to everything
+  if (user.role === "BUREAU") return true;
+
+  // Creator has access
+  if (discussion.createdById === user.id) return true;
+
+  // For visibility='all', all AGENTs have access
+  if (discussion.visibility === 'all') return true;
+
+  // For visibility='invited', check if user is participant
+  const { data: participant } = await supabase
+    .from('DiscussionParticipant')
+    .select('id')
+    .eq('discussionId', discussion.id)
+    .eq('userId', user.id)
+    .maybeSingle();
+
+  return !!participant;
+}
+
 // GET /api/agent/discussions/[id]/messages — get messages for a discussion
 export async function GET(
   req: NextRequest,
@@ -17,12 +39,18 @@ export async function GET(
 
   const { data: discussion } = await supabase
     .from('AgentDiscussion')
-    .select("id, title, description, isOpen, summary, createdById, updatedAt, createdAt")
+    .select("id, title, description, isOpen, visibility, summary, createdById, updatedAt, createdAt")
     .eq("id", id)
     .maybeSingle();
 
   if (!discussion) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  // Check access
+  const hasAccess = await checkDiscussionAccess(supabase, user, discussion);
+  if (!hasAccess) {
+    return NextResponse.json({ error: "Not authorized to view this discussion" }, { status: 403 });
   }
 
   const { data: messages } = await supabase
@@ -49,13 +77,20 @@ export async function POST(
 
   const { data: discussion } = await supabase
     .from('AgentDiscussion')
-    .select("isOpen")
+    .select("id, isOpen, visibility, createdById")
     .eq("id", id)
     .maybeSingle();
 
   if (!discussion) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+
+  // Check access for posting
+  const hasAccess = await checkDiscussionAccess(supabase, user, discussion);
+  if (!hasAccess) {
+    return NextResponse.json({ error: "Not authorized to post in this discussion" }, { status: 403 });
+  }
+
   if (!discussion.isOpen) {
     return NextResponse.json({ error: "Discussion is closed" }, { status: 400 });
   }
