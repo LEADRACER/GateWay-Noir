@@ -68,13 +68,15 @@ export function Navbar() {
                 />
               )}
             </div>
-            <Link
-              href="/admin/topics/new"
-              className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 bg-[#d97706] text-black font-semibold typewriter-label"
-            >
-              <Sparkles className="w-3 h-3" />
-              NEW CASE
-            </Link>
+            {(role === "AGENT" || role === "BUREAU") && (
+              <Link
+                href="/admin/topics/new"
+                className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 bg-[#d97706] text-black font-semibold typewriter-label"
+              >
+                <Sparkles className="w-3 h-3" />
+                NEW CASE
+              </Link>
+            )}
           </div>
 
           {/* Mobile Toggle */}
@@ -117,7 +119,9 @@ export function Navbar() {
                 />
               )}
             </div>
-            <Link href="/admin/topics/new" className="block px-3 py-2 text-sm bg-[#d97706] text-black font-semibold" onClick={() => setMobileOpen(false)}>+ New Case File</Link>
+             {(role === "AGENT" || role === "BUREAU") && (
+               <Link href="/admin/topics/new" className="block px-3 py-2 text-sm bg-[#d97706] text-black font-semibold" onClick={() => setMobileOpen(false)}>+ New Case File</Link>
+             )}
           </div>
         </div>
       )}

@@ -72,6 +72,9 @@ export async function requestElevation(userId: string, message?: string) {
 }
 
 export async function getPendingElevations() {
+  const caller = await getCurrentUser();
+  if (!caller || caller.role !== "BUREAU") return [];
+
   const supabase = await createServerSupabaseClient();
 
   const { data, error } = await supabase
@@ -89,6 +92,9 @@ export async function getPendingElevations() {
 }
 
 export async function getApprovedElevations() {
+  const caller = await getCurrentUser();
+  if (!caller || caller.role !== "BUREAU") return [];
+
   const supabase = await createServerSupabaseClient();
 
   const { data, error } = await supabase
@@ -107,6 +113,9 @@ export async function getApprovedElevations() {
 }
 
 export async function getRejectedElevations() {
+  const caller = await getCurrentUser();
+  if (!caller || caller.role !== "BUREAU") return [];
+
   const supabase = await createServerSupabaseClient();
 
   const { data, error } = await supabase
@@ -165,7 +174,7 @@ export async function approveElevation(requestId: string, adminId: string) {
   // Update user role and badge code
   await supabase
     .from('User')
-    .update({ role: "AGENT", badgeCode: newBadgeCode, handler: adminId, updatedAt: new Date().toISOString() })
+     .update({ role: "AGENT", badgeCode: newBadgeCode, isAdmin: false, handler: adminId, updatedAt: new Date().toISOString() })
     .eq("id", request.userId);
 
   // Mark request as approved

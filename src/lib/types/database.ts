@@ -6,7 +6,7 @@ export interface User {
   id: string;
   badgeCode: string;
   displayName: string;
-  role: "DETECTIVE" | "AGENT" | "BUREAU" | "ADMIN";
+  role: "DETECTIVE" | "AGENT" | "BUREAU";
   telegramId: string | null;
   discordId: string | null;
   whatsappId: string | null;

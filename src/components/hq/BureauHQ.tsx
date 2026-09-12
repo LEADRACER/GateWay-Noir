@@ -117,7 +117,8 @@ export function BureauHQ({ stats, children }: BureauHQProps) {
     try {
       const result = await demoteAgent(agentId);
       if ("success" in result && result.success) {
-        toast.success(`Demoted to DET — new badge: ${result.newBadgeCode}`);
+        const targetLabel = result.newRole === "AGENT" ? "AGT" : "DET";
+        toast.success(`Demoted → ${targetLabel} — new badge: ${result.newBadgeCode}`);
         setAgents((prev) => prev.filter((a) => a.id !== agentId));
       } else {
         toast.error(result.error || "Failed to demote");

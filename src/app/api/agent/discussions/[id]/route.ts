@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/get-current-user";
+import { revalidatePath } from "next/cache";
 
 // PATCH /api/agent/discussions/[id] — update title/description, close/reopen, visibility, participants
 // Creator or BUREAU can update title/description/isOpen
@@ -137,6 +138,10 @@ export async function PATCH(
     .eq("id", id)
     .select()
     .single();
+
+  // Revalidate discussion list and detail page so participant changes propagate
+  revalidatePath("/agent/discussions");
+  revalidatePath(`/agent/discussions/${id}`);
 
   return NextResponse.json({ discussion: updated });
 }

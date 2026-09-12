@@ -121,7 +121,7 @@ export async function getAllUsers() {
 
 // ─── Badge Setup (first admin) ───
 
-export async function setupBureauAdmin(code: string, passwordHash: string) {
+export async function setupBureauAdmin(code: string, passwordHash?: string, adminId?: string) {
   const supabase = await createServerSupabaseClient();
 
   // Check if any BUREAU exists
@@ -131,21 +131,26 @@ export async function setupBureauAdmin(code: string, passwordHash: string) {
     .eq("role", "BUREAU")
     .maybeSingle();
 
-  // If BUREAU exists, check if caller is one
+  // If BUREAU already exists, require the caller to be a BUREAU
   if (existingBureau) {
+    if (!adminId) {
+      return { error: "Admin ID required — setup is locked after first admin" };
+    }
     const { data: admin } = await supabase
       .from('User')
-      .select("*")
-      .eq("badgeCode", code)
+      .select("role")
+      .eq("id", adminId)
       .maybeSingle();
 
     if (!admin || admin.role !== "BUREAU") {
-      return { error: "BUREAU already exists. Login with existing BUREAU badge." };
+      return { error: "Not authorized" };
     }
-    return { success: true, user: admin };
   }
 
-  // No BUREAU exists — bootstrap
+  if (!code?.trim()) {
+    return { error: "Badge code is required" };
+  }
+
   const codeUpper = code.toUpperCase().trim();
   const { data: user } = await supabase
     .from('User')
@@ -155,6 +160,16 @@ export async function setupBureauAdmin(code: string, passwordHash: string) {
 
   if (!user) return { error: "Badge code not found. Create a badge first." };
 
+  // If target is already BUREAU, return success
+  if (user.role === "BUREAU") {
+    return { success: true, newBadgeCode: user.badgeCode, displayName: user.displayName };
+  }
+
+  // Only AGENT users can be promoted to BUREAU via this path
+  if (user.role !== "AGENT") {
+    return { error: "Only AGENT users can be promoted to BUREAU" };
+  }
+
   const newBadgeCode = reprefixBadgeCode(codeUpper, "BUREAU");
   const { data: existing } = await supabase
     .from('User')
@@ -163,20 +178,22 @@ export async function setupBureauAdmin(code: string, passwordHash: string) {
     .maybeSingle();
 
   if (existing && existing.id !== user.id) {
-    return { error: "Badge code collision" };
+    return { error: "Badge code collision — try with a new DET badge" };
   }
+
+  const updateData: any = {
+    role: "BUREAU",
+    badgeCode: newBadgeCode,
+    isAdmin: true,
+  };
+  if (passwordHash) updateData.passwordHash = passwordHash;
 
   await supabase
     .from('User')
-    .update({
-      role: "BUREAU",
-      badgeCode: newBadgeCode,
-      isAdmin: true,
-      passwordHash,
-    })
+    .update(updateData)
     .eq("id", user.id);
 
-  return { success: true, newBadgeCode };
+  return { success: true, newBadgeCode, displayName: user.displayName };
 }
 
 // ─── Backward-compatible aliases (old signatures) ───
@@ -205,21 +222,31 @@ export async function demoteAgent(agentUserId: string) {
     .maybeSingle();
 
   if (!user) return { error: "User not found" };
-  if (user.role !== "AGENT") return { error: "Only AGENT users can be demoted" };
+  if (user.role === "DETECTIVE") return { error: "DETECTIVE users cannot be demoted further" };
 
-  const newBadgeCode = reprefixBadgeCode(user.badgeCode, "DETECTIVE");
+  let targetRole: "DETECTIVE" | "AGENT";
+  if (user.role === "BUREAU") {
+    targetRole = "AGENT";
+  } else {
+    targetRole = "DETECTIVE";
+  }
+
+  const newBadgeCode = reprefixBadgeCode(user.badgeCode, targetRole);
+
+  const updateData: any = {
+    role: targetRole,
+    badgeCode: newBadgeCode,
+    isAdmin: false,
+  };
+  // Clear handler only when demoting to DETECTIVE
+  if (targetRole === "DETECTIVE") updateData.handler = null;
 
   await supabase
     .from('User')
-    .update({
-      role: "DETECTIVE",
-      badgeCode: newBadgeCode,
-      isAdmin: false,
-      handler: null,
-    })
+    .update(updateData)
     .eq("id", agentUserId);
 
-  return { success: true, newBadgeCode };
+  return { success: true, newBadgeCode, newRole: targetRole };
 }
 
 export async function createBureauUser(displayName: string, adminBadgeCode: string) {
