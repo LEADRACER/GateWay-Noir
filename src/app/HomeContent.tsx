@@ -257,22 +257,22 @@ export function HomeContent({
                           </p>
                           {/* Action buttons — absolute overlay on hover (BRU only) */}
                           {isBureau && hoveredTopicId === topic.id && (
-                            <div className="absolute inset-x-0 bottom-0 z-10 p-3 animate-in slide-in-from-top-1 duration-150 bg-gradient-to-t from-[#0a0a0c] to-transparent">
-                              <div className="bg-[#111113] border border-[rgba(168,144,112,0.12)] rounded p-2">
+                            <div className="absolute inset-x-0 bottom-0 z-10 p-2 animate-in slide-in-from-top-1 duration-150 bg-gradient-to-t from-[#0a0a0c] to-transparent">
+                              <div className="bg-[#111113] border border-[rgba(168,144,112,0.12)] rounded p-1.5">
                                 <button
                                   onClick={() => handleApprove(topic)}
                                   disabled={approvingId === topic.id}
-                                  className="w-full flex items-center justify-center gap-1 px-2 py-1.5 mb-1 text-[8px] font-mono text-green-400/80 border border-green-500/20 hover:bg-green-500/10 disabled:opacity-30 transition-all"
+                                  className="w-full flex items-center justify-center gap-0.5 px-1.5 py-1 mb-0.5 text-[7px] font-mono text-green-400/80 border border-green-500/20 hover:bg-green-500/10 disabled:opacity-30 transition-all"
                                 >
-                                  <Check className="w-2.5 h-2.5" />
+                                  <Check className="w-2 h-2" />
                                   {approvingId === topic.id ? "..." : "APPROVE"}
                                 </button>
                                 <button
                                   onClick={() => handleDiscard(topic)}
                                   disabled={discardingId === topic.id}
-                                  className="w-full flex items-center justify-center gap-1 px-2 py-1.5 text-[8px] font-mono text-red-400/80 border border-red-500/20 hover:bg-red-500/10 disabled:opacity-30 transition-all"
+                                  className="w-full flex items-center justify-center gap-0.5 px-1.5 py-1 text-[7px] font-mono text-red-400/80 border border-red-500/20 hover:bg-red-500/10 disabled:opacity-30 transition-all"
                                 >
-                                  <Trash2 className="w-2.5 h-2.5" />
+                                  <Trash2 className="w-2 h-2" />
                                   {discardingId === topic.id ? "..." : "DISCARD"}
                                 </button>
                               </div>
