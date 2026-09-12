@@ -230,52 +230,54 @@ export function HomeContent({
                   {upcomingTopics.map((topic: any) => {
                     const hasVoted = userVotes.has(topic.id);
                     return (
-                        <div
-                          key={topic.id}
-                          className="relative bg-[#0a0a0c] border-2 border-[rgba(168,144,112,0.06)] shadow-[0_2px_0_rgba(0,0,0,0.3),0_3px_8px_rgba(0,0,0,0.4)] hover:border-[#d97706]/30 transition-all duration-200 pixelated-amber-hover overflow-hidden"
-                          onMouseEnter={() => isBureau && setHoveredTopicId(topic.id)}
-                          onMouseLeave={() => setHoveredTopicId(null)}
-                        >
-                         <div className="flex items-center justify-between px-3 py-1.5 border-b-2 border-[rgba(168,144,112,0.04)] bg-[#08080a]">
-                           <span
-                             className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[7px] font-medium border-2 typewriter-label"
-                             style={{
-                               backgroundColor: `${topic.category.color}10`,
-                               borderColor: `${topic.category.color}20`,
-                               color: topic.category.color,
-                             }}
-                           >
-                             {topic.category.name.toUpperCase()}
-                           </span>
-                           <span className="case-number text-zinc-700">
-                             {topic._count.votes} TIPS
-                           </span>
-                         </div>
-                         <div className="p-3">
-                           <p className="text-[9px] text-zinc-400 leading-snug line-clamp-2 mb-3">
-                             {topic.title}
-                           </p>
-                           {/* Action buttons — expand on hover (BRU only) */}
-                           {isBureau && hoveredTopicId === topic.id && (
-                             <div className="mb-3 animate-in slide-in-from-top-1 duration-150">
-                               <button
-                                 onClick={() => handleApprove(topic)}
-                                 disabled={approvingId === topic.id}
-                                 className="w-full flex items-center justify-center gap-1 px-2 py-1.5 mb-1 text-[8px] font-mono text-green-400/80 border border-green-500/20 hover:bg-green-500/10 disabled:opacity-30 transition-all"
-                               >
-                                 <Check className="w-2.5 h-2.5" />
-                                 {approvingId === topic.id ? "..." : "APPROVE"}
-                               </button>
-                               <button
-                                 onClick={() => handleDiscard(topic)}
-                                 disabled={discardingId === topic.id}
-                                 className="w-full flex items-center justify-center gap-1 px-2 py-1.5 text-[8px] font-mono text-red-400/80 border border-red-500/20 hover:bg-red-500/10 disabled:opacity-30 transition-all"
-                               >
-                                 <Trash2 className="w-2.5 h-2.5" />
-                                 {discardingId === topic.id ? "..." : "DISCARD"}
-                               </button>
-                             </div>
-                           )}
+<div
+                        key={topic.id}
+                        className="relative bg-[#0a0a0c] border-2 border-[rgba(168,144,112,0.06)] shadow-[0_2px_0_rgba(0,0,0,0.3),0_3px_8px_rgba(0,0,0,0.4)] hover:border-[#d97706]/30 transition-all duration-200 pixelated-amber-hover overflow-hidden"
+                        onMouseEnter={() => isBureau && setHoveredTopicId(topic.id)}
+                        onMouseLeave={() => setHoveredTopicId(null)}
+                      >
+                        <div className="flex items-center justify-between px-3 py-1.5 border-b-2 border-[rgba(168,144,112,0.04)] bg-[#08080a]">
+                          <span
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[7px] font-medium border-2 typewriter-label"
+                            style={{
+                              backgroundColor: `${topic.category.color}10`,
+                              borderColor: `${topic.category.color}20`,
+                              color: topic.category.color,
+                            }}
+                          >
+                            {topic.category.name.toUpperCase()}
+                          </span>
+                          <span className="case-number text-zinc-700">
+                            {topic._count.votes} TIPS
+                          </span>
+                        </div>
+                        <div className="p-3 relative">
+                          <p className="text-[9px] text-zinc-400 leading-snug line-clamp-2 mb-3">
+                            {topic.title}
+                          </p>
+                          {/* Action buttons — absolute overlay on hover (BRU only) */}
+                          {isBureau && hoveredTopicId === topic.id && (
+                            <div className="absolute inset-x-0 bottom-0 z-10 p-3 animate-in slide-in-from-top-1 duration-150 bg-gradient-to-t from-[#0a0a0c] to-transparent">
+                              <div className="bg-[#111113] border border-[rgba(168,144,112,0.12)] rounded p-2">
+                                <button
+                                  onClick={() => handleApprove(topic)}
+                                  disabled={approvingId === topic.id}
+                                  className="w-full flex items-center justify-center gap-1 px-2 py-1.5 mb-1 text-[8px] font-mono text-green-400/80 border border-green-500/20 hover:bg-green-500/10 disabled:opacity-30 transition-all"
+                                >
+                                  <Check className="w-2.5 h-2.5" />
+                                  {approvingId === topic.id ? "..." : "APPROVE"}
+                                </button>
+                                <button
+                                  onClick={() => handleDiscard(topic)}
+                                  disabled={discardingId === topic.id}
+                                  className="w-full flex items-center justify-center gap-1 px-2 py-1.5 text-[8px] font-mono text-red-400/80 border border-red-500/20 hover:bg-red-500/10 disabled:opacity-30 transition-all"
+                                >
+                                  <Trash2 className="w-2.5 h-2.5" />
+                                  {discardingId === topic.id ? "..." : "DISCARD"}
+                                </button>
+                              </div>
+                            </div>
+                          )}
                           <button
                             onClick={() => handleVote(topic.id)}
                             className={cn(
