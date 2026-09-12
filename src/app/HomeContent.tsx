@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
-import { Search, FolderOpen, Inbox, ChevronUp, FileText, Check, Trash2, ChevronDown } from "lucide-react";
+import { Search, FolderOpen, Inbox, ChevronUp, FileText, Check, Trash2 } from "lucide-react";
 import { CategoryFilter } from "@/components/home/CategoryFilter";
 import { TopicGrid } from "@/components/home/TopicGrid";
 import { AnnouncementsSidebar } from "@/components/home/AnnouncementsSidebar";
@@ -49,20 +49,7 @@ export function HomeContent({
 
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [discardingId, setDiscardingId] = useState<string | null>(null);
-  const [dropdownTopicId, setDropdownTopicId] = useState<string | null>(null);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    if (!dropdownTopicId) return;
-    const handler = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (!target.closest(".dropdown-portal")) {
-        setDropdownTopicId(null);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [dropdownTopicId]);
+  const [hoveredTopicId, setHoveredTopicId] = useState<string | null>(null);
 
   const filteredTopics = useMemo(() => {
     let result = initialTopics;
@@ -117,7 +104,6 @@ export function HomeContent({
 
   const handleApprove = async (topic: any) => {
     setApprovingId(topic.id);
-    setDropdownTopicId(null);
     try {
       const res = await fetch("/api/admin/approve", {
         method: "POST",
@@ -140,7 +126,6 @@ export function HomeContent({
   const handleDiscard = async (topic: any) => {
     if (!confirm(`Discard "${topic.title}"? This cannot be undone.`)) return;
     setDiscardingId(topic.id);
-    setDropdownTopicId(null);
     try {
       const formData = new FormData();
       formData.append("id", topic.id);
@@ -245,60 +230,50 @@ export function HomeContent({
                   {upcomingTopics.map((topic: any) => {
                     const hasVoted = userVotes.has(topic.id);
                     return (
-                      <div
-                        key={topic.id}
-                        className="bg-[#0a0a0c] border-2 border-[rgba(168,144,112,0.06)] shadow-[0_2px_0_rgba(0,0,0,0.3),0_3px_8px_rgba(0,0,0,0.4)] hover:border-[#d97706]/30 transition-all duration-200 pixelated-amber-hover"
-                      >
-                        <div className="flex items-center justify-between px-3 py-1.5 border-b-2 border-[rgba(168,144,112,0.04)] bg-[#08080a]">
-                          <span
-                            className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[7px] font-medium border-2 typewriter-label"
-                            style={{
-                              backgroundColor: `${topic.category.color}10`,
-                              borderColor: `${topic.category.color}20`,
-                              color: topic.category.color,
-                            }}
-                          >
-                            {topic.category.name.toUpperCase()}
-                          </span>
-                          <span className="case-number text-zinc-700">
-                            {topic._count.votes} TIPS
-                          </span>
-                        </div>
-                        <div className="p-3">
-                          <p className="text-[9px] text-zinc-400 leading-snug line-clamp-2 mb-3">
-                            {topic.title}
-                          </p>
-                          {/* Bureau action buttons */}
-                           {isBureau && (
-                             <div className="mb-3 relative">
+                        <div
+                          key={topic.id}
+                          className="relative bg-[#0a0a0c] border-2 border-[rgba(168,144,112,0.06)] shadow-[0_2px_0_rgba(0,0,0,0.3),0_3px_8px_rgba(0,0,0,0.4)] hover:border-[#d97706]/30 transition-all duration-200 pixelated-amber-hover overflow-hidden"
+                          onMouseEnter={() => isBureau && setHoveredTopicId(topic.id)}
+                          onMouseLeave={() => setHoveredTopicId(null)}
+                        >
+                         <div className="flex items-center justify-between px-3 py-1.5 border-b-2 border-[rgba(168,144,112,0.04)] bg-[#08080a]">
+                           <span
+                             className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[7px] font-medium border-2 typewriter-label"
+                             style={{
+                               backgroundColor: `${topic.category.color}10`,
+                               borderColor: `${topic.category.color}20`,
+                               color: topic.category.color,
+                             }}
+                           >
+                             {topic.category.name.toUpperCase()}
+                           </span>
+                           <span className="case-number text-zinc-700">
+                             {topic._count.votes} TIPS
+                           </span>
+                         </div>
+                         <div className="p-3">
+                           <p className="text-[9px] text-zinc-400 leading-snug line-clamp-2 mb-3">
+                             {topic.title}
+                           </p>
+                           {/* Action buttons — expand on hover (BRU only) */}
+                           {isBureau && hoveredTopicId === topic.id && (
+                             <div className="mb-3 animate-in slide-in-from-top-1 duration-150">
                                <button
-                                 onClick={() => setDropdownTopicId(dropdownTopicId === topic.id ? null : topic.id)}
-                                 disabled={approvingId === topic.id || discardingId === topic.id}
-                                 className="w-full flex items-center justify-center gap-1 px-2 py-1.5 text-[8px] font-mono text-zinc-400 border border-[rgba(168,144,112,0.12)] hover:border-[rgba(168,144,112,0.2)] hover:text-zinc-300 disabled:opacity-30 transition-all"
+                                 onClick={() => handleApprove(topic)}
+                                 disabled={approvingId === topic.id}
+                                 className="w-full flex items-center justify-center gap-1 px-2 py-1.5 mb-1 text-[8px] font-mono text-green-400/80 border border-green-500/20 hover:bg-green-500/10 disabled:opacity-30 transition-all"
                                >
-                                 <ChevronDown className="w-2.5 h-2.5" />
-                                 ACTIONS
+                                 <Check className="w-2.5 h-2.5" />
+                                 {approvingId === topic.id ? "..." : "APPROVE"}
                                </button>
-                               {dropdownTopicId === topic.id && (
-                                 <div className="absolute bottom-full left-0 w-32 z-20 mb-1 bg-[#111113] border border-[rgba(168,144,112,0.12] shadow-[0_4px_12px_rgba(0,0,0,0.6)]">
-                                   <button
-                                     onClick={() => handleApprove(topic)}
-                                     disabled={approvingId === topic.id}
-                                     className="w-full flex items-center gap-1 px-2 py-1.5 text-[8px] font-mono text-green-400/80 hover:bg-green-500/10 disabled:opacity-30 transition-all"
-                                   >
-                                     <Check className="w-2.5 h-2.5" />
-                                     {approvingId === topic.id ? "..." : "APPROVE"}
-                                   </button>
-                                   <button
-                                     onClick={() => handleDiscard(topic)}
-                                     disabled={discardingId === topic.id}
-                                     className="w-full flex items-center gap-1 px-2 py-1.5 text-[8px] font-mono text-red-400/80 hover:bg-red-500/10 disabled:opacity-30 transition-all"
-                                   >
-                                     <Trash2 className="w-2.5 h-2.5" />
-                                     {discardingId === topic.id ? "..." : "DISCARD"}
-                                   </button>
-                                 </div>
-                               )}
+                               <button
+                                 onClick={() => handleDiscard(topic)}
+                                 disabled={discardingId === topic.id}
+                                 className="w-full flex items-center justify-center gap-1 px-2 py-1.5 text-[8px] font-mono text-red-400/80 border border-red-500/20 hover:bg-red-500/10 disabled:opacity-30 transition-all"
+                               >
+                                 <Trash2 className="w-2.5 h-2.5" />
+                                 {discardingId === topic.id ? "..." : "DISCARD"}
+                               </button>
                              </div>
                            )}
                           <button
