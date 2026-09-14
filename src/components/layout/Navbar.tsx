@@ -5,6 +5,16 @@ import { useState } from "react";
 import { Scale, Menu, X, Sparkles, Fingerprint, ShieldCheck, ListChecks, User, MessageSquare, LayoutDashboard } from "lucide-react";
 import { useBadge } from "@/components/badge/BadgeProvider";
 
+// Shared button styles
+const navButtonBase = "flex items-center gap-1.5 text-sm px-3 py-1.5 transition-colors typewriter-label";
+const navButtonDefault = `${navButtonBase} text-zinc-500 hover:text-zinc-300 border border-transparent hover:border-[rgba(168,144,112,0.08)]`;
+const navButtonAccent = (color: string) => `${navButtonBase} ${color} hover:text-[#d97706]`;
+
+// Mobile button styles
+const mobileButtonBase = "flex items-center gap-2 px-3 py-2 text-sm transition-colors rounded";
+const mobileButtonDefault = `${mobileButtonBase} text-zinc-400 hover:text-zinc-200 bg-[#0a0a0c] border border-[rgba(168,144,112,0.08)]`;
+const mobileButtonAccent = (color: string) => `${mobileButtonBase} ${color} hover:text-[#d97706] bg-[#0a0a0c] border border-[rgba(168,144,112,0.08)]`;
+
 export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { badge, setShowBadgeModal } = useBadge();
@@ -67,7 +77,7 @@ export function Navbar() {
                 {hq && (
                   <Link
                     href={hq.href}
-                    className={`flex items-center gap-1.5 text-sm ${hq.color} hover:text-[#d97706] transition-colors typewriter-label`}
+                    className={`${navButtonBase} ${hq.color} hover:text-[#d97706]`}
                   >
                     <HQIcon className="w-3.5 h-3.5" />
                     {hq.label}
@@ -81,7 +91,7 @@ export function Navbar() {
               {(role === "AGENT" || role === "BUREAU") && (
                 <Link
                   href="/agent/discussions"
-                  className="flex items-center gap-1.5 text-sm px-3 py-1.5 text-zinc-500 hover:text-amber-400 border border-transparent hover:border-[rgba(168,144,112,0.08)] transition-colors typewriter-label"
+                  className={`${navButtonDefault} hover:text-amber-400`}
                   title="Agent Discussions"
                 >
                   <MessageSquare className="w-3.5 h-3.5" />
@@ -90,7 +100,7 @@ export function Navbar() {
               )}
               <Link
                 href="/"
-                className="flex items-center gap-1.5 text-sm px-3 py-1.5 text-zinc-500 hover:text-zinc-300 border border-transparent hover:border-[rgba(168,144,112,0.08)] transition-colors typewriter-label"
+                className={`${navButtonDefault}`}
               >
                 <LayoutDashboard className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">CASES</span>
@@ -138,7 +148,7 @@ export function Navbar() {
               {hasBadge && hq && (
                 <Link
                   href={hq.href}
-                  className={`flex items-center gap-2 px-3 py-2 text-sm ${hq.color} hover:text-[#d97706] bg-[#0a0a0c] border border-[rgba(168,144,112,0.08)] rounded`}
+                  className={`${mobileButtonAccent(hq.color)}`}
                   onClick={() => setMobileOpen(false)}
                 >
                   <HQIcon className="w-4 h-4" />
@@ -152,7 +162,7 @@ export function Navbar() {
               {(role === "AGENT" || role === "BUREAU") && (
                 <Link
                   href="/agent/discussions"
-                  className="flex items-center gap-2 px-3 py-2 text-sm text-zinc-400 hover:text-amber-400 bg-[#0a0a0c] border border-[rgba(168,144,112,0.08)] rounded"
+                  className={`${mobileButtonDefault} hover:text-amber-400`}
                   onClick={() => setMobileOpen(false)}
                 >
                   <MessageSquare className="w-4 h-4" />
@@ -163,7 +173,7 @@ export function Navbar() {
               {/* Cases */}
               <Link
                 href="/"
-                className="flex items-center gap-2 px-3 py-2 text-sm text-zinc-400 hover:text-zinc-200 bg-[#0a0a0c] border border-[rgba(168,144,112,0.08)] rounded"
+                className={`${mobileButtonDefault}`}
                 onClick={() => setMobileOpen(false)}
               >
                 <LayoutDashboard className="w-4 h-4" />
