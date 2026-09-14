@@ -70,6 +70,15 @@ export function Navbar() {
             </div>
             {(role === "AGENT" || role === "BUREAU") && (
               <Link
+                href="/agent/discussions"
+                className="flex items-center gap-1.5 text-sm px-3 py-1.5 text-zinc-500 hover:text-amber-400 border border-transparent hover:border-[rgba(168,144,112,0.08)] transition-colors typewriter-label"
+                title="Agent Discussions"
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
+              </Link>
+            )}
+            {(role === "AGENT" || role === "BUREAU") && (
+              <Link
                 href="/admin/topics/new"
                 className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 bg-[#d97706] text-black font-semibold typewriter-label"
               >
