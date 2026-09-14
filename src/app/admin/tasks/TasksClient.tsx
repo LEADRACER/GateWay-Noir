@@ -49,6 +49,7 @@ interface TasksClientProps {
     title: string,
     description?: string
   ) => Promise<any>;
+  isAgentView?: boolean;
 }
 
 const STATUS_FILTERS = ["ALL", "PENDING", "IN_PROGRESS", "COMPLETED"] as const;
@@ -76,7 +77,7 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-export function TasksClient({ tasks: initialTasks, agents, createTask }: TasksClientProps) {
+export function TasksClient({ tasks: initialTasks, agents, createTask, isAgentView = false }: TasksClientProps) {
   const [tasks, setTasks] = useState(initialTasks);
   const [activeFilter, setActiveFilter] = useState<StatusFilter>("ALL");
   const [title, setTitle] = useState("");
@@ -151,64 +152,66 @@ export function TasksClient({ tasks: initialTasks, agents, createTask }: TasksCl
       <div className="flex items-center gap-2">
         <ClipboardList className="w-4 h-4 text-[#d97706] opacity-50" />
         <h1 className="text-zinc-200 font-semibold typewriter-label text-sm">
-          AGENT TASKS
+          {isAgentView ? "MY TASKS" : "AGENT TASKS"}
         </h1>
       </div>
 
-      {/* New Task Form */}
-      <div className="bg-[#111113] border border-[rgba(168,144,112,0.08)]">
-        <div className="h-0.5 evidence-tape" />
-        <div className="p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <PlusCircle className="w-3.5 h-3.5 text-[#d97706] opacity-50" />
-            <h3 className="text-zinc-300 font-semibold typewriter-label text-xs">
-              ASSIGN NEW TASK
-            </h3>
-          </div>
-          <form onSubmit={handleCreate} className="space-y-2.5">
-            <input
-              type="text"
-              placeholder="Task title..."
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-3 py-2 text-xs bg-[#0a0a0c] border border-[rgba(168,144,112,0.08)] text-zinc-300 placeholder:text-zinc-600 focus:outline-none focus:border-[rgba(217,119,6,0.3)] transition-colors"
-            />
-            <textarea
-              placeholder="Description (optional)..."
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={2}
-              className="w-full px-3 py-2 text-xs bg-[#0a0a0c] border border-[rgba(168,144,112,0.08)] text-zinc-300 placeholder:text-zinc-600 focus:outline-none focus:border-[rgba(217,119,6,0.3)] transition-colors resize-none"
-            />
-            <div className="flex items-center gap-2">
-              <select
-                value={selectedAgentId}
-                onChange={(e) => setSelectedAgentId(e.target.value)}
-                className="flex-1 px-3 py-2 text-xs bg-[#0a0a0c] border border-[rgba(168,144,112,0.08)] text-zinc-300 focus:outline-none focus:border-[rgba(217,119,6,0.3)] transition-colors"
-              >
-                <option value="">Select agent...</option>
-                {agents.map((agent) => (
-                  <option key={agent.id} value={agent.id}>
-                    {agent.badgeCode} — {agent.displayName}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="submit"
-                disabled={submitting || !title.trim() || !selectedAgentId}
-                className="inline-flex items-center gap-1.5 px-3 py-2 text-[10px] font-medium bg-[#d97706] text-black typewriter-label disabled:opacity-40 hover:bg-[#e08810] transition-colors"
-              >
-                {submitting ? (
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                ) : (
-                  <PlusCircle className="w-3 h-3" />
-                )}
-                ASSIGN
-              </button>
+      {/* New Task Form - Only for Bureau */}
+      {!isAgentView && (
+        <div className="bg-[#111113] border border-[rgba(168,144,112,0.08)]">
+          <div className="h-0.5 evidence-tape" />
+          <div className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <PlusCircle className="w-3.5 h-3.5 text-[#d97706] opacity-50" />
+              <h3 className="text-zinc-300 font-semibold typewriter-label text-xs">
+                ASSIGN NEW TASK
+              </h3>
             </div>
-          </form>
+            <form onSubmit={handleCreate} className="space-y-2.5">
+              <input
+                type="text"
+                placeholder="Task title..."
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="w-full px-3 py-2 text-xs bg-[#0a0a0c] border border-[rgba(168,144,112,0.08)] text-zinc-300 placeholder:text-zinc-600 focus:outline-none focus:border-[rgba(217,119,6,0.3)] transition-colors"
+              />
+              <textarea
+                placeholder="Description (optional)..."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={2}
+                className="w-full px-3 py-2 text-xs bg-[#0a0a0c] border border-[rgba(168,144,112,0.08)] text-zinc-300 placeholder:text-zinc-600 focus:outline-none focus:border-[rgba(217,119,6,0.3)] transition-colors resize-none"
+              />
+              <div className="flex items-center gap-2">
+                <select
+                  value={selectedAgentId}
+                  onChange={(e) => setSelectedAgentId(e.target.value)}
+                  className="flex-1 px-3 py-2 text-xs bg-[#0a0a0c] border border-[rgba(168,144,112,0.08)] text-zinc-300 focus:outline-none focus:border-[rgba(217,119,6,0.3)] transition-colors"
+                >
+                  <option value="">Select agent...</option>
+                  {agents.map((agent) => (
+                    <option key={agent.id} value={agent.id}>
+                      {agent.badgeCode} — {agent.displayName}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="submit"
+                  disabled={submitting || !title.trim() || !selectedAgentId}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-[10px] font-medium bg-[#d97706] text-black typewriter-label disabled:opacity-40 hover:bg-[#e08810] transition-colors"
+                >
+                  {submitting ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <PlusCircle className="w-3 h-3" />
+                  )}
+                  ASSIGN
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Status Filters */}
       <div className="flex items-center gap-1 bg-[#111113] border border-[rgba(168,144,112,0.08)] p-1">
@@ -239,7 +242,7 @@ export function TasksClient({ tasks: initialTasks, agents, createTask }: TasksCl
           </p>
           <p className="text-zinc-700 text-[10px] mt-0.5">
             {activeFilter === "ALL"
-              ? "Assign a task to get started"
+              ? (isAgentView ? "No tasks assigned to you yet" : "Assign a task to get started")
               : `No ${activeFilter.replace("_", " ").toLowerCase()} tasks`}
           </p>
         </div>
@@ -256,7 +259,7 @@ export function TasksClient({ tasks: initialTasks, agents, createTask }: TasksCl
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <StatusBadge status={task.status} />
-                    {task.agent && (
+                    {!isAgentView && task.agent && (
                       <span
                         className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-mono border"
                         style={{

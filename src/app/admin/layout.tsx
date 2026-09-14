@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LayoutDashboard, PlusCircle, Scale, MessageSquare, ChevronRight, Fingerprint, ClipboardList } from "lucide-react";
+import { LayoutDashboard, PlusCircle, Scale, MessageSquare, ChevronRight, Fingerprint, ClipboardList, BarChart2, User, Settings } from "lucide-react";
 import { getCurrentUser } from "@/lib/get-current-user";
 
 const bureauNavItems = [
@@ -9,22 +9,31 @@ const bureauNavItems = [
   { href: "/admin/tasks", label: "Agent Tasks", icon: ClipboardList },
 ];
 
+const agentNavItems = [
+  { href: "/admin", label: "HQ", icon: LayoutDashboard },
+  { href: "/agent/discussions", label: "Discussions", icon: MessageSquare },
+  { href: "/admin/tasks", label: "My Tasks", icon: ClipboardList },
+];
+
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
 
   const isBureau = user?.role === "BUREAU";
+  const isAgent = user?.role === "AGENT";
+  const showSidebar = isBureau || isAgent;
+  const navItems = isBureau ? bureauNavItems : agentNavItems;
 
   return (
     <div className="flex min-h-[calc(100vh-3.5rem)]">
-      {/* Sidebar — only for BRU users */}
-      {isBureau && (
+      {/* Sidebar — for BRU and AGT users */}
+      {showSidebar && (
         <aside className="hidden md:flex flex-col w-56 border-r-2 border-[rgba(168,144,112,0.12)] bg-[#0a0a0c] p-3 shadow-[4px_0_12px_rgba(0,0,0,0.3)]">
           <div className="flex items-center gap-2 px-2 py-2 mb-4">
             <Scale className="w-4 h-4 text-[#d97706] opacity-50" />
             <span className="text-xs font-semibold text-zinc-400 typewriter-label">HQ</span>
           </div>
           <nav className="flex-1 space-y-0.5">
-            {bureauNavItems.map((item) => (
+            {navItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
@@ -45,11 +54,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         </aside>
       )}
 
-      {/* Mobile bottom nav — only for BRU */}
-      {isBureau && (
+      {/* Mobile bottom nav — for BRU and AGT */}
+      {showSidebar && (
         <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-[rgba(168,144,112,0.08)] bg-[#08080a]">
           <div className="flex items-center justify-around py-1.5 px-3">
-            {bureauNavItems.map((item) => (
+            {navItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
@@ -64,7 +73,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       )}
 
       {/* Content */}
-      <div className={`flex-1 p-3 md:p-6 ${isBureau ? "pb-16 md:pb-6" : ""}`}>
+      <div className={`flex-1 p-3 md:p-6 ${showSidebar ? "pb-16 md:pb-6" : ""}`}>
         {children}
       </div>
     </div>

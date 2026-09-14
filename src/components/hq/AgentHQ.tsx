@@ -1,17 +1,20 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
   ClipboardList, Play, CheckCircle2, Clock, Loader2, FileX,
   Smartphone, AlertCircle, CheckCircle, Scale, Save,
-  MessageSquare, ArrowUpRight,
+  MessageSquare, ArrowUpRight, Search, Filter, RefreshCw, BarChart2,
+  Activity, Target, Award, Zap, Shield, User, Settings, Bell,
+  ArrowUp, Download, Eye, Edit, Trash, Mail, Phone, MapPin
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useBadge } from "@/components/badge/BadgeProvider";
 import { registerPhone } from "@/lib/badge-client";
 import { getAgentProfile, updateAgentProfile } from "@/lib/profile-actions";
 import { getAgentTasks, updateTaskStatus } from "@/lib/task-actions";
+import { getAgentDiscussions } from "@/lib/discussion-actions";
 import { formatDate } from "@/lib/utils";
 import { BadgeCard } from "@/components/badge/BadgeCard";
 import { RoleAvatar } from "@/components/badge/RoleAvatar";
@@ -27,6 +30,19 @@ interface Task {
   completedAt: string | Date | null;
 }
 
+interface Discussion {
+  id: string;
+  title: string;
+  description: string | null;
+  isOpen: boolean;
+  visibility: "all" | "invited";
+  createdById: string;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: { badgeCode: string; displayName: string } | null;
+  _count: { messages: number; participants: number };
+}
+
 interface ProfileData {
   id: string;
   badgeCode: string;
@@ -40,6 +56,8 @@ interface ProfileData {
   commentCount: number;
   taskCounts: Record<string, number>;
 }
+
+type TabKey = "tasks" | "discussions" | "analytics" | "profile";
 
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
@@ -64,8 +82,13 @@ export function AgentHQ() {
   const { badge, updateBadge } = useBadge();
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [discussions, setDiscussions] = useState<Discussion[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [loadingDiscussions, setLoadingDiscussions] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [notifications, setNotifications] = useState<{id: string; message: string; type: "info" | "success" | "warning" | "error"; time: Date}[]>([]);
 
   // Profile editing
   const [displayName, setDisplayName] = useState("");
@@ -79,7 +102,34 @@ export function AgentHQ() {
   const [phoneSuccess, setPhoneSuccess] = useState(false);
 
   // Active tab
-  const [activeTab, setActiveTab] = useState<"tasks" | "profile">("tasks");
+  const [activeTab, setActiveTab] = useState<TabKey>("tasks");
+
+  const addNotification = (message: string, type: "info" | "success" | "warning" | "error" = "info") => {
+    const id = Date.now().toString();
+    setNotifications(prev => [...prev, { id, message, type, time: new Date() }]);
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== id));
+    }, 5000);
+  };
+
+  const fetchTasks = useCallback(async () => {
+    if (!badge) return;
+    const taskData = await getAgentTasks(badge.id);
+    setTasks(taskData as Task[]);
+  }, [badge]);
+
+  const fetchDiscussions = useCallback(async () => {
+    if (!badge) return;
+    setLoadingDiscussions(true);
+    try {
+      const data = await getAgentDiscussions();
+      setDiscussions(data);
+    } catch {
+      console.error("Failed to fetch discussions");
+    } finally {
+      setLoadingDiscussions(false);
+    }
+  }, [badge]);
 
   useEffect(() => {
     if (!badge) {
@@ -102,6 +152,12 @@ export function AgentHQ() {
     });
   }, [badge]);
 
+  useEffect(() => {
+    if (activeTab === "discussions") {
+      fetchDiscussions();
+    }
+  }, [activeTab, fetchDiscussions]);
+
   const handleSaveProfile = async () => {
     if (!profile) return;
     setSaving(true);
@@ -109,14 +165,17 @@ export function AgentHQ() {
       const result = await updateAgentProfile(profile.id, { displayName, bio });
       if (result?.error) {
         toast.error(result.error);
+        addNotification(result.error, "error");
       } else {
         toast.success("Profile updated");
+        addNotification("Profile updated successfully", "success");
         if (displayName !== badge?.displayName) {
           updateBadge({ displayName });
         }
       }
     } catch {
       toast.error("Failed to save");
+      addNotification("Failed to save profile", "error");
     }
     setSaving(false);
   };
@@ -131,8 +190,10 @@ export function AgentHQ() {
       setPhoneSuccess(true);
       updateBadge({ phone: result.phone });
       setPhone("");
+      addNotification("Phone registered successfully", "success");
     } else {
       setPhoneError(result.error || "Failed");
+      addNotification(result.error || "Failed to register phone", "error");
     }
     setPhoneSaving(false);
   };
@@ -143,12 +204,15 @@ export function AgentHQ() {
       const result = await updateTaskStatus(taskId, status);
       if (result?.success) {
         toast.success(status === "IN_PROGRESS" ? "Task started" : "Task completed");
+        addNotification(`Task ${status === "IN_PROGRESS" ? "started" : "completed"}`, "success");
         setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, status, completedAt: status === "COMPLETED" ? new Date() : t.completedAt } : t));
       } else {
         toast.error(result?.error || "Failed");
+        addNotification(result?.error || "Failed to update task", "error");
       }
     } catch {
       toast.error("Network error");
+      addNotification("Network error updating task", "error");
     }
     setUpdatingId(null);
   };
@@ -157,6 +221,20 @@ export function AgentHQ() {
     if (p.length <= 4) return p;
     return p.slice(0, 3) + "****" + p.slice(-2);
   };
+
+  const filteredTasks = tasks.filter(task => {
+    const matchesStatus = statusFilter === "all" || task.status === statusFilter;
+    const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          task.description?.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesStatus && matchesSearch;
+  });
+
+  const filteredDiscussions = discussions.filter(d => {
+    const matchesSearch = d.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          d.description?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter === "all" || (statusFilter === "open" ? d.isOpen : !d.isOpen);
+    return matchesSearch && matchesStatus;
+  });
 
   if (loading) {
     return (
@@ -176,6 +254,28 @@ export function AgentHQ() {
 
   return (
     <div className="space-y-4 max-w-2xl">
+      {/* Notifications */}
+      {notifications.length > 0 && (
+        <div className="fixed top-4 right-4 z-50 space-y-2 max-w-sm">
+          {notifications.map(n => (
+            <motion.div
+              key={n.id}
+              initial={{ opacity: 0, x: 50 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 50 }}
+              className={`px-3 py-2 rounded text-[10px] font-medium typewriter-label flex items-center gap-2 shadow-lg ${
+                n.type === "success" ? "bg-emerald-900/90 text-emerald-300 border border-emerald-700/50" :
+                n.type === "error" ? "bg-red-900/90 text-red-300 border border-red-700/50" :
+                n.type === "warning" ? "bg-amber-900/90 text-amber-300 border border-amber-700/50" :
+                "bg-blue-900/90 text-blue-300 border border-blue-700/50"
+              }`}
+            >
+              {n.message}
+            </motion.div>
+          ))}
+        </div>
+      )}
+
       {/* Badge Hero Card */}
       <motion.div
         initial={{ opacity: 0, y: 6 }}
@@ -228,6 +328,38 @@ export function AgentHQ() {
         >
           <ClipboardList className="w-3 h-3" />
           TASKS
+          {tasks.length > 0 && (
+            <span className="inline-flex items-center justify-center w-4 h-4 bg-blue-500/20 text-blue-400 text-[8px] font-bold">
+              {tasks.filter(t => t.status === "PENDING").length}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab("discussions")}
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium typewriter-label transition-colors ${
+            activeTab === "discussions"
+              ? "bg-[#0d0d0f] text-zinc-200 border border-[rgba(168,144,112,0.12)]"
+              : "text-zinc-600 hover:text-zinc-400 border border-transparent"
+          }`}
+        >
+          <MessageSquare className="w-3 h-3" />
+          DISCUSSIONS
+          {discussions.length > 0 && (
+            <span className="inline-flex items-center justify-center w-4 h-4 bg-purple-500/20 text-purple-400 text-[8px] font-bold">
+              {discussions.filter(d => d.isOpen).length}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab("analytics")}
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium typewriter-label transition-colors ${
+            activeTab === "analytics"
+              ? "bg-[#0d0d0f] text-zinc-200 border border-[rgba(168,144,112,0.12)]"
+              : "text-zinc-600 hover:text-zinc-400 border border-transparent"
+          }`}
+        >
+          <BarChart2 className="w-3 h-3" />
+          ANALYTICS
         </button>
         <button
           onClick={() => setActiveTab("profile")}
@@ -241,14 +373,27 @@ export function AgentHQ() {
           PROFILE
         </button>
         <div className="flex-1" />
-        <a
-          href="/agent/discussions"
-          className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium text-zinc-500 hover:text-amber-400 typewriter-label transition-colors border border-transparent hover:border-[rgba(168,144,112,0.08)]"
-        >
-          <MessageSquare className="w-3 h-3" />
-          DISCUSSIONS
-          <ArrowUpRight className="w-2.5 h-2.5" />
-        </a>
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            placeholder="Search..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="bg-[#0a0a0c] border border-[rgba(168,144,112,0.08)] px-2 py-1 text-[10px] text-zinc-300 rounded outline-none focus:border-[#d97706]/30 placeholder:text-zinc-700 w-40"
+          />
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="bg-[#0a0a0c] border border-[rgba(168,144,112,0.08)] px-2 py-1 text-[10px] text-zinc-300 rounded outline-none focus:border-[#d97706]/30"
+          >
+            <option value="all">ALL</option>
+            <option value="PENDING">PENDING</option>
+            <option value="IN_PROGRESS">IN PROGRESS</option>
+            <option value="COMPLETED">COMPLETED</option>
+            <option value="open">OPEN</option>
+            <option value="closed">CLOSED</option>
+          </select>
+        </div>
       </div>
 
       {/* Tasks Tab */}
@@ -328,6 +473,191 @@ export function AgentHQ() {
             </div>
           )}
         </div>
+      )}
+
+      {/* Discussions Tab */}
+      {activeTab === "discussions" && (
+        <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}>
+          <div className="bg-[#111113] border border-[rgba(168,144,112,0.08)] rounded">
+            <div className="h-0.5 evidence-tape" />
+            <div className="p-4">
+              {loadingDiscussions ? (
+                <div className="text-center py-8">
+                  <Loader2 className="w-6 h-6 text-zinc-700 mx-auto animate-spin opacity-50" />
+                  <p className="text-zinc-600 text-[10px] typewriter-label mt-2">LOADING DISCUSSIONS...</p>
+                </div>
+              ) : filteredDiscussions.length === 0 ? (
+                <div className="text-center py-8">
+                  <MessageSquare className="w-6 h-6 text-zinc-700 mx-auto mb-2 opacity-50" />
+                  <p className="text-zinc-600 text-[10px] typewriter-label">NO DISCUSSIONS FOUND</p>
+                  <p className="text-zinc-700 text-[10px] mt-0.5">{discussions.length === 0 ? "No discussions you can access yet" : "Try adjusting your filters"}</p>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  {filteredDiscussions.map((d) => (
+                    <div
+                      key={d.id}
+                      className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-[#0a0a0c] border border-[rgba(168,144,112,0.06)] rounded"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`inline-flex items-center px-1.5 py-0.5 text-[8px] font-medium rounded typewriter-label ${
+                            d.visibility === "all"
+                              ? "bg-blue-500/20 text-blue-400 border border-blue-500/20"
+                              : "bg-amber-500/20 text-amber-400 border border-amber-500/20"
+                          }`}>
+                            {d.visibility.toUpperCase()}
+                          </span>
+                          {d.isOpen && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" title="Open" />}
+                          {!d.isOpen && <span className="w-1.5 h-1.5 rounded-full bg-zinc-500" title="Closed" />}
+                        </div>
+                        <h4 className="text-xs font-medium text-zinc-300 truncate">{d.title}</h4>
+                        {d.description && (
+                          <p className="text-[10px] text-zinc-500 mt-0.5 line-clamp-1">{d.description}</p>
+                        )}
+                        <div className="flex items-center gap-2 mt-1 text-[9px] text-zinc-500">
+                          <span>By: <span className="font-mono">{d.createdBy?.badgeCode ?? "?"}</span></span>
+                          <span>•</span>
+                          <span>{new Date(d.createdAt).toLocaleDateString()}</span>
+                          <span>•</span>
+                          <span>💬 {d._count.messages} messages</span>
+                          <span>•</span>
+                          <span>👥 {d._count.participants} participants</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <a
+                          href={`/agent/discussions/${d.id}`}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-medium bg-[#d97706]/15 border border-[#d97706]/30 text-[#d97706] typewriter-label hover:bg-[#d97706]/25 transition-colors"
+                        >
+                          <ArrowUpRight className="w-3 h-3" />
+                          VIEW
+                        </a>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Analytics Tab */}
+      {activeTab === "analytics" && profile && (
+        <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="bg-[#111113] border border-[rgba(168,144,112,0.08)] rounded p-4 text-center">
+                <Target className="w-5 h-5 text-amber-400 opacity-50 mx-auto mb-2" />
+                <p className="text-2xl font-bold text-zinc-100">{tasks.filter(t => t.status === "PENDING").length}</p>
+                <p className="text-[10px] text-zinc-500">PENDING TASKS</p>
+              </div>
+              <div className="bg-[#111113] border border-[rgba(168,144,112,0.08)] rounded p-4 text-center">
+                <Activity className="w-5 h-5 text-blue-500 opacity-50 mx-auto mb-2" />
+                <p className="text-2xl font-bold text-zinc-100">{tasks.filter(t => t.status === "IN_PROGRESS").length}</p>
+                <p className="text-[10px] text-zinc-500">IN PROGRESS</p>
+              </div>
+              <div className="bg-[#111113] border border-[rgba(168,144,112,0.08)] rounded p-4 text-center">
+                <CheckCircle2 className="w-5 h-5 text-emerald-500 opacity-50 mx-auto mb-2" />
+                <p className="text-2xl font-bold text-zinc-100">{tasks.filter(t => t.status === "COMPLETED").length}</p>
+                <p className="text-[10px] text-zinc-500">COMPLETED</p>
+              </div>
+              <div className="bg-[#111113] border border-[rgba(168,144,112,0.08)] rounded p-4 text-center">
+                <MessageSquare className="w-5 h-5 text-purple-500 opacity-50 mx-auto mb-2" />
+                <p className="text-2xl font-bold text-zinc-100">{discussions.filter(d => d.isOpen).length}</p>
+                <p className="text-[10px] text-zinc-500">OPEN DISCUSSIONS</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="bg-[#111113] border border-[rgba(168,144,112,0.08)] rounded p-4">
+                <h3 className="text-xs font-semibold text-zinc-300 mb-3 typewriter-label">TASK COMPLETION RATE</h3>
+                <div className="space-y-3">
+                  {["PENDING", "IN_PROGRESS", "COMPLETED"].map(status => {
+                    const count = tasks.filter(t => t.status === status).length;
+                    const total = tasks.length;
+                    const percentage = total > 0 ? Math.round((count / total) * 100) : 0;
+                    const color = status === "PENDING" ? "#f59e0b" : status === "IN_PROGRESS" ? "#3b82f6" : "#16a34a";
+                    return (
+                      <div key={status} className="space-y-1">
+                        <div className="flex items-center justify-between text-[10px]">
+                          <span className="flex items-center gap-1.5">
+                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
+                            <span className="text-zinc-400">{status.replace("_", " ")}</span>
+                          </span>
+                          <span className="font-bold text-zinc-100">{percentage}%</span>
+                        </div>
+                        <div className="h-1.5 bg-[#0a0a0c] rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all duration-300"
+                            style={{ width: `${percentage}%`, backgroundColor: color }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="bg-[#111113] border border-[rgba(168,144,112,0.08)] rounded p-4">
+                <h3 className="text-xs font-semibold text-zinc-300 mb-3 typewriter-label">YOUR STATS</h3>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between p-2 bg-[#0a0a0c] border border-[rgba(168,144,112,0.06)] rounded">
+                    <div className="flex items-center gap-2">
+                      <Award className="w-3.5 h-3.5 text-amber-400 opacity-50" />
+                      <span className="text-xs text-zinc-400">Votes Cast</span>
+                    </div>
+                    <span className="text-lg font-bold text-zinc-100">{profile.voteCount}</span>
+                  </div>
+                  <div className="flex items-center justify-between p-2 bg-[#0a0a0c] border border-[rgba(168,144,112,0.06)] rounded">
+                    <div className="flex items-center gap-2">
+                      <MessageSquare className="w-3.5 h-3.5 text-blue-400 opacity-50" />
+                      <span className="text-xs text-zinc-400">Comments</span>
+                    </div>
+                    <span className="text-lg font-bold text-zinc-100">{profile.commentCount}</span>
+                  </div>
+                  <div className="flex items-center justify-between p-2 bg-[#0a0a0c] border border-[rgba(168,144,112,0.06)] rounded">
+                    <div className="flex items-center gap-2">
+                      <ClipboardList className="w-3.5 h-3.5 text-emerald-400 opacity-50" />
+                      <span className="text-xs text-zinc-400">Total Tasks</span>
+                    </div>
+                    <span className="text-lg font-bold text-zinc-100">{Object.values(profile.taskCounts || {}).reduce((a, b) => a + b, 0)}</span>
+                  </div>
+                  <div className="flex items-center justify-between p-2 bg-[#0a0a0c] border border-[rgba(168,144,112,0.06)] rounded">
+                    <div className="flex items-center gap-2">
+                      <Zap className="w-3.5 h-3.5 text-purple-400 opacity-50" />
+                      <span className="text-xs text-zinc-400">Discussions Joined</span>
+                    </div>
+                    <span className="text-lg font-bold text-zinc-100">{discussions.length}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-[#111113] border border-[rgba(168,144,112,0.08)] rounded p-4 md:col-span-2">
+                <h3 className="text-xs font-semibold text-zinc-300 mb-3 typewriter-label">RECENT DISCUSSIONS</h3>
+                <div className="space-y-2">
+                  {discussions.slice(0, 5).map((d) => (
+                    <div key={d.id} className="flex items-center justify-between p-2 bg-[#0a0a0c] border border-[rgba(168,144,112,0.06)] rounded">
+                      <div className="flex items-center gap-2">
+                        <span className={`w-1.5 h-1.5 rounded-full ${d.isOpen ? "bg-emerald-500" : "bg-zinc-500"}`} />
+                        <span className="text-xs text-zinc-300 truncate max-w-[200px]">{d.title}</span>
+                      </div>
+                      <div className="flex items-center gap-3 text-[9px] text-zinc-500">
+                        <span>💬 {d._count.messages}</span>
+                        <span>👥 {d._count.participants}</span>
+                        <span className="font-mono">{d.createdBy?.badgeCode}</span>
+                      </div>
+                    </div>
+                  ))}
+                  {discussions.length === 0 && (
+                    <p className="text-center text-zinc-600 text-[10px] py-4">No discussions yet</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
       )}
 
       {/* Profile Tab */}
