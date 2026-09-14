@@ -38,54 +38,62 @@ export function Navbar() {
             </div>
           </Link>
 
-          {/* Desktop Nav */}
-          <div className="hidden md:flex items-center gap-5">
-            <Link href="/" className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors typewriter-label">CASES</Link>
-
-            {/* Single HQ button — replaces PROFILE + TASKS + BUREAU HQ */}
-            {hasBadge && hq && (
-              <Link
-                href={hq.href}
-                className={`flex items-center gap-1.5 text-sm ${hq.color} hover:text-[#d97706] transition-colors typewriter-label`}
-              >
-                <HQIcon className="w-3.5 h-3.5" />
-                {hq.label}
-              </Link>
-            )}
-
-            <div className="relative">
-              <button
-                onClick={() => setShowBadgeModal(true)}
-                className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 text-zinc-500 hover:text-[#d97706] border border-transparent hover:border-[#d97706]/20 transition-all typewriter-label"
-              >
-                <Fingerprint className="w-3.5 h-3.5" />
-                {badge ? badge.badgeCode : "BADGE"}
-              </button>
-              {badge && !badge.phone && (
-                <span
-                  title="WhatsApp number not registered — update your profile"
-                  className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-400 border border-[#060608]"
-                />
+          {/* Desktop Nav - three sections: left, center (badge), right */}
+          <div className="hidden md:flex items-center justify-between w-full gap-4">
+            {/* Left: CASES + HQ */}
+            <div className="flex items-center gap-4">
+              <Link href="/" className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors typewriter-label">CASES</Link>
+              {hasBadge && hq && (
+                <Link
+                  href={hq.href}
+                  className={`flex items-center gap-1.5 text-sm ${hq.color} hover:text-[#d97706] transition-colors typewriter-label`}
+                >
+                  <HQIcon className="w-3.5 h-3.5" />
+                  {hq.label}
+                </Link>
               )}
             </div>
-            {(role === "AGENT" || role === "BUREAU") && (
-              <Link
-                href="/agent/discussions"
-                className="flex items-center gap-1.5 text-sm px-3 py-1.5 text-zinc-500 hover:text-amber-400 border border-transparent hover:border-[rgba(168,144,112,0.08)] transition-colors typewriter-label"
-                title="Agent Discussions"
-              >
-                <MessageSquare className="w-3.5 h-3.5" />
-              </Link>
+
+            {/* Center: Badge button */}
+            {hasBadge && (
+              <div className="relative flex justify-center">
+                <button
+                  onClick={() => setShowBadgeModal(true)}
+                  className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 text-zinc-500 hover:text-[#d97706] border border-transparent hover:border-[#d97706]/20 transition-all typewriter-label"
+                >
+                  <Fingerprint className="w-3.5 h-3.5" />
+                  {badge ? badge.badgeCode : "BADGE"}
+                </button>
+                {badge && !badge.phone && (
+                  <span
+                    title="WhatsApp number not registered — update your profile"
+                    className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-400 border border-[#060608]"
+                  />
+                )}
+              </div>
             )}
-            {(role === "AGENT" || role === "BUREAU") && (
-              <Link
-                href="/admin/topics/new"
-                className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 bg-[#d97706] text-black font-semibold typewriter-label"
-              >
-                <Sparkles className="w-3 h-3" />
-                NEW CASE
-              </Link>
-            )}
+
+            {/* Right: Discussions + NEW CASE */}
+            <div className="flex items-center gap-3">
+              {(role === "AGENT" || role === "BUREAU") && (
+                <Link
+                  href="/agent/discussions"
+                  className="flex items-center gap-1.5 text-sm px-3 py-1.5 text-zinc-500 hover:text-amber-400 border border-transparent hover:border-[rgba(168,144,112,0.08)] transition-colors typewriter-label"
+                  title="Agent Discussions"
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                </Link>
+              )}
+              {(role === "AGENT" || role === "BUREAU") && (
+                <Link
+                  href="/admin/topics/new"
+                  className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 bg-[#d97706] text-black font-semibold typewriter-label"
+                >
+                  <Sparkles className="w-3 h-3" />
+                  NEW CASE
+                </Link>
+              )}
+            </div>
           </div>
 
           {/* Mobile Toggle */}
