@@ -232,7 +232,7 @@ export function HomeContent({
                     return (
 <div
                         key={topic.id}
-                        className="relative bg-[#0a0a0c] border-2 border-[rgba(168,144,112,0.06)] shadow-[0_2px_0_rgba(0,0,0,0.3),0_3px_8px_rgba(0,0,0,0.4)] hover:border-[#d97706]/30 transition-all duration-200 pixelated-amber-hover overflow-hidden"
+                        className="group relative bg-[#0a0a0c] border-2 border-[rgba(168,144,112,0.06)] shadow-[0_2px_0_rgba(0,0,0,0.3),0_3px_8px_rgba(0,0,0,0.4)] hover:border-[#d97706]/30 transition-all duration-200 pixelated-amber-hover overflow-hidden"
                         onMouseEnter={() => isBureau && setHoveredTopicId(topic.id)}
                         onMouseLeave={() => setHoveredTopicId(null)}
                       >
@@ -258,11 +258,11 @@ export function HomeContent({
                           {/* Action buttons — absolute overlay on hover (BRU only) */}
                           {isBureau && hoveredTopicId === topic.id && (
                             <div className="absolute inset-x-0 bottom-0 z-10 p-2 animate-in slide-in-from-top-1 duration-150 bg-gradient-to-t from-[#0a0a0c] to-transparent">
-                              <div className="bg-[#111113] border border-[rgba(168,144,112,0.12)] rounded p-1.5">
+                              <div className="bg-[#111113] border border-[rgba(168,144,112,0.12)] rounded p-1.5 flex items-center gap-1">
                                 <button
                                   onClick={() => handleApprove(topic)}
                                   disabled={approvingId === topic.id}
-                                  className="w-full flex items-center justify-center gap-0.5 px-1.5 py-1 mb-0.5 text-[7px] font-mono text-green-400/80 border border-green-500/20 hover:bg-green-500/10 disabled:opacity-30 transition-all"
+                                  className="flex items-center justify-center gap-0.5 px-1.5 py-1 text-[7px] font-mono text-green-400/80 border border-green-500/20 hover:bg-green-500/10 disabled:opacity-30 transition-all shrink-0"
                                 >
                                   <Check className="w-2 h-2" />
                                   {approvingId === topic.id ? "..." : "APPROVE"}
@@ -270,26 +270,40 @@ export function HomeContent({
                                 <button
                                   onClick={() => handleDiscard(topic)}
                                   disabled={discardingId === topic.id}
-                                  className="w-full flex items-center justify-center gap-0.5 px-1.5 py-1 text-[7px] font-mono text-red-400/80 border border-red-500/20 hover:bg-red-500/10 disabled:opacity-30 transition-all"
+                                  className="flex items-center justify-center gap-0.5 px-1.5 py-1 text-[7px] font-mono text-red-400/80 border border-red-500/20 hover:bg-red-500/10 disabled:opacity-30 transition-all shrink-0"
                                 >
                                   <Trash2 className="w-2 h-2" />
                                   {discardingId === topic.id ? "..." : "DISCARD"}
                                 </button>
+                                <button
+                                  onClick={() => handleVote(topic.id)}
+                                  className={cn(
+                                    "flex items-center justify-center gap-0.5 px-1.5 py-1 text-[7px] font-mono transition-all duration-200 typewriter-label border",
+                                    hasVoted
+                                      ? "bg-green-500/10 text-green-400 border-green-500/20"
+                                      : "text-[#d97706]/80 border-[#d97706]/30 hover:bg-[#d97706]/10"
+                                  )}
+                                >
+                                  <ChevronUp className="w-2.5 h-2.5" />
+                                  {hasVoted ? "TIPPED" : "TIP"}
+                                </button>
                               </div>
                             </div>
                           )}
-                          <button
-                            onClick={() => handleVote(topic.id)}
-                            className={cn(
-                              "w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-[9px] font-medium transition-all duration-200 typewriter-label border-2",
-                              hasVoted
-                                ? "bg-black/40 text-white border-white/20 shadow-[0_1px_0_rgba(255,255,255,0.1)]"
-                                : "bg-black/20 text-white/70 border-white/10 hover:bg-black/30 hover:border-white/20"
-                            )}
-                          >
-                            <ChevronUp className="w-2.5 h-2.5" />
-                            {hasVoted ? "TIPPED" : "TIP THIS CASE"}
-                          </button>
+                          {!isBureau && (
+                            <button
+                              onClick={() => handleVote(topic.id)}
+                              className={cn(
+                                "w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-[9px] font-medium transition-all duration-200 typewriter-label border-2",
+                                hasVoted
+                                  ? "bg-black/40 text-white border-white/20 shadow-[0_1px_0_rgba(255,255,255,0.1)]"
+                                  : "bg-black/20 text-white/70 border-white/10 hover:bg-black/30 hover:border-white/20"
+                              )}
+                            >
+                              <ChevronUp className="w-2.5 h-2.5" />
+                              {hasVoted ? "TIPPED" : "TIP THIS CASE"}
+                            </button>
+                          )}
                         </div>
                       </div>
                     );
