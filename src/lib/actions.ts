@@ -149,7 +149,7 @@ export async function getTopicBySlug(slug: string) {
 
   const { data: comments } = await supabase
     .from('Comment')
-    .select("*")
+    .select('*, User(displayName)')
     .eq("topicId", topic.id)
     .order("createdAt", { ascending: false });
 
@@ -163,6 +163,7 @@ export async function getTopicBySlug(slug: string) {
     comments: (comments || []).map((comment: any) => ({
       ...comment,
       evidenceUrls: normalizeEvidenceUrls(comment.evidenceUrls),
+      userDisplayName: comment.User?.displayName || null,
     })),
     _count: { votes: votesCount ?? 0 },
   });
@@ -182,7 +183,7 @@ export async function getTopicById(id: string) {
 
   const { data: comments } = await supabase
     .from('Comment')
-    .select("*")
+    .select('*, User(displayName)')
     .eq("topicId", topic.id)
     .order("createdAt", { ascending: false });
 
@@ -191,6 +192,7 @@ export async function getTopicById(id: string) {
     comments: (comments || []).map((comment: any) => ({
       ...comment,
       evidenceUrls: normalizeEvidenceUrls(comment.evidenceUrls),
+      userDisplayName: comment.User?.displayName || null,
     })),
   });
 }

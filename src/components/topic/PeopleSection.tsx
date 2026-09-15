@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Users, Fingerprint, MessageSquare } from "lucide-react";
+import { Users, Fingerprint, MessageSquare, User } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 
 interface PeopleSectionProps {
@@ -12,6 +12,7 @@ export function PeopleSection({ comments }: PeopleSectionProps) {
   // Extract unique commenters by displayName (or anonymousId for guests)
   const commentersMap = new Map<string, { 
     displayName: string; 
+    actualName: string | null;
     anonymousId: string;
     count: number;
     lastCommentAt: string;
@@ -22,10 +23,12 @@ export function PeopleSection({ comments }: PeopleSectionProps) {
     const key = comment.displayName || comment.anonymousId;
     const existing = commentersMap.get(key);
     const role = comment.displayName?.split("-")[0] || "DET";
+    const actualName = comment.userDisplayName || null;
     
     if (!existing || new Date(comment.createdAt) > new Date(existing.lastCommentAt)) {
       commentersMap.set(key, {
         displayName: comment.displayName || `DET-${comment.anonymousId.slice(0,4).toUpperCase()}`,
+        actualName,
         anonymousId: comment.anonymousId,
         count: (existing?.count || 0) + 1,
         lastCommentAt: comment.createdAt,
@@ -33,6 +36,9 @@ export function PeopleSection({ comments }: PeopleSectionProps) {
       });
     } else if (existing) {
       existing.count += 1;
+      if (actualName && !existing.actualName) {
+        existing.actualName = actualName;
+      }
     }
   });
 
@@ -90,11 +96,18 @@ export function PeopleSection({ comments }: PeopleSectionProps) {
                       <MessageSquare className="w-3 h-3" />
                     )}
                   </div>
-                  <span className={`text-[10px] font-mono font-bold ${
-                    hasBadge ? (isBRU ? "text-amber-300" : isAGT ? "text-amber-500" : "text-zinc-400") : "text-zinc-500"
-                  }`}>
-                    {person.displayName}
-                  </span>
+                  <div className="flex flex-col">
+                    <span className={`text-[10px] font-mono font-bold ${
+                      hasBadge ? (isBRU ? "text-amber-300" : isAGT ? "text-amber-500" : "text-zinc-400") : "text-zinc-500"
+                    }`}>
+                      {person.displayName}
+                    </span>
+                    {person.actualName && person.actualName !== person.displayName && (
+                      <span className="text-[9px] text-zinc-500 font-normal">
+                        {person.actualName}
+                      </span>
+                    )}
+                  </div>
                   <span className="text-[8px] text-zinc-600 typewriter-label ml-auto">
                     {person.count} stmt{person.count !== 1 ? "s" : ""}
                   </span>
@@ -103,6 +116,10 @@ export function PeopleSection({ comments }: PeopleSectionProps) {
                   <span className="flex items-center gap-1">
                     <MessageSquare className="w-2.5 h-2.5" />
                     Last: {formatDate(person.lastCommentAt)}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <User className="w-2.5 h-2.5" />
+                    {person.actualName ? "Known" : "Anonymous"}
                   </span>
                 </div>
               </motion.div>
