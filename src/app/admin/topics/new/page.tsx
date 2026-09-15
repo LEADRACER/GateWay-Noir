@@ -8,7 +8,8 @@ export const dynamic = "force-dynamic";
 
 export default async function NewTopicPage() {
   const user = await getCurrentUser();
-  if (!user || user.role !== "BUREAU") redirect("/");
+  if (!user || (user.role !== "BUREAU" && user.role !== "AGENT")) redirect("/");
+  const canCreateActive = user.role === "BUREAU";
 
   const categories = await getCategories();
 
@@ -25,7 +26,7 @@ export default async function NewTopicPage() {
 
       <div className="max-w-2xl">
         <div className="case-file rounded-2xl p-6">
-          <CreateTopicForm categories={categories} />
+          <CreateTopicForm categories={categories} canCreateActive={canCreateActive} />
         </div>
       </div>
     </div>

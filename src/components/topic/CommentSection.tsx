@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { MessageSquare, RefreshCw, FileText } from "lucide-react";
+import { MessageSquare, RefreshCw, FileText, Fingerprint } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { CommentForm } from "./CommentForm";
 import { CommentItem } from "./CommentItem";
@@ -20,7 +20,7 @@ export function CommentSection({ topicId, initialComments, isConcluded }: Commen
   const [comments, setComments] = useState(initialComments);
   const [anonymousId, setAnonymousId] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState("");
-  const { badge } = useBadge();
+  const { badge, setShowBadgeModal } = useBadge();
 
   useEffect(() => {
     setAnonymousId(getAnonymousId());
@@ -59,12 +59,22 @@ export function CommentSection({ topicId, initialComments, isConcluded }: Commen
           <p className="text-xs text-zinc-600 typewriter-label">CASE CLOSED — NO FURTHER TESTIMONY</p>
         </div>
       ) : (
-        <CommentForm
-          topicId={topicId}
-          anonymousId={anonymousId}
-          displayName={effectiveDisplayName}
-          onCommentAdded={refreshComments}
-        />
+        <>
+          {!badge && (
+            <div className="mb-4 p-3 bg-[#0a0a0c] border border-[rgba(168,144,112,0.06)] flex items-center gap-2">
+              <Fingerprint className="w-3.5 h-3.5 text-[#d97706] opacity-50 flex-shrink-0" />
+              <p className="text-[10px] text-zinc-500 typewriter-label flex-1">
+                Posting as a guest. <Button variant="ghost" size="sm" onClick={() => setShowBadgeModal(true)} className="px-2 py-0.5 text-[10px]">Claim a badge</Button> for a persistent identity.
+              </p>
+            </div>
+          )}
+          <CommentForm
+            topicId={topicId}
+            anonymousId={anonymousId}
+            displayName={effectiveDisplayName}
+            onCommentAdded={refreshComments}
+          />
+        </>
       )}
 
       <hr className="file-divider" />

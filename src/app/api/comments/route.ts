@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { normalizeEvidenceUrls } from "@/lib/utils";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -11,17 +12,20 @@ export async function GET(request: NextRequest) {
 
   const supabase = await createServerSupabaseClient();
 
-  const { data: comments } = await supabase
+  const { data: comments, error } = await supabase
     .from('Comment')
     .select("*")
     .eq("topicId", topicId)
     .eq("isFlagged", false)
     .order("createdAt", { ascending: false });
 
-  // evidenceUrls is stored as text[] in PG, not a JSON string
-  const parsedComments = (comments || []).map((c: any) => ({
-    ...c,
-    evidenceUrls: Array.isArray(c.evidenceUrls) ? c.evidenceUrls : [],
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  const parsedComments = (comments || []).map((comment: any) => ({
+    ...comment,
+    evidenceUrls: normalizeEvidenceUrls(comment.evidenceUrls),
   }));
 
   return NextResponse.json({ comments: parsedComments });

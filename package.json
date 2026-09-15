@@ -4,12 +4,12 @@
   "private": true,
   "description": "Myth:GateWay — where myths enter, verdicts exit",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint",
-    "seed": "npx tsx prisma/seed.ts",
-    "setup-bureau": "npx tsx scripts/setup-bureau.ts"
+    "dev": "./node_modules/.bin/next dev",
+    "build": "./node_modules/.bin/next build",
+    "start": "./node_modules/.bin/next start",
+    "lint": "./node_modules/.bin/eslint .",
+    "seed": "./node_modules/.bin/tsx prisma/seed.ts",
+    "setup-bureau": "./node_modules/.bin/tsx scripts/setup-bureau.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",

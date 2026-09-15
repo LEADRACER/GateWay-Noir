@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/get-current-user";
 
-// GET /api/agent/discussions — list accessible discussions (AGT+ only)
-// BUREAU sees all; AGENT sees visibility='all' + invited discussions
+// GET /api/agent/discussions — list accessible discussions (DET+ only)
+// BUREAU sees all; AGENT sees visibility='all'/'agents' + invited; DETECTIVE sees visibility='all' + invited
 export async function GET() {
   const user = await getCurrentUser();
-  if (!user || (user.role !== "AGENT" && user.role !== "BUREAU")) {
+  if (!user || (user.role !== "DETECTIVE" && user.role !== "AGENT" && user.role !== "BUREAU")) {
     return NextResponse.json({ error: "Not authorized" }, { status: 403 });
   }
 
@@ -17,8 +17,8 @@ export async function GET() {
     .select('id, title, description, isOpen, visibility, createdById, createdAt, updatedAt, createdBy:User(badgeCode, displayName)')
     .order("updatedAt", { ascending: false });
 
-  // Filter for AGENT: only visibility='all' OR user is participant
-  if (user.role === "AGENT") {
+  // Filter for non-BUREAU users
+  if (user.role !== "BUREAU") {
     // Get discussion IDs where user is a participant
     const { data: participantDiscussions } = await supabase
       .from('DiscussionParticipant')
@@ -27,8 +27,13 @@ export async function GET() {
 
     const participantIds = (participantDiscussions || []).map(p => p.discussionId);
 
-    // Filter: visibility='all' OR user is participant
-    query = query.or(`visibility.eq.all,${participantIds.length > 0 ? `id.in.(${participantIds.join(",")})` : 'id.eq.none'}`);
+    if (user.role === "DETECTIVE") {
+      // DETECTIVE: only visibility='all' (which includes DET) OR user is participant
+      query = query.or(`visibility.eq.all,${participantIds.length > 0 ? `id.in.(${participantIds.join(",")})` : 'id.eq.none'}`);
+    } else {
+      // AGENT: visibility='all' or 'agents' OR user is participant
+      query = query.or(`visibility.in.(all,agents),${participantIds.length > 0 ? `id.in.(${participantIds.join(",")})` : 'id.eq.none'}`);
+    }
   }
 
   const { data: discussions } = await query;
@@ -47,11 +52,11 @@ export async function GET() {
   return NextResponse.json({ discussions: enriched });
 }
 
-// POST /api/agent/discussions — create a new discussion (AGT+ only)
-// Body: { title, description?, visibility?: 'all'|'invited', participantIds?: string[] }
+// POST /api/agent/discussions — create a new discussion (DET+ only)
+// Body: { title, description?, visibility?: 'all'|'agents'|'invited', participantIds?: string[] }
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser();
-  if (!user || (user.role !== "AGENT" && user.role !== "BUREAU")) {
+  if (!user || (user.role !== "DETECTIVE" && user.role !== "AGENT" && user.role !== "BUREAU")) {
     return NextResponse.json({ error: "Not authorized" }, { status: 403 });
   }
 
@@ -60,10 +65,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Title is required" }, { status: 400 });
   }
 
-  // Only BUREAU can create invited-only discussions
-  const finalVisibility = user.role === "BUREAU" ? (visibility || 'all') : 'all';
+  // Visibility rules:
+  // - BUREAU: can create 'all', 'agents', or 'invited'
+  // - AGENT: can create 'all' or 'agents' (not 'invited')
+  // - DETECTIVE: can only create 'all'
+  let finalVisibility = 'all';
+  if (user.role === "BUREAU") {
+    finalVisibility = visibility || 'all';
+  } else if (user.role === "AGENT") {
+    finalVisibility = visibility === 'agents' ? 'agents' : 'all';
+  }
+  // DETECTIVE always gets 'all'
+
   if (finalVisibility === 'invited' && user.role !== 'BUREAU') {
     return NextResponse.json({ error: "Only Bureau can create invited-only discussions" }, { status: 403 });
+  }
+  if (finalVisibility === 'agents' && user.role === 'DETECTIVE') {
+    return NextResponse.json({ error: "Detectives cannot create agent-only discussions" }, { status: 403 });
   }
 
   const supabase = await createServerSupabaseClient();

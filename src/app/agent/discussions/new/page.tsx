@@ -4,7 +4,7 @@ import { useBadge } from "@/components/badge/BadgeProvider";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowLeft, Send, Loader2, Users, Lock, ChevronDown } from "lucide-react";
+import { ArrowLeft, Send, Loader2, Users, Lock, ChevronDown, UserPlus } from "lucide-react";
 import toast from "react-hot-toast";
 
 interface Agent {
@@ -19,16 +19,16 @@ export default function NewDiscussionPage() {
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [visibility, setVisibility] = useState<"all" | "invited">("all");
+  const [visibility, setVisibility] = useState<"all" | "agents" | "invited">("all");
   const [selectedAgents, setSelectedAgents] = useState<string[]>([]);
   const [availableAgents, setAvailableAgents] = useState<Agent[]>([]);
   const [loadingAgents, setLoadingAgents] = useState(false);
   const [showAgentPicker, setShowAgentPicker] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // Load available agents for BRU
+  // Load available agents for BRU and AGT (for invited/agents visibility)
   useEffect(() => {
-    if (badge?.role === "BUREAU") {
+    if (badge?.role === "BUREAU" || badge?.role === "AGENT") {
       loadAgents();
     }
   }, [badge]);
@@ -50,7 +50,7 @@ export default function NewDiscussionPage() {
 
   if (badgeLoading) return null;
 
-  if (!badge || (badge.role !== "AGENT" && badge.role !== "BUREAU")) {
+  if (!badge || (badge.role !== "DETECTIVE" && badge.role !== "AGENT" && badge.role !== "BUREAU")) {
     return (
       <div className="max-w-3xl mx-auto py-16 text-center">
         <p className="text-zinc-500 text-sm">Not authorized.</p>
@@ -59,6 +59,8 @@ export default function NewDiscussionPage() {
   }
 
   const isBureau = badge.role === "BUREAU";
+  const isAgent = badge.role === "AGENT";
+  const canManageVisibility = isBureau || isAgent;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,7 +73,7 @@ export default function NewDiscussionPage() {
         description: description.trim() || undefined,
       };
 
-      if (isBureau) {
+      if (canManageVisibility) {
         body.visibility = visibility;
         if (visibility === "invited") {
           body.participantIds = selectedAgents;
@@ -146,10 +148,10 @@ export default function NewDiscussionPage() {
             />
           </div>
 
-          {isBureau && (
+          {canManageVisibility && (
             <div className="space-y-3">
               <label className="text-[10px] text-zinc-600 typewriter-label block mb-1">VISIBILITY</label>
-              <div className="flex gap-3">
+              <div className="flex flex-wrap gap-3">
                 <button
                   type="button"
                   onClick={() => setVisibility("all")}
@@ -160,20 +162,34 @@ export default function NewDiscussionPage() {
                   } transition-colors`}
                 >
                   <Lock className={`w-3 h-3 ${visibility === "all" ? "text-amber-400" : ""}`} />
-                  <span className="text-xs font-medium">ALL AGENTS</span>
+                  <span className="text-xs font-medium">ALL (DET + AGT + BRU)</span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => setVisibility("invited")}
+                  onClick={() => setVisibility("agents")}
                   className={`flex items-center gap-2 px-3 py-2 border rounded ${
-                    visibility === "invited"
-                      ? "border-amber-500/50 bg-amber-500/10 text-amber-400"
+                    visibility === "agents"
+                      ? "border-blue-500/50 bg-blue-500/10 text-blue-400"
                       : "border-[rgba(168,144,112,0.1)] text-zinc-500 hover:border-[rgba(168,144,112,0.2)]"
                   } transition-colors`}
                 >
-                  <Users className={`w-3 h-3 ${visibility === "invited" ? "text-amber-400" : ""}`} />
-                  <span className="text-xs font-medium">INVITED ONLY</span>
+                  <Users className={`w-3 h-3 ${visibility === "agents" ? "text-blue-400" : ""}`} />
+                  <span className="text-xs font-medium">AGENTS ONLY (AGT + BRU)</span>
                 </button>
+                {isBureau && (
+                  <button
+                    type="button"
+                    onClick={() => setVisibility("invited")}
+                    className={`flex items-center gap-2 px-3 py-2 border rounded ${
+                      visibility === "invited"
+                        ? "border-amber-500/50 bg-amber-500/10 text-amber-400"
+                        : "border-[rgba(168,144,112,0.1)] text-zinc-500 hover:border-[rgba(168,144,112,0.2)]"
+                    } transition-colors`}
+                  >
+                    <UserPlus className={`w-3 h-3 ${visibility === "invited" ? "text-amber-400" : ""}`} />
+                    <span className="text-xs font-medium">INVITED ONLY</span>
+                  </button>
+                )}
               </div>
 
               {visibility === "invited" && (

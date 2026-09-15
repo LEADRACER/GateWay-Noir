@@ -11,6 +11,7 @@ const bureauNavItems = [
 
 const agentNavItems = [
   { href: "/admin", label: "HQ", icon: LayoutDashboard },
+  { href: "/admin/topics/new", label: "New Case File", icon: PlusCircle },
   { href: "/agent/discussions", label: "Discussions", icon: MessageSquare },
   { href: "/admin/tasks", label: "My Tasks", icon: ClipboardList },
 ];

@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { formatDate } from "@/lib/utils";
+import { formatDate, normalizeEvidenceUrls } from "@/lib/utils";
 import { Fingerprint, User } from "lucide-react";
 
 interface CommentItemProps {
@@ -11,13 +11,14 @@ interface CommentItemProps {
     anonymousId: string;
     content: string;
     createdAt: string;
-    evidenceUrls?: string[];
+    evidenceUrls?: string[] | string | null;
   };
   index: number;
 }
 
 export function CommentItem({ comment, index }: CommentItemProps) {
   const hue = hashCode(comment.anonymousId) % 360;
+  const evidenceUrls = normalizeEvidenceUrls(comment.evidenceUrls);
 
   // Parse badge code from displayName
   const badgeParts = comment.displayName?.split("-") || [];
@@ -80,9 +81,9 @@ export function CommentItem({ comment, index }: CommentItemProps) {
         </p>
 
         {/* Evidence thumbnails */}
-        {comment.evidenceUrls && comment.evidenceUrls.length > 0 && (
+        {evidenceUrls.length > 0 && (
           <div className="flex gap-2 mt-2 flex-wrap">
-            {comment.evidenceUrls.map((url: string, i: number) => (
+            {evidenceUrls.map((url: string, i: number) => (
               <a
                 key={i}
                 href={url}

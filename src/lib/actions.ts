@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { generateSlug } from "./utils";
+import { generateSlug, normalizeEvidenceUrls } from "./utils";
 import { getCurrentUser } from "./get-current-user";
 import type { Topic, Vote, Comment, Category } from "@/lib/types/database";
 
@@ -160,7 +160,10 @@ export async function getTopicBySlug(slug: string) {
 
   return normalizeCategory({
     ...topic,
-    comments: comments || [],
+    comments: (comments || []).map((comment: any) => ({
+      ...comment,
+      evidenceUrls: normalizeEvidenceUrls(comment.evidenceUrls),
+    })),
     _count: { votes: votesCount ?? 0 },
   });
 }
@@ -183,7 +186,13 @@ export async function getTopicById(id: string) {
     .eq("topicId", topic.id)
     .order("createdAt", { ascending: false });
 
-  return normalizeCategory({ ...topic, comments: comments || [] });
+  return normalizeCategory({
+    ...topic,
+    comments: (comments || []).map((comment: any) => ({
+      ...comment,
+      evidenceUrls: normalizeEvidenceUrls(comment.evidenceUrls),
+    })),
+  });
 }
 
 export async function getCategories() {
@@ -335,14 +344,7 @@ export async function createComment(formData: FormData) {
   const anonymousId = formData.get("anonymousId") as string;
   const displayName = formData.get("displayName") as string;
   const evidenceUrlsRaw = formData.get("evidenceUrls") as string;
-  let evidenceUrls: string[] | undefined;
-  if (evidenceUrlsRaw) {
-    try {
-      evidenceUrls = JSON.parse(evidenceUrlsRaw);
-    } catch {
-      // silent
-    }
-  }
+  const evidenceUrls = evidenceUrlsRaw ? normalizeEvidenceUrls(evidenceUrlsRaw) : [];
 
   if (!topicId || !content?.trim() || !anonymousId) {
     return { error: "Missing required fields" };
@@ -426,24 +428,41 @@ export async function getComments(topicId: string) {
     .order("createdAt", { ascending: false });
 
   if (error) throw new Error(error.message);
-  return data || [];
+  return (data || []).map((comment: any) => ({
+    ...comment,
+    evidenceUrls: normalizeEvidenceUrls(comment.evidenceUrls),
+  }));
 }
 
 // ─── Admin Actions ───
 
 export async function createTopic(formData: FormData) {
   const caller = await getCurrentUser();
-  if (!caller || caller.role !== "BUREAU") return { error: "Unauthorized" };
+  if (!caller || (caller.role !== "BUREAU" && caller.role !== "AGENT")) return { error: "Unauthorized" };
+
   const title = formData.get("title") as string;
   const description = formData.get("description") as string;
   const evidence = formData.get("evidence") as string;
   const categoryId = formData.get("categoryId") as string;
-  const durationDays = parseInt(formData.get("durationDays") as string) || 7;
   const imageUrl = formData.get("imageUrl") as string;
-  const status = (formData.get("status") as string) || "ACTIVE";
+  const requestedStatus = (formData.get("status") as string) || "UPCOMING";
+  const allowedStatuses = caller.role === "BUREAU" ? ["UPCOMING", "ACTIVE"] : ["UPCOMING"];
 
   if (!title?.trim() || !description?.trim() || !categoryId) {
     return { error: "Missing required fields" };
+  }
+  if (!allowedStatuses.includes(requestedStatus)) {
+    return { error: caller.role === "AGENT" ? "Agents can only create upcoming cases" : "Invalid case status" };
+  }
+
+  const status = requestedStatus as "UPCOMING" | "ACTIVE";
+  let durationDays = 0;
+  if (status === "ACTIVE") {
+    const parsedDuration = parseInt(formData.get("durationDays") as string, 10);
+    if (!Number.isInteger(parsedDuration) || parsedDuration < 1 || parsedDuration > 30) {
+      return { error: "Investigation duration must be between 1 and 30 days" };
+    }
+    durationDays = parsedDuration;
   }
 
   let slug = generateSlug(title);
@@ -475,20 +494,21 @@ export async function createTopic(formData: FormData) {
       description: description.trim(),
       evidence: evidence?.trim() || null,
       imageUrl: imageUrl?.trim() || null,
-      durationDays: status === "UPCOMING" ? 0 : durationDays,
+      durationDays,
       endsAt:
         status === "UPCOMING"
           ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
           : endsAt.toISOString(),
       categoryId,
       status,
-      createdBy: caller.id, // SECURITY: from the session, never the form
+      createdBy: caller.id,
     });
 
   if (insertError) return { error: insertError.message };
 
   revalidatePath("/");
   revalidatePath("/admin");
+  revalidatePath(`/topic/${slug}`);
   return { success: true, slug };
 }
 

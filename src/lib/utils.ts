@@ -23,6 +23,23 @@ export function generateSlug(title: string): string {
     .trim();
 }
 
+export function normalizeEvidenceUrls(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.filter((url): url is string => typeof url === "string" && url.trim().length > 0);
+  }
+  if (typeof value !== "string" || !value.trim()) return [];
+
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) {
+      return parsed.filter((url): url is string => typeof url === "string" && url.trim().length > 0);
+    }
+  } catch {
+  }
+
+  return [value.trim()];
+}
+
 export function timeRemaining(endsAt: string | Date): { days: number; hours: number; minutes: number; total: number } {
   const total = new Date(endsAt).getTime() - Date.now();
   if (total <= 0) return { days: 0, hours: 0, minutes: 0, total: 0 };

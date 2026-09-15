@@ -10,8 +10,11 @@ async function checkDiscussionAccess(supabase: any, user: any, discussion: any):
   // Creator has access
   if (discussion.createdById === user.id) return true;
 
-  // For visibility='all', all AGENTs have access
+  // For visibility='all', all DETECTIVE, AGENT, BUREAU have access
   if (discussion.visibility === 'all') return true;
+
+  // For visibility='agents', AGENT and BUREAU have access
+  if (discussion.visibility === 'agents' && (user.role === 'AGENT' || user.role === 'BUREAU')) return true;
 
   // For visibility='invited', check if user is participant
   const { data: participant } = await supabase
@@ -31,7 +34,7 @@ export async function GET(
 ) {
   const { id } = await params;
   const user = await getCurrentUser();
-  if (!user || (user.role !== "AGENT" && user.role !== "BUREAU")) {
+  if (!user || (user.role !== "DETECTIVE" && user.role !== "AGENT" && user.role !== "BUREAU")) {
     return NextResponse.json({ error: "Not authorized" }, { status: 403 });
   }
 
@@ -69,7 +72,7 @@ export async function POST(
 ) {
   const { id } = await params;
   const user = await getCurrentUser();
-  if (!user || (user.role !== "AGENT" && user.role !== "BUREAU")) {
+  if (!user || (user.role !== "DETECTIVE" && user.role !== "AGENT" && user.role !== "BUREAU")) {
     return NextResponse.json({ error: "Not authorized" }, { status: 403 });
   }
 

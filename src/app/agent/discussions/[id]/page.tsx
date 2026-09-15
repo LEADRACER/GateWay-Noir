@@ -28,7 +28,7 @@ interface Discussion {
   title: string;
   description: string | null;
   isOpen: boolean;
-  visibility: "all" | "invited";
+  visibility: "all" | "agents" | "invited";
   summary: string | null;
   createdById: string;
   createdAt: string;
@@ -271,7 +271,7 @@ export default function DiscussionDetailPage() {
     );
   }
 
-  if (!badge || (badge.role !== "AGENT" && badge.role !== "BUREAU")) {
+  if (!badge || (badge.role !== "DETECTIVE" && badge.role !== "AGENT" && badge.role !== "BUREAU")) {
     return (
       <div className="max-w-3xl mx-auto py-16 text-center">
         <Lock className="w-8 h-8 text-zinc-700 mx-auto mb-3" />
@@ -297,7 +297,7 @@ export default function DiscussionDetailPage() {
   const canClose = discussion.createdById === badge.id || badge.role === "BUREAU";
 
   return (
-    <div className="max-w-7xl mx-auto py-8 px-4">
+    <div className="max-w-8xl mx-auto py-8 px-4">
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
         {/* Header */}
         <button

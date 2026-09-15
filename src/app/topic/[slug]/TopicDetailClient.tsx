@@ -1,13 +1,13 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { ArrowLeft, Clock, MessageSquare, BookOpen, Fingerprint, FileText, Stamp } from "lucide-react";
+import { ArrowLeft, Clock, MessageSquare, Stamp } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/Badge";
-import { Card, CardContent } from "@/components/ui/Card";
 import { CountdownFull } from "@/components/topic/CountdownTimer";
 import { VerdictBanner } from "@/components/topic/VerdictBanner";
 import { CommentSection } from "@/components/topic/CommentSection";
+import { EvidenceSection } from "@/components/topic/EvidenceSection";
 import { formatDate } from "@/lib/utils";
 
 interface TopicDetailClientProps {
@@ -17,6 +17,8 @@ interface TopicDetailClientProps {
 export function TopicDetailClient({ topic }: TopicDetailClientProps) {
   const isConcluded = topic.status === "CONCLUDED";
   const caseId = `GWN-${topic.id.slice(0, 8).toUpperCase()}`;
+  const categoryColor = topic.category?.color || "#d97706";
+  const categoryName = topic.category?.name || "UNCATEGORIZED";
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -45,12 +47,12 @@ export function TopicDetailClient({ topic }: TopicDetailClientProps) {
               <Badge
                 className="text-[9px]"
                 style={{
-                  backgroundColor: `${topic.category.color}12`,
-                  borderColor: `${topic.category.color}25`,
-                  color: topic.category.color,
+                  backgroundColor: `${categoryColor}12`,
+                  borderColor: `${categoryColor}25`,
+                  color: categoryColor,
                 }}
               >
-                {topic.category.name}
+                {categoryName}
               </Badge>
               <Badge variant={isConcluded ? "verdict" : "status"} status={topic.status} verdict={topic.verdict}>
                 {isConcluded ? topic.verdict : "UNDER INVESTIGATION"}
@@ -83,7 +85,7 @@ export function TopicDetailClient({ topic }: TopicDetailClientProps) {
                   {isConcluded ? "CASE CLOSED" : "TIME REMAINING"}
                 </h3>
               </div>
-              <CountdownFull endsAt={topic.endsAt} />
+              {topic.endsAt ? <CountdownFull endsAt={topic.endsAt} /> : <span className="text-zinc-500 text-sm typewriter-label">NO DEADLINE SET</span>}
             </div>
           </div>
 
@@ -94,20 +96,8 @@ export function TopicDetailClient({ topic }: TopicDetailClientProps) {
             </div>
           )}
 
-          {/* Evidence Section */}
-          {topic.evidence && (
-            <div className="mx-5 sm:mx-6 mb-5">
-              <div className="bg-[#0a0a0c] border border-[rgba(168,144,112,0.06)] p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <BookOpen className="w-3.5 h-3.5 text-[#d97706] opacity-50" />
-                  <h3 className="case-number text-zinc-500">EVIDENCE & BACKGROUND</h3>
-                </div>
-                <div className="text-xs text-zinc-500 leading-relaxed whitespace-pre-wrap font-mono overflow-x-auto">
-                  {topic.evidence}
-                </div>
-              </div>
-            </div>
-          )}
+          {/* Evidence Archive - Aggregated from case file and witness statements */}
+          <EvidenceSection topicId={topic.id} topicEvidence={topic.evidence} />
 
           {/* Witness Statements */}
           <div className="mx-5 sm:mx-6 mb-5">

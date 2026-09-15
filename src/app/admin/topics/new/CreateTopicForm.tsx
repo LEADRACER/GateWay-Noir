@@ -1,9 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
-import { Scale, Sparkles, Eye, Timer, ShieldCheck, LogOut, Lock } from "lucide-react";
+import { Scale, Sparkles, Timer, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
@@ -18,65 +18,16 @@ interface Category {
   slug: string;
 }
 
-export function CreateTopicForm({ categories }: { categories: Category[] }) {
+interface CreateTopicFormProps {
+  categories: Category[];
+  canCreateActive: boolean;
+}
+
+export function CreateTopicForm({ categories, canCreateActive }: CreateTopicFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<"ACTIVE" | "UPCOMING">("UPCOMING");
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [showAdminLogin, setShowAdminLogin] = useState(false);
-  const [adminPassword, setAdminPassword] = useState("");
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
-
-  // Check admin status on mount
-  useEffect(() => {
-    fetch("/api/admin/check")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.admin) {
-          setIsAdmin(true);
-          setStatus("ACTIVE");
-        }
-      })
-      .catch(() => {});
-  }, []);
-
-  async function handleAdminLogin() {
-    if (!adminPassword.trim()) return;
-    setIsLoggingIn(true);
-    try {
-      const res = await fetch("/api/admin/check", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: adminPassword }),
-      });
-      const data = await res.json();
-      if (data.admin) {
-        setIsAdmin(true);
-        setStatus("ACTIVE");
-        setShowAdminLogin(false);
-        setAdminPassword("");
-        toast.success("Bureau access granted");
-      } else {
-        toast.error(data.error || "Invalid code");
-      }
-    } catch {
-      toast.error("Connection failed");
-    } finally {
-      setIsLoggingIn(false);
-    }
-  }
-
-  async function handleAdminLogout() {
-    try {
-      await fetch("/api/admin/check", { method: "DELETE" });
-      setIsAdmin(false);
-      setStatus("UPCOMING");
-      toast.success("Bureau access revoked");
-    } catch {
-      toast.error("Failed to logout");
-    }
-  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -84,8 +35,6 @@ export function CreateTopicForm({ categories }: { categories: Category[] }) {
     setErrors({});
 
     const formData = new FormData(e.currentTarget);
-    const adminId = crypto.randomUUID();
-    formData.set("adminId", adminId);
     formData.set("status", status);
 
     try {
@@ -119,71 +68,23 @@ export function CreateTopicForm({ categories }: { categories: Category[] }) {
         </div>
       )}
 
-      {/* Admin Login Bar */}
       <div className="flex items-center justify-between p-2 bg-[#0a0a0c] border border-[rgba(168,144,112,0.06)]">
         <div className="flex items-center gap-2">
-          {isAdmin ? (
+          {canCreateActive ? (
             <>
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="text-[10px] text-emerald-400 typewriter-label">BUREAU ACCESS — VERIFIED</span>
+              <span className="text-[10px] text-emerald-400 typewriter-label">BUREAU ACCESS — ACTIVE OR UPCOMING</span>
             </>
           ) : (
             <>
-              <Lock className="w-3.5 h-3.5 text-zinc-600" />
-              <span className="text-[10px] text-zinc-600 typewriter-label">STANDARD USER — UPCOMING ONLY</span>
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+              <span className="text-[10px] text-amber-500 typewriter-label">FIELD AGENT — UPCOMING ONLY</span>
             </>
           )}
         </div>
-        {isAdmin ? (
-          <button
-            type="button"
-            onClick={handleAdminLogout}
-            className="inline-flex items-center gap-1 px-2 py-1 text-[9px] text-zinc-500 hover:text-zinc-300 typewriter-label transition-colors"
-          >
-            <LogOut className="w-2.5 h-2.5" />
-            LOCK
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setShowAdminLogin(!showAdminLogin)}
-            className="inline-flex items-center gap-1 px-2 py-1 text-[9px] text-zinc-600 hover:text-amber-400 typewriter-label transition-colors"
-          >
-            <Eye className="w-2.5 h-2.5" />
-            BUREAU ACCESS
-          </button>
-        )}
       </div>
 
-      {/* Admin Login Form */}
-      {showAdminLogin && !isAdmin && (
-        <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: "auto" }}
-          className="flex items-center gap-2 p-2 bg-[#0a0a0c] border border-[rgba(168,144,112,0.06)]"
-        >
-          <input
-            type="password"
-            value={adminPassword}
-            onChange={(e) => setAdminPassword(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleAdminLogin()}
-            placeholder="Enter bureau code..."
-            className="flex-1 px-2 py-1 text-[10px] bg-[#08080a] border border-[rgba(168,144,112,0.08)] text-zinc-400 placeholder-zinc-700 focus:outline-none focus:border-amber-700/30 font-mono"
-            autoFocus
-          />
-          <button
-            type="button"
-            onClick={handleAdminLogin}
-            disabled={isLoggingIn || !adminPassword.trim()}
-            className="px-2 py-1 text-[9px] bg-[#d97706] text-black font-semibold typewriter-label hover:bg-[#b86a04] transition-colors disabled:opacity-50"
-          >
-            {isLoggingIn ? "..." : "UNLOCK"}
-          </button>
-        </motion.div>
-      )}
-
-      {/* Status Toggle — only shown for admin */}
-      {isAdmin && (
+      {canCreateActive && (
         <div className="flex items-center gap-3 p-3 bg-[#0a0a0c] border border-[rgba(168,144,112,0.06)]">
           <span className="text-sm text-zinc-400 font-medium">Publish as:</span>
           <button
@@ -215,13 +116,10 @@ export function CreateTopicForm({ categories }: { categories: Category[] }) {
         </div>
       )}
 
-      {/* Non-admin notice */}
-      {!isAdmin && (
+      {!canCreateActive && (
         <div className="p-3 bg-[#0a0a0c] border border-[rgba(168,144,112,0.06)]">
           <p className="text-[10px] text-zinc-600 typewriter-label leading-relaxed">
-            All cases submitted as a standard user enter PENDING INTAKE. They will be reviewed and promoted to active investigation once they receive enough tips from the community.
-            <br />
-            <span className="text-zinc-700">To publish directly as an active investigation, use Bureau Access above.</span>
+            Field agents can submit cases for upcoming review. Bureau members can publish an investigation directly after review.
           </p>
         </div>
       )}

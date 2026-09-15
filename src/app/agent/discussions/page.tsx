@@ -21,7 +21,7 @@ interface Discussion {
   title: string;
   description: string | null;
   isOpen: boolean;
-  visibility: "all" | "invited";
+  visibility: "all" | "agents" | "invited";
   createdById: string;
   createdAt: string;
   updatedAt: string;
@@ -69,11 +69,11 @@ export default function AgentDiscussionsPage() {
     );
   }
 
-  if (!badge || (badge.role !== "AGENT" && badge.role !== "BUREAU")) {
+  if (!badge || (badge.role !== "DETECTIVE" && badge.role !== "AGENT" && badge.role !== "BUREAU")) {
     return (
       <div className="max-w-3xl mx-auto py-16 text-center">
         <Lock className="w-8 h-8 text-zinc-700 mx-auto mb-3" />
-        <p className="text-zinc-500 text-sm">This space is for Agents and Bureau members only.</p>
+        <p className="text-zinc-500 text-sm">This space is for Detectives, Agents, and Bureau members only.</p>
       </div>
     );
   }
@@ -88,7 +88,7 @@ export default function AgentDiscussionsPage() {
               <Users className="w-4 h-4 text-amber-400/70" />
               <h1 className="text-sm font-semibold text-zinc-200 typewriter-label">AGENT CHANNEL</h1>
             </div>
-            <p className="text-[10px] text-zinc-600">Private discussions for Agents and Bureau</p>
+            <p className="text-[10px] text-zinc-600">Private discussions for Detectives, Agents and Bureau</p>
           </div>
           <button
             onClick={() => router.push("/agent/discussions/new")}
@@ -134,9 +134,11 @@ export default function AgentDiscussionsPage() {
                   <span className={`inline-flex items-center px-1.5 py-0.5 text-[7px] font-medium rounded ${
                     d.visibility === "all"
                       ? "bg-blue-500/20 text-blue-400 border border-blue-500/20"
+                      : d.visibility === "agents"
+                      ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/20"
                       : "bg-amber-500/20 text-amber-400 border border-amber-500/20"
                   } typewriter-label`}>
-                    {d.visibility === "all" ? "ALL" : "INVITE"}
+                    {d.visibility === "all" ? "ALL" : d.visibility === "agents" ? "AGENTS" : "INVITE"}
                   </span>
                 </div>
                 {d.description && (
