@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
 
   const { data: comments, error } = await supabase
     .from('Comment')
-    .select("*")
+    .select('*, userId:User(displayName)')
     .eq("topicId", topicId)
     .eq("isFlagged", false)
     .order("createdAt", { ascending: false });
@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
   const parsedComments = (comments || []).map((comment: any) => ({
     ...comment,
     evidenceUrls: normalizeEvidenceUrls(comment.evidenceUrls),
+    userDisplayName: comment.userId?.displayName || null,
   }));
 
   return NextResponse.json({ comments: parsedComments });
