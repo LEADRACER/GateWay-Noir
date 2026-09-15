@@ -54,37 +54,35 @@ export function Navbar() {
             <div className="w-8" />
 
             {/* Center: Badge + HQ */}
-            {hasBadge && (
-              <div className="flex items-center gap-4 justify-center">
-                {/* Badge button */}
-                <div className="relative">
-                  <button
-                    onClick={() => setShowBadgeModal(true)}
-                    className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 text-zinc-500 hover:text-[#d97706] border border-transparent hover:border-[#d97706]/20 transition-all typewriter-label"
-                  >
-                    <Fingerprint className="w-3.5 h-3.5" />
-                    {badge ? badge.badgeCode : "BADGE"}
-                  </button>
-                  {badge && !badge.phone && (
-                    <span
-                      title="WhatsApp number not registered — update your profile"
-                      className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-400 border border-[#060608]"
-                    />
-                  )}
-                </div>
-
-                {/* HQ button */}
-                {hq && (
-                  <Link
-                    href={hq.href}
-                    className={`${navButtonBase} ${hq.color} hover:text-[#d97706]`}
-                  >
-                    <HQIcon className="w-3.5 h-3.5" />
-                    {hq.label}
-                  </Link>
+            <div className="flex items-center gap-4 justify-center">
+              {/* Badge button */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowBadgeModal(true)}
+                  className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 text-zinc-500 hover:text-[#d97706] border border-transparent hover:border-[#d97706]/20 transition-all typewriter-label"
+                >
+                  <Fingerprint className="w-3.5 h-3.5" />
+                  {hasBadge ? badge.badgeCode : "GET BADGE"}
+                </button>
+                {hasBadge && badge && !badge.phone && (
+                  <span
+                    title="WhatsApp number not registered — update your profile"
+                    className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-400 border border-[#060608]"
+                  />
                 )}
               </div>
-            )}
+
+              {/* HQ button */}
+              {hq && (
+                <Link
+                  href={hq.href}
+                  className={`${navButtonBase} ${hq.color} hover:text-[#d97706]`}
+                >
+                  <HQIcon className="w-3.5 h-3.5" />
+                  {hq.label}
+                </Link>
+              )}
+            </div>
 
             {/* Right: Discussions -> Cases -> New Case */}
             <div className="flex items-center gap-3 flex-shrink-0">
@@ -136,9 +134,9 @@ export function Navbar() {
               <div className="relative inline-flex w-full">
                 <button onClick={() => { setShowBadgeModal(true); setMobileOpen(false); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-zinc-400 hover:text-zinc-200 bg-[#0a0a0c] border border-[rgba(168,144,112,0.08)] rounded">
                   <Fingerprint className="w-4 h-4" />
-                  {badge ? badge.badgeCode : "MY BADGE"}
+                  {hasBadge ? badge.badgeCode : "GET BADGE"}
                 </button>
-                {badge && !badge.phone && (
+                {hasBadge && badge && !badge.phone && (
                   <span
                     title="WhatsApp number not registered — update your profile"
                     className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-400 border border-[#08080a]"
