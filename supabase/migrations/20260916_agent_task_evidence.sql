@@ -6,7 +6,7 @@ BEGIN;
 -- AgentTaskEvidence: daily evidence entries by agents for their tasks
 CREATE TABLE IF NOT EXISTS public."AgentTaskEvidence" (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  "taskId" UUID NOT NULL REFERENCES public."AgentTask"(id) ON DELETE CASCADE,
+  "taskId" TEXT NOT NULL REFERENCES public."AgentTask"(id) ON DELETE CASCADE,
   "agentId" UUID NOT NULL REFERENCES public."User"(id) ON DELETE CASCADE,
   "dayNumber" INTEGER NOT NULL,
   "content" TEXT NOT NULL,
