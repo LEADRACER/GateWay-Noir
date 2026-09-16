@@ -1,12 +1,30 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Scale, ChevronDown } from "lucide-react";
+import { useBadge } from "@/components/badge/BadgeProvider";
 import { BureauHallDropdown } from "@/components/bureau/BureauHallDropdown";
 
 export function HeroSection() {
   const [showHalls, setShowHalls] = useState(false);
+  const [hallNumber, setHallNumber] = useState<number | null>(null);
+  const { badge, loading: badgeLoading } = useBadge();
   const triggerRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!badgeLoading && badge && (badge.role === "BUREAU" || badge.role === "AGENT")) {
+      fetch("/api/bureau/my-hall")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.hallNumber) {
+            setHallNumber(data.hallNumber);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [badge, badgeLoading]);
+
+  const displayText = hallNumber ? `BUREAU HALL ${String(hallNumber).padStart(3, "0")}` : "BUREAU NO. 001";
 
   return (
     <section className="border-b border-[rgba(168,144,112,0.08)] bg-[#0a0a0c] relative">
@@ -24,26 +42,32 @@ export function HeroSection() {
           <div className="hidden sm:flex items-center gap-4 text-[9px] typewriter-label text-zinc-600">
             <span>EST. 2026</span>
             <span className="w-px h-3 bg-[rgba(168,144,112,0.1)]" />
-            <button
-              ref={triggerRef}
-              onClick={() => setShowHalls(!showHalls)}
-              className="flex items-center gap-1.5 text-zinc-500 hover:text-[#d97706] transition-colors pr-2"
-              aria-expanded={showHalls}
-              aria-haspopup="true"
-            >
+            {badge && (badge.role === "BUREAU" || badge.role === "AGENT") ? (
+              <button
+                ref={triggerRef}
+                onClick={() => setShowHalls(!showHalls)}
+                className="flex items-center gap-1.5 text-zinc-500 hover:text-[#d97706] transition-colors pr-2"
+                aria-expanded={showHalls}
+                aria-haspopup="true"
+              >
+                <span>{displayText}</span>
+                <ChevronDown
+                  className={`w-3 h-3 transition-transform ${showHalls ? "rotate-180" : ""}`}
+                />
+              </button>
+            ) : (
               <span>BUREAU NO. 001</span>
-              <ChevronDown
-                className={`w-3 h-3 transition-transform ${showHalls ? "rotate-180" : ""}`}
-              />
-            </button>
+            )}
           </div>
         </div>
       </div>
-      <BureauHallDropdown
-        isOpen={showHalls}
-        onClose={() => setShowHalls(false)}
-        triggerRef={triggerRef}
-      />
+      {badge && (badge.role === "BUREAU" || badge.role === "AGENT") && (
+        <BureauHallDropdown
+          isOpen={showHalls}
+          onClose={() => setShowHalls(false)}
+          triggerRef={triggerRef}
+        />
+      )}
     </section>
   );
 }
