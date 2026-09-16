@@ -1,6 +1,7 @@
 import { getAllTasks, createTask, getAgentTasks } from "@/lib/task-actions";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { TasksClient } from "./TasksClient";
+import { BureauTasksClient } from "./BureauTasksClient";
 import { getCurrentUser } from "@/lib/get-current-user";
 import { redirect } from "next/navigation";
 
@@ -21,7 +22,7 @@ export default async function AdminTasksPage() {
       .select("id, badgeCode, displayName")
       .eq("role", "AGENT");
 
-    return <TasksClient tasks={tasks} agents={agents || []} createTask={createTask} isAgentView={false} />;
+    return <BureauTasksClient initialTasks={tasks} agents={agents || []} />;
   } else {
     // Agent view - show their own tasks
     const tasks = await getAgentTasks(user.id);

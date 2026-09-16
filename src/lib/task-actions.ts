@@ -120,3 +120,105 @@ export async function updateTaskStatus(taskId: string, status: string) {
   revalidatePath("/agent/tasks");
   return { success: true, task };
 }
+
+export async function addTaskEvidence(
+  taskId: string,
+  dayNumber: number,
+  content: string,
+  evidenceUrls: string[] = []
+) {
+  if (!taskId || !content?.trim()) return { error: "Missing required fields" };
+  if (dayNumber < 1) return { error: "Day number must be >= 1" };
+
+  const caller = await getCurrentUser();
+  if (!caller) return { error: "Unauthorized" };
+
+  const supabase = await createServerSupabaseClient();
+
+  // Verify task exists and caller is the assigned agent
+  const { data: task } = await supabase
+    .from('AgentTask')
+    .select("agentId")
+    .eq("id", taskId)
+    .maybeSingle();
+
+  if (!task) return { error: "Task not found" };
+  if (task.agentId !== caller.id) {
+    return { error: "Unauthorized — only the assigned agent can add evidence" };
+  }
+
+  // Check if evidence for this day already exists
+  const { data: existing } = await supabase
+    .from('AgentTaskEvidence')
+    .select("id")
+    .eq("taskId", taskId)
+    .eq("agentId", caller.id)
+    .eq("dayNumber", dayNumber)
+    .maybeSingle();
+
+  if (existing) {
+    // Update existing
+    const { data: updated, error } = await supabase
+      .from('AgentTaskEvidence')
+      .update({
+        content: content.trim(),
+        evidenceUrls,
+        updatedAt: new Date().toISOString(),
+      })
+      .eq("id", existing.id)
+      .select()
+      .single();
+    if (error) return { error: error.message };
+    revalidatePath("/agent/tasks");
+    revalidatePath("/admin/tasks");
+    return { success: true, evidence: updated };
+  }
+
+  // Insert new
+  const { data: evidence, error } = await supabase
+    .from('AgentTaskEvidence')
+    .insert({
+      taskId,
+      agentId: caller.id,
+      dayNumber,
+      content: content.trim(),
+      evidenceUrls,
+    })
+    .select()
+    .single();
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/agent/tasks");
+  revalidatePath("/admin/tasks");
+  return { success: true, evidence };
+}
+
+export async function getTaskEvidence(taskId: string) {
+  if (!taskId) return [];
+
+  const caller = await getCurrentUser();
+  if (!caller) return [];
+
+  const supabase = await createServerSupabaseClient();
+
+  // Verify access - agent can see own, bureau can see all
+  const { data: task } = await supabase
+    .from('AgentTask')
+    .select("agentId")
+    .eq("id", taskId)
+    .maybeSingle();
+
+  if (!task) return [];
+  if (caller.role !== "BUREAU" && task.agentId !== caller.id) {
+    return [];
+  }
+
+  const { data } = await supabase
+    .from('AgentTaskEvidence')
+    .select("*")
+    .eq("taskId", taskId)
+    .order("dayNumber", { ascending: true });
+
+  return data || [];
+}

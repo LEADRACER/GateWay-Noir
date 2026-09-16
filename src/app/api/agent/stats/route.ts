@@ -12,10 +12,8 @@ export async function GET() {
 
   try {
     // Get total users by role
-    const [{ count: totalUsers }, { count: totalAgents }, { count: totalBureau }] = await Promise.all([
+    const [{ count: totalUsers }] = await Promise.all([
       supabase.from("User").select("*", { count: "exact", head: true }).in("role", ["DETECTIVE", "AGENT", "BUREAU"]),
-      supabase.from("User").select("*", { count: "exact", head: true }).eq("role", "AGENT"),
-      supabase.from("User").select("*", { count: "exact", head: true }).eq("role", "BUREAU"),
     ]);
 
     // Get online users (lastSeenAt within last 5 minutes)

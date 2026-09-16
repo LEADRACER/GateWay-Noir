@@ -127,6 +127,17 @@ export interface AgentTask {
   notified: boolean;
 }
 
+export interface AgentTaskEvidence {
+  id: string;
+  taskId: string;
+  agentId: string;
+  dayNumber: number;
+  content: string;
+  evidenceUrls: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 // Row helpers for Supabase inserts/updates
 export type DbInsert<T> = Omit<T, "id" | "createdAt" | "updatedAt">;
 export type DbUpdate<T> = Partial<DbInsert<T>>;

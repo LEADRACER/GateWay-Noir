@@ -65,8 +65,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Failed to register phone" });
     }
 
-    const requirements = getBadgeProfileRequirements(updated);
-
     // Resolve the agent's handler to the handler's BADGE code — the identifier
     // used for display and WA addressing in agent-facing flows.
     let handlerBadge: string | null = null;
