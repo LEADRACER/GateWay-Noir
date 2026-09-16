@@ -19,7 +19,7 @@ export async function GET() {
       connectedUserId,
       createdAt,
       metadata,
-      connectedUser:User!UserConnection_connectedUserId_fkey(badgeCode, displayName, role, connectionPrivacy)
+      connectedUser:User!UserConnection_connectedUserId_fkey(badgeCode, displayName, role)
     `)
     .eq("userId", user.id)
     .order("createdAt", { ascending: false });
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
 
   const { data: targetUser, error: targetError } = await supabase
     .from("User")
-    .select("id, badgeCode, displayName, role, connectionPrivacy")
+    .select("id, badgeCode, displayName, role")
     .eq("badgeCode", targetBadgeCode)
     .maybeSingle();
 
@@ -74,11 +74,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Cannot connect to Detectives" }, { status: 403 });
   }
 
-  if (targetUser.connectionPrivacy === "closed") {
+  // Check connectionPrivacy if column exists (default to 'open' for backwards compatibility)
+  let targetPrivacy = "open";
+  try {
+    const { data: privacyData } = await supabase
+      .from("User")
+      .select("connectionPrivacy")
+      .eq("id", targetUser.id)
+      .maybeSingle();
+    targetPrivacy = privacyData?.connectionPrivacy || "open";
+  } catch {
+    // Column doesn't exist yet, default to open
+  }
+
+  if (targetPrivacy === "closed") {
     return NextResponse.json({ error: "User is not accepting connections" }, { status: 403 });
   }
 
-  if (targetUser.connectionPrivacy === "mutual_only") {
+  if (targetPrivacy === "mutual_only") {
     const { data: mutual } = await supabase
       .from("UserConnection")
       .select("id")
