@@ -60,6 +60,28 @@ interface TaskEvidence {
 const STATUS_FILTERS = ["ALL", "PENDING", "IN_PROGRESS", "COMPLETED"] as const;
 type StatusFilter = (typeof STATUS_FILTERS)[number];
 
+// Responsive hook to calculate cards per view
+function useTasksPerView() {
+  const [width, setWidth] = useState(0);
+  
+  useEffect(() => {
+    const updateWidth = () => setWidth(window.innerWidth);
+    updateWidth();
+    window.addEventListener("resize", updateWidth);
+    return () => window.removeEventListener("resize", updateWidth);
+  }, []);
+  
+  // Card width ~380px + gap 12px = ~392px per card
+  // 1 card: < 784px (mobile)
+  // 2 cards: 784px - 1176px (tablet)  
+  // 3 cards: 1176px - 1568px (desktop)
+  // 4 cards: > 1568px (large desktop)
+  if (width < 784) return 1;
+  if (width < 1176) return 2;
+  if (width < 1568) return 3;
+  return 4;
+}
+
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
     PENDING: "bg-amber-500/10 text-amber-400 border-amber-500/15",
@@ -346,10 +368,17 @@ export function BureauTasksClient({ initialTasks, agents }: { initialTasks: Task
     if (!evidenceMap[taskId]) fetchEvidence(taskId);
   };
 
-  // Carousel logic - show 2 tasks at a time
-  const tasksPerView = 2;
+  // Responsive cards per view
+  const tasksPerView = useTasksPerView();
   const totalPages = Math.ceil(filteredTasks.length / tasksPerView);
   const currentPageTasks = filteredTasks.slice(carouselIndex * tasksPerView, (carouselIndex + 1) * tasksPerView);
+
+  // Reset carousel index when tasksPerView changes
+  useEffect(() => {
+    if (carouselIndex >= totalPages && totalPages > 0) {
+      setCarouselIndex(totalPages - 1);
+    }
+  }, [tasksPerView, totalPages, carouselIndex]);
 
   const goToPage = (page: number) => {
     setCarouselIndex(Math.max(0, Math.min(page, totalPages - 1)));
