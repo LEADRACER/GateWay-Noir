@@ -92,7 +92,7 @@ export async function GET() {
   }
 
   const supabase = await createServerSupabaseClient();
-  let query = supabase.from("AgentDiscussion").select(DISCUSSION_SELECT);
+  const query = supabase.from("AgentDiscussion").select(DISCUSSION_SELECT);
 
   if (!user) {
     // Visitors can no longer see any discussions since 'all' audience is removed
@@ -124,7 +124,7 @@ export async function GET() {
     canViewDiscussion({
       role: user?.role ?? null,
       audience: isDiscussionAudience(discussion.visibility) ? discussion.visibility : "bru_agt_det",
-      spectatorVisibility: isSpectatorVisibility(discussion.spectatorVisibility)
+      _spectatorVisibility: isSpectatorVisibility(discussion.spectatorVisibility)
         ? discussion.spectatorVisibility
         : "participants_only",
       isParticipant: participantDiscussionIds.has(String(discussion.id)),

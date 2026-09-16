@@ -27,11 +27,11 @@ export function canRoleAccessAudience(
 export function canViewDiscussion(options: {
   role: DiscussionRole | string | null | undefined;
   audience: DiscussionAudience;
-  spectatorVisibility: SpectatorVisibility;
+  _spectatorVisibility: SpectatorVisibility;
   isParticipant: boolean;
   isCreator: boolean;
 }): boolean {
-  const { role, audience, spectatorVisibility, isParticipant, isCreator } = options;
+  const { role, audience, isParticipant, isCreator } = options;
 
   if (isCreator || isParticipant) return true;
   if (canRoleAccessAudience(role, audience)) return true;
@@ -54,9 +54,9 @@ export function canManageParticipants(role: DiscussionRole | string | null | und
   return role === "BUREAU";
 }
 
-export function isPublicDiscussion(options: {
+export function isPublicDiscussion(_options: {
   audience: DiscussionAudience;
-  spectatorVisibility: SpectatorVisibility;
+  _spectatorVisibility: SpectatorVisibility;
 }): boolean {
   // No 'all' audience option anymore, so discussions are never public
   return false;

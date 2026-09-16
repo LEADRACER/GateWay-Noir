@@ -102,7 +102,7 @@ export async function updateTaskStatus(taskId: string, status: string) {
     return { error: "Unauthorized — you can only update your own tasks" };
   }
 
-  const updateData: any = { status };
+  const updateData: Record<string, unknown> = { status };
   if (status === "COMPLETED") {
     updateData.completedAt = new Date().toISOString();
   }

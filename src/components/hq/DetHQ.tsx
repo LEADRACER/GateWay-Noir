@@ -15,7 +15,7 @@ interface ElevationStatus {
 }
 
 export function DetHQ() {
-  const { badge, updateBadge, setShowBadgeModal, handleSetPassword, showPasswordModal } = useBadge();
+  const { badge, updateBadge, setShowBadgeModal } = useBadge();
   const [elevationPending, setElevationPending] = useState(false);
   const [elevationSubmitting, setElevationSubmitting] = useState(false);
   const [elevationError, setElevationError] = useState("");
@@ -208,7 +208,7 @@ export function DetHQ() {
         ) : (
           <div>
             <p className="text-[10px] text-zinc-500 mb-4">
-              Request promotion to Field Agent. You'll need a passcode set on your badge first.
+              Request promotion to Field Agent. You&apos;ll need a passcode set on your badge first.
             </p>
             <button
               onClick={handleElevationRequest}

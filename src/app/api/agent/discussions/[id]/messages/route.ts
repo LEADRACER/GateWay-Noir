@@ -37,7 +37,7 @@ function canView(
   return canViewDiscussion({
     role: user?.role ?? null,
     audience: isDiscussionAudience(discussion.visibility) ? discussion.visibility : "bru_agt_det",
-    spectatorVisibility: isSpectatorVisibility(discussion.spectatorVisibility)
+    _spectatorVisibility: isSpectatorVisibility(discussion.spectatorVisibility)
       ? discussion.spectatorVisibility
       : "participants_only",
     isParticipant: participant,

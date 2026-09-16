@@ -8,7 +8,6 @@ import { useBadge } from "@/components/badge/BadgeProvider";
 // Shared button styles
 const navButtonBase = "flex items-center gap-1.5 text-sm px-3 py-1.5 transition-colors typewriter-label";
 const navButtonDefault = `${navButtonBase} text-zinc-500 hover:text-zinc-300 border border-transparent hover:border-[rgba(168,144,112,0.08)]`;
-const navButtonAccent = (color: string) => `${navButtonBase} ${color} hover:text-[#d97706]`;
 
 // Mobile button styles
 const mobileButtonBase = "flex items-center gap-2 px-3 py-2 text-sm transition-colors rounded";

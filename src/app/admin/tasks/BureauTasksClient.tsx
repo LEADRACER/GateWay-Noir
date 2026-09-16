@@ -16,12 +16,11 @@ import {
   Calendar,
   ExternalLink,
   Eye,
-  BarChart2,
   X,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { formatDate } from "@/lib/utils";
-import { updateTaskStatus, getAllTasks, createTask } from "@/lib/task-actions";
+import { updateTaskStatus, createTask } from "@/lib/task-actions";
 
 interface TaskUser {
   badgeCode: string;
@@ -120,19 +119,15 @@ function TaskCard({
   evidence,
   onStatusUpdate,
   updatingId,
-  index,
   onViewDetails,
 }: {
   task: Task;
   evidence: TaskEvidence[];
   onStatusUpdate: (taskId: string, status: string) => void;
   updatingId: string | null;
-  index: number;
   onViewDetails: (taskId: string) => void;
 }) {
   const maxDay = evidence.length > 0 ? Math.max(...evidence.map((e) => e.dayNumber)) : 0;
-  const statusOrder = { PENDING: 0, IN_PROGRESS: 1, COMPLETED: 2 };
-  const currentStatusOrder = statusOrder[task.status as keyof typeof statusOrder] ?? 3;
 
   return (
     <motion.div
@@ -224,7 +219,7 @@ function TaskCard({
           <div className="text-center py-6">
             <ClipboardList className="w-6 h-6 text-zinc-700 mx-auto mb-1.5 opacity-50" />
             <p className="text-[9px] text-zinc-600 typewriter-label">NO EVIDENCE LOGGED</p>
-            <p className="text-[8px] text-zinc-700 mt-0.5">Agent hasn't started daily logs</p>
+            <p className="text-[8px] text-zinc-700 mt-0.5">Agent hasn&apos;t started daily logs</p>
           </div>
         ) : (
           <div className="space-y-1">
@@ -497,7 +492,6 @@ export function BureauTasksClient({ initialTasks, agents }: { initialTasks: Task
                     evidence={evidenceMap[task.id] || []}
                     onStatusUpdate={handleStatusUpdate}
                     updatingId={updatingId}
-                    index={carouselIndex * tasksPerView + idx}
                     onViewDetails={handleViewDetails}
                   />
                 ))}
@@ -573,7 +567,6 @@ export function BureauTasksClient({ initialTasks, agents }: { initialTasks: Task
                 evidence={evidenceMap[viewDetailsId] || []}
                 onStatusUpdate={handleStatusUpdate}
                 updatingId={updatingId}
-                index={0}
                 onViewDetails={() => {}}
               />
             </div>

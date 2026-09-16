@@ -5,19 +5,18 @@ import { motion } from "framer-motion";
 import {
   Scale, MessageSquare, CheckCircle2, Sparkles, AlertCircle,
   Users, UserPlus, UserMinus, Loader2, ShieldCheck, ListChecks, User, Trash2, Gavel, FileText,
-  ClipboardList, BarChart2, Settings, Search, Filter, MoreHorizontal, Bell, Shield, UserCog,
-  ArrowUpRight, Download, RefreshCw, Eye, Edit, Trash, Mail, Phone, MapPin, Clock,
+  ClipboardList, BarChart2, Settings, Search, Filter, MoreHorizontal, Bell, Shield,
+  ArrowUpRight, RefreshCw, Eye, Edit, Trash, Clock,
   Activity, Target, Award, Crown, Star, Zap, ShieldAlert
 } from "lucide-react";
 import { useBadge } from "@/components/badge/BadgeProvider";
-import { getAllAgents, promoteToBureau, demoteAgent, createBureauUser, getAllUsers, getUsersByRole } from "@/lib/admin-actions";
-import { getActiveAndConcludedTopics, concludeTopic, getStats, getUpcomingTopics } from "@/lib/actions";
+import { promoteToBureau, demoteAgent, createBureauUser, getAllUsers } from "@/lib/admin-actions";
+import { getActiveAndConcludedTopics, concludeTopic } from "@/lib/actions";
 import { getAllTasks, updateTaskStatus } from "@/lib/task-actions";
 import { getAgentDiscussions } from "@/lib/discussion-actions";
 import { getAudienceLabel, type DiscussionAudience, type SpectatorVisibility } from "@/lib/discussion-access";
 import toast from "react-hot-toast";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 interface AgentUser {
   id: string;
@@ -83,7 +82,6 @@ type TabKey = "dashboard" | "agents" | "cases" | "tasks" | "discussions" | "anal
 
 export function BureauHQ({ stats, children }: BureauHQProps) {
   const { badge } = useBadge();
-  const router = useRouter();
   const [agents, setAgents] = useState<AgentUser[]>([]);
   const [activeTab, setActiveTab] = useState<TabKey>("dashboard");
   const [promotingId, setPromotingId] = useState<string | null>(null);
@@ -95,48 +93,31 @@ export function BureauHQ({ stats, children }: BureauHQProps) {
   const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null);
   const [loadingTasks, setLoadingTasks] = useState(false);
   const [loadingDiscussions, setLoadingDiscussions] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [roleFilter, setRoleFilter] = useState<string>("all");
   const [notifications, setNotifications] = useState<{id: string; message: string; type: "info" | "success" | "warning" | "error"; time: Date}[]>([]);
 
-  useEffect(() => {
-    fetchAgents();
-    fetchActiveCases();
-  }, []);
-
-  useEffect(() => {
-    if (activeTab === "tasks") {
-      fetchTasks();
-    }
-  }, [activeTab]);
-
-  useEffect(() => {
-    if (activeTab === "discussions") {
-      fetchDiscussions();
-    }
-  }, [activeTab]);
-
-  const fetchAgents = async () => {
+  // Fetch functions - defined before useEffects
+  const fetchAgents = useCallback(async () => {
     try {
       const data = await getAllUsers();
       setAgents(data as AgentUser[]);
     } catch {
       console.error("Failed to fetch agents");
     }
-  };
+  }, []);
 
-  const fetchActiveCases = async () => {
+  const fetchActiveCases = useCallback(async () => {
     try {
       const data = await getActiveAndConcludedTopics();
-      const filtered = (data as any[]).filter(t => t.status === "ACTIVE" || (t.status === "CONCLUDED" && !t.announced));
+      const filtered = (data as Topic[]).filter(t => t.status === "ACTIVE" || (t.status === "CONCLUDED" && !t.announced));
       setActiveCases(filtered);
     } catch {
       console.error("Failed to fetch active cases");
     }
-  };
+  }, []);
 
-  const fetchTasks = async () => {
+  const fetchTasks = useCallback(async () => {
     setLoadingTasks(true);
     try {
       const data = await getAllTasks();
@@ -146,9 +127,9 @@ export function BureauHQ({ stats, children }: BureauHQProps) {
     } finally {
       setLoadingTasks(false);
     }
-  };
+  }, []);
 
-  const fetchDiscussions = async () => {
+  const fetchDiscussions = useCallback(async () => {
     setLoadingDiscussions(true);
     try {
       const data = await getAgentDiscussions();
@@ -158,15 +139,32 @@ export function BureauHQ({ stats, children }: BureauHQProps) {
     } finally {
       setLoadingDiscussions(false);
     }
-  };
+  }, []);
 
-  const addNotification = (message: string, type: "info" | "success" | "warning" | "error" = "info") => {
-    const id = Date.now().toString();
+  const addNotification = useCallback((message: string, type: "info" | "success" | "warning" | "error" = "info") => {
+    const id = Math.random().toString(36).substring(2, 10);
     setNotifications(prev => [...prev, { id, message, type, time: new Date() }]);
     setTimeout(() => {
       setNotifications(prev => prev.filter(n => n.id !== id));
     }, 5000);
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchAgents();
+    fetchActiveCases();
+  }, [fetchAgents, fetchActiveCases]);
+
+  useEffect(() => {
+    if (activeTab === "tasks") {
+      fetchTasks();
+    }
+  }, [activeTab, fetchTasks]);
+
+  useEffect(() => {
+    if (activeTab === "discussions") {
+      fetchDiscussions();
+    }
+  }, [activeTab, fetchDiscussions]);
 
   const handleConclude = async (topicId: string, verdict: string) => {
     setConcludingId(topicId);
@@ -252,8 +250,7 @@ export function BureauHQ({ stats, children }: BureauHQProps) {
   const filteredAgents = agents.filter(agent => {
     const matchesSearch = agent.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           agent.badgeCode.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesRole = roleFilter === "all" || agent.badgeCode.startsWith(roleFilter);
-    return matchesSearch && matchesRole;
+    return matchesSearch;
   });
 
   const filteredTasks = tasks.filter(task => {

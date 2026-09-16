@@ -5,7 +5,6 @@ import { getCurrentUser } from "@/lib/get-current-user";
 import { normalizePhone } from "@/lib/phone";
 import { getHandlerBadgeInfo } from "@/lib/handler";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
-import { getBadgeProfileRequirements } from "@/lib/badge-profile";
 
 export async function POST(request: NextRequest) {
   try {

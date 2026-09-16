@@ -48,7 +48,7 @@ export async function GET(
       audience: isDiscussionAudience(discussion.visibility)
         ? discussion.visibility
         : "bru_agt_det",
-      spectatorVisibility: isSpectatorVisibility(discussion.spectatorVisibility)
+      _spectatorVisibility: isSpectatorVisibility(discussion.spectatorVisibility)
         ? discussion.spectatorVisibility
         : "participants_only",
       isParticipant: Boolean(participant?.data),
