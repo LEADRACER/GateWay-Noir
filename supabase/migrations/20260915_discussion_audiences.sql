@@ -17,7 +17,7 @@ WHERE visibility IN ('all', 'agents', 'invited');
 
 UPDATE public."AgentDiscussion"
 SET visibility = 'bru_agt_det'
-WHERE visibility IS NULL OR visibility NOT IN ('bru_only', 'bru_agt', 'bru_agt_det', 'all');
+WHERE visibility IS NULL OR visibility NOT IN ('bru_only', 'bru_agt', 'bru_agt_det');
 
 UPDATE public."AgentDiscussion"
 SET "spectatorVisibility" = 'participants_only'
@@ -38,7 +38,7 @@ ALTER TABLE public."AgentDiscussion"
 
 ALTER TABLE public."AgentDiscussion"
   ADD CONSTRAINT "AgentDiscussion_visibility_check"
-    CHECK (visibility IN ('bru_only', 'bru_agt', 'bru_agt_det', 'all')),
+    CHECK (visibility IN ('bru_only', 'bru_agt', 'bru_agt_det')),
   ADD CONSTRAINT "AgentDiscussion_spectatorVisibility_check"
     CHECK ("spectatorVisibility" IN ('participants_only', 'all'));
 
