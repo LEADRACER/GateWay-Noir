@@ -20,6 +20,7 @@ export interface User {
   createdAt: string;
   lastSeenAt: string | null;
   updatedAt: string;
+  connectionPrivacy: "open" | "mutual_only" | "closed";
 }
 
 export interface AgentDiscussion {
@@ -56,6 +57,7 @@ export interface UserConnection {
   userId: string;
   connectedUserId: string;
   createdAt: string;
+  metadata: Record<string, unknown>;
 }
 
 export interface Topic {

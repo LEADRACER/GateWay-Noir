@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/get-current-user";
 
 const DISCUSSION_ROLES = new Set(["DETECTIVE", "AGENT", "BUREAU"]);
+const CONNECTION_LIMITS = { AGENT: 100, BUREAU: 200 };
 
 export async function GET() {
   const user = await getCurrentUser();
@@ -17,7 +18,8 @@ export async function GET() {
       id,
       connectedUserId,
       createdAt,
-      connectedUser:User!UserConnection_connectedUserId_fkey(badgeCode, displayName, role)
+      metadata,
+      connectedUser:User!UserConnection_connectedUserId_fkey(badgeCode, displayName, role, connectionPrivacy)
     `)
     .eq("userId", user.id)
     .order("createdAt", { ascending: false });
@@ -60,7 +62,7 @@ export async function POST(req: NextRequest) {
 
   const { data: targetUser, error: targetError } = await supabase
     .from("User")
-    .select("id, badgeCode, displayName, role")
+    .select("id, badgeCode, displayName, role, connectionPrivacy")
     .eq("badgeCode", targetBadgeCode)
     .maybeSingle();
 
@@ -70,6 +72,33 @@ export async function POST(req: NextRequest) {
 
   if (targetUser.role === "DETECTIVE") {
     return NextResponse.json({ error: "Cannot connect to Detectives" }, { status: 403 });
+  }
+
+  if (targetUser.connectionPrivacy === "closed") {
+    return NextResponse.json({ error: "User is not accepting connections" }, { status: 403 });
+  }
+
+  if (targetUser.connectionPrivacy === "mutual_only") {
+    const { data: mutual } = await supabase
+      .from("UserConnection")
+      .select("id")
+      .eq("userId", targetUser.id)
+      .eq("connectedUserId", user.id)
+      .maybeSingle();
+
+    if (!mutual) {
+      return NextResponse.json({ error: "User only accepts connections from mutual contacts" }, { status: 403 });
+    }
+  }
+
+  const limit = CONNECTION_LIMITS[user.role as keyof typeof CONNECTION_LIMITS] ?? 50;
+  const { count } = await supabase
+    .from("UserConnection")
+    .select("*", { count: "exact", head: true })
+    .eq("userId", user.id);
+
+  if (count && count >= limit) {
+    return NextResponse.json({ error: `Connection limit reached (${limit})` }, { status: 400 });
   }
 
   const { data: existing } = await supabase
@@ -83,11 +112,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Already connected" }, { status: 409 });
   }
 
+  const metadata = (typeof requestBody.metadata === "object" && requestBody.metadata !== null)
+    ? requestBody.metadata as Record<string, unknown>
+    : {};
+
   const { error: insertError } = await supabase
     .from("UserConnection")
     .insert([
-      { userId: user.id, connectedUserId: targetUser.id },
-      { userId: targetUser.id, connectedUserId: user.id },
+      { userId: user.id, connectedUserId: targetUser.id, metadata },
+      { userId: targetUser.id, connectedUserId: user.id, metadata: {} },
     ]);
 
   if (insertError) {

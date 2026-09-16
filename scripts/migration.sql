@@ -107,11 +107,23 @@ CREATE TABLE IF NOT EXISTS "public"."UserConnection" (
   "userId" TEXT NOT NULL REFERENCES "public"."User"(id) ON DELETE CASCADE,
   "connectedUserId" TEXT NOT NULL REFERENCES "public"."User"(id) ON DELETE CASCADE,
   "createdAt" TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now(),
+  metadata JSONB DEFAULT '{}'::jsonb,
   UNIQUE("userId", "connectedUserId")
 );
 
 CREATE INDEX IF NOT EXISTS idx_user_connection_user ON "public"."UserConnection"("userId");
 CREATE INDEX IF NOT EXISTS idx_user_connection_connected ON "public"."UserConnection"("connectedUserId");
+
+-- Add metadata column if table exists without it
+ALTER TABLE "public"."UserConnection"
+  ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb;
+
+-- Add connectionPrivacy to User
+ALTER TABLE "public"."User"
+  ADD COLUMN IF NOT EXISTS "connectionPrivacy" TEXT NOT NULL DEFAULT 'open'
+    CHECK ("connectionPrivacy" IN ('open', 'mutual_only', 'closed'));
+
+CREATE INDEX IF NOT EXISTS idx_user_connection_privacy ON "public"."User"("connectionPrivacy");
 
 -- ═══════════════════════════════════════════════════════════════════════════
 -- 5. ADD MISSING INDEXES
