@@ -96,8 +96,8 @@ export function BureauHallDropdown({ isOpen, onClose, triggerRef }: BureauHallDr
         exit={{ opacity: 0, y: -10, scale: 0.98 }}
         className="fixed top-16 left-1/2 -translate-x-1/2 z-50 w-full max-w-7xl px-4 sm:px-6 lg:px-8"
       >
-        <div className="bg-[#0a0a0c] border-2 border-[#d97706] rounded-none overflow-hidden shadow-[0_20px_40px_rgba(0,0,0,0.8)]">
-          <div className="flex items-center justify-between px-4 py-3 border-b-2 border-[#d97706] bg-[#111113]">
+        <div className="bg-[#0a0a0c] border-2 border-[rgba(168,144,112,0.15)] rounded-none overflow-hidden shadow-[0_20px_40px_rgba(0,0,0,0.8)]">
+          <div className="flex items-center justify-between px-4 py-3 border-b-2 border-[rgba(168,144,112,0.15)] bg-[#111113]">
             <div className="flex items-center gap-3">
               <div className="flex items-center justify-center w-8 h-8 bg-[#d97706] rounded-none">
                 <ShieldCheck className="w-4 h-4 text-black" />
@@ -111,7 +111,7 @@ export function BureauHallDropdown({ isOpen, onClose, triggerRef }: BureauHallDr
             </div>
             <button
               onClick={onClose}
-              className="p-1 text-zinc-500 hover:text-zinc-300 transition-colors rounded-none hover:bg-zinc-800"
+              className="p-1 text-zinc-500 hover:text-zinc-300 rounded-none hover:bg-zinc-800"
             >
               <X className="w-4 h-4" />
             </button>
@@ -128,7 +128,7 @@ export function BureauHallDropdown({ isOpen, onClose, triggerRef }: BureauHallDr
               <p className="text-zinc-700 text-[10px] mt-1">Bureau officers will appear here when registered</p>
             </div>
           ) : (
-            <div className="p-4 max-h-[80vh] overflow-y-auto">
+            <div className="p-4 max-h-[80vh] overflow-y-auto bg-[#0a0a0c]">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {halls.map((hall, hallIndex) => (
                   <motion.div
@@ -136,9 +136,9 @@ export function BureauHallDropdown({ isOpen, onClose, triggerRef }: BureauHallDr
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: hallIndex * 0.05 }}
-                    className="bg-[#111113] border-2 border-[#d97706] rounded-none overflow-hidden flex flex-col"
+                    className="bg-[#111113] border-2 border-[rgba(168,144,112,0.15)] rounded-none overflow-hidden flex flex-col"
                   >
-                    <div className="bg-[#d97706] border-b-2 border-[#d97706] p-3">
+                    <div className="bg-[#d97706] border-b-2 border-[rgba(168,144,112,0.15)] p-3">
                       <div className="flex items-center justify-center gap-1.5 flex-wrap">
                         {hall.bureaus.length > 0 ? (
                           hall.bureaus.map((bureau) => (
@@ -146,7 +146,7 @@ export function BureauHallDropdown({ isOpen, onClose, triggerRef }: BureauHallDr
                               key={bureau.id}
                               className="flex flex-col items-center gap-1 px-2 py-1.5 min-w-[80px]"
                             >
-                              <div className="relative w-8 h-8 bg-[#0a0a0c] border-2 border-[#d97706] rounded-none flex items-center justify-center">
+                              <div className="relative w-8 h-8 bg-[#0a0a0c] border-2 border-[rgba(168,144,112,0.15)] rounded-none flex items-center justify-center">
                                 <ShieldCheck className="w-4 h-4 text-[#d97706]" />
                               </div>
                               <span className="text-[9px] font-mono text-[#d97706] truncate max-w-[70px] text-center">
@@ -158,17 +158,17 @@ export function BureauHallDropdown({ isOpen, onClose, triggerRef }: BureauHallDr
                             </div>
                           ))
                         ) : (
-                          <div className="flex items-center gap-2 text-zinc-500 px-4 py-2">
-                            <Users className="w-4 h-4" />
+                          <div className="flex items-center gap-2 px-4 py-2">
+                            <Users className="w-4 h-4 text-zinc-500" />
                             <span className="text-xs font-medium typewriter-label text-zinc-400">UNASSIGNED</span>
                           </div>
                         )}
                       </div>
                     </div>
 
-                    <div className="border-b-2 border-[#d97706]" />
+                    <div className="border-b-2 border-[rgba(168,144,112,0.15)]" />
 
-                    <div className="flex-1 overflow-y-auto min-h-[200px] max-h-[400px] divide-y divide-[#d97706]/30">
+                    <div className="flex-1 overflow-y-auto min-h-[200px] max-h-[400px] divide-y divide-[rgba(168,144,112,0.15)]">
                       {hall.agents.length === 0 ? (
                         <div className="p-6 text-center text-zinc-600 text-[10px] typewriter-label">
                           {hall.bureaus.length > 0 ? "NO AGENTS ASSIGNED" : "NO UNASSIGNED AGENTS"}
@@ -177,10 +177,10 @@ export function BureauHallDropdown({ isOpen, onClose, triggerRef }: BureauHallDr
                         hall.agents.map((agent) => (
                           <div
                             key={agent.id}
-                            className="flex items-center gap-2 px-3 py-2.5 bg-[#0a0a0c] border-b border-[#d97706]/20 last:border-b-0 hover:bg-[#111113] transition-colors"
+                            className="flex items-center gap-2 px-3 py-2.5 bg-[#0a0a0c] border-b border-[rgba(168,144,112,0.15)] last:border-b-0 hover:bg-[#111113]"
                           >
                             <div className="relative flex-shrink-0 w-7 h-7">
-                              <div className="w-7 h-7 rounded-none flex items-center justify-center bg-zinc-800 border-2 border-[#d97706]/50">
+                              <div className="w-7 h-7 rounded-none flex items-center justify-center bg-zinc-800 border-2 border-[rgba(168,144,112,0.15)]">
                                 {agent.avatarUrl ? (
                                   <img src={agent.avatarUrl} alt="" className="w-7 h-7 rounded-none" />
                                 ) : (
@@ -192,7 +192,7 @@ export function BureauHallDropdown({ isOpen, onClose, triggerRef }: BureauHallDr
                               <p className="text-xs font-medium text-zinc-200 truncate">{agent.displayName}</p>
                               <p className="text-[8px] font-mono text-zinc-500">{agent.badgeCode}</p>
                             </div>
-                            <span className="text-[7px] px-1.5 py-[1px] rounded-none typewriter-label bg-[#d97706]/20 text-[#d97706] border border-[#d97706]/50">
+                            <span className="text-[7px] px-1.5 py-[1px] rounded-none typewriter-label bg-[#d97706] text-black border border-[rgba(168,144,112,0.15)]">
                               AGT
                             </span>
                           </div>
