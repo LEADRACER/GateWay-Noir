@@ -24,6 +24,17 @@ async function isParticipant(
   return Boolean(data);
 }
 
+async function getUserConnections(
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
+  userId: string,
+): Promise<Set<string>> {
+  const { data } = await supabase
+    .from("UserConnection")
+    .select("connectedUserId")
+    .eq("userId", userId);
+  return new Set((data || []).map((c) => c.connectedUserId));
+}
+
 function canView(
   user: Awaited<ReturnType<typeof getCurrentUser>>,
   discussion: {
@@ -76,6 +87,8 @@ export async function GET(
     return NextResponse.json({ error: "Not authorized to view this discussion" }, { status: 403 });
   }
 
+  const connectedUserIds = user ? await getUserConnections(supabase, user.id) : new Set();
+
   const { data: messages, error: messagesError } = await supabase
     .from("AgentDiscussionMessage")
     .select("*, user:User(badgeCode, displayName, role)")
@@ -86,9 +99,25 @@ export async function GET(
     return NextResponse.json({ error: "Failed to load messages" }, { status: 500 });
   }
 
+  const enrichedMessages = (messages || []).map((msg) => {
+    const msgUser = Array.isArray(msg.user) ? msg.user[0] : msg.user;
+    const isConnected = msgUser && connectedUserIds.has(msgUser.id);
+    return {
+      ...msg,
+      user: msgUser
+        ? {
+            badgeCode: msgUser.badgeCode,
+            displayName: isConnected ? msgUser.displayName : msgUser.badgeCode,
+            role: msgUser.role,
+            isConnected,
+          }
+        : { badgeCode: "?", displayName: "Unknown", role: "UNKNOWN", isConnected: false },
+    };
+  });
+
   return NextResponse.json({
     discussion,
-    messages: messages || [],
+    messages: enrichedMessages,
     canDiscuss: user
       ? canDiscussDiscussion({
           role: user.role,
@@ -184,5 +213,20 @@ export async function POST(
     .update({ updatedAt: new Date().toISOString() })
     .eq("id", id);
 
-  return NextResponse.json({ message }, { status: 201 });
+  const connectedUserIds = await getUserConnections(supabase, user.id);
+  const msgUser = Array.isArray(message.user) ? message.user[0] : message.user;
+  const isConnected = msgUser && connectedUserIds.has(msgUser.id);
+  const enrichedMessage = {
+    ...message,
+    user: msgUser
+      ? {
+          badgeCode: msgUser.badgeCode,
+          displayName: isConnected ? msgUser.displayName : msgUser.badgeCode,
+          role: msgUser.role,
+          isConnected,
+        }
+      : { badgeCode: "?", displayName: "Unknown", role: "UNKNOWN", isConnected: false },
+  };
+
+  return NextResponse.json({ message: enrichedMessage }, { status: 201 });
 }

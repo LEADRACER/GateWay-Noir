@@ -99,6 +99,21 @@ CREATE INDEX IF NOT EXISTS idx_discussion_participant_discussion
   ON "public"."DiscussionParticipant"("discussionId");
 
 -- ═══════════════════════════════════════════════════════════════════════════
+-- 4b. ADD USER CONNECTIONS SYSTEM (AGTs/BRUs who know each other see names)
+-- ═══════════════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS "public"."UserConnection" (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  "userId" TEXT NOT NULL REFERENCES "public"."User"(id) ON DELETE CASCADE,
+  "connectedUserId" TEXT NOT NULL REFERENCES "public"."User"(id) ON DELETE CASCADE,
+  "createdAt" TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now(),
+  UNIQUE("userId", "connectedUserId")
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_connection_user ON "public"."UserConnection"("userId");
+CREATE INDEX IF NOT EXISTS idx_user_connection_connected ON "public"."UserConnection"("connectedUserId");
+
+-- ═══════════════════════════════════════════════════════════════════════════
 -- 5. ADD MISSING INDEXES
 -- ═══════════════════════════════════════════════════════════════════════════
 

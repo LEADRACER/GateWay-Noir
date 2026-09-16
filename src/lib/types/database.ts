@@ -51,6 +51,13 @@ export interface DiscussionParticipant {
   joinedAt: string;
 }
 
+export interface UserConnection {
+  id: string;
+  userId: string;
+  connectedUserId: string;
+  createdAt: string;
+}
+
 export interface Topic {
   id: string;
   title: string;

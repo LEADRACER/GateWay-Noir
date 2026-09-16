@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Scale, Menu, X, Sparkles, Fingerprint, ShieldCheck, ListChecks, User, MessageSquare, LayoutDashboard } from "lucide-react";
+import { Scale, Menu, X, Sparkles, Fingerprint, ShieldCheck, ListChecks, User, MessageSquare, LayoutDashboard, Users } from "lucide-react";
 import { useBadge } from "@/components/badge/BadgeProvider";
 
 // Shared button styles
@@ -85,6 +85,16 @@ export function Navbar() {
 
             {/* Right: Discussions -> Cases -> New Case */}
             <div className="flex items-center gap-3 flex-shrink-0">
+              {(role === "AGENT" || role === "BUREAU") && (
+                <Link
+                  href="/agent/connections"
+                  className={`${navButtonDefault} hover:text-blue-400`}
+                  title="Connections"
+                >
+                  <Users className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">CONNECTIONS</span>
+                </Link>
+              )}
               {(role === "DETECTIVE" || role === "AGENT" || role === "BUREAU" || !role) && (
                 <Link
                   href="/agent/discussions"
@@ -155,6 +165,18 @@ export function Navbar() {
             </div>
 
             <div className="border-t border-[rgba(168,144,112,0.08)] pt-3 space-y-2">
+              {/* Connections */}
+              {(role === "AGENT" || role === "BUREAU") && (
+                <Link
+                  href="/agent/connections"
+                  className={`${mobileButtonDefault} hover:text-blue-400`}
+                  onClick={() => setMobileOpen(false)}
+                >
+                  <Users className="w-4 h-4" />
+                  <span>CONNECTIONS</span>
+                </Link>
+              )}
+
               {/* Discussions */}
               {(role === "DETECTIVE" || role === "AGENT" || role === "BUREAU" || !role) && (
                 <Link

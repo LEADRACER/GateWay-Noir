@@ -16,9 +16,7 @@ import {
   X,
   AlertTriangle,
   Users,
-  UserPlus,
   UserMinus,
-  ChevronDown,
   Eye,
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
@@ -42,7 +40,7 @@ interface Message {
   id: string;
   content: string;
   createdAt: string;
-  user: { badgeCode: string; displayName: string; role: string };
+  user: { badgeCode: string; displayName: string; role: string; isConnected?: boolean };
 }
 
 interface Agent {
@@ -709,6 +707,8 @@ export default function DiscussionDetailPage() {
               const isBRU = msg.user.role === "BUREAU";
               const isAGT = msg.user.role === "AGENT";
               const isMine = Boolean(badge && msg.user.badgeCode === badge.badgeCode);
+              const isConnected = msg.user.isConnected;
+              const displayName = isConnected ? msg.user.displayName : msg.user.badgeCode;
               return (
                 <div
                   key={msg.id}
@@ -731,8 +731,13 @@ export default function DiscussionDetailPage() {
                             : "text-zinc-500"
                         }`}
                       >
-                        {msg.user.badgeCode}
+                        {displayName}
                       </span>
+                      {isConnected && (
+                        <span className="text-[7px] px-1 py-[1px] bg-emerald-500/10 text-emerald-400/80 border border-emerald-500/20 rounded">
+                          CONNECTED
+                        </span>
+                      )}
                       <span
                         className={`text-[7px] px-1 py-[1px] ${
                           isBRU
