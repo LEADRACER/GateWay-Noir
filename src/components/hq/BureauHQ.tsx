@@ -78,12 +78,12 @@ interface BureauHQProps {
   children?: React.ReactNode;
 }
 
-type TabKey = "dashboard" | "agents" | "cases" | "tasks" | "discussions" | "analytics" | "settings";
+type TabKey = "dashboard" | "users" | "cases" | "tasks" | "discussions" | "analytics" | "settings";
 
 export function BureauHQ({ stats, children }: BureauHQProps) {
   const { badge } = useBadge();
   const [agents, setAgents] = useState<AgentUser[]>([]);
-  const [activeTab, setActiveTab] = useState<TabKey>("dashboard");
+const [activeTab, setActiveTab] = useState<TabKey>("dashboard");
   const [promotingId, setPromotingId] = useState<string | null>(null);
   const [demotingId, setDemotingId] = useState<string | null>(null);
   const [concludingId, setConcludingId] = useState<string | null>(null);
@@ -93,8 +93,9 @@ export function BureauHQ({ stats, children }: BureauHQProps) {
   const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null);
   const [loadingTasks, setLoadingTasks] = useState(false);
   const [loadingDiscussions, setLoadingDiscussions] = useState(false);
-const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [roleFilter, setRoleFilter] = useState<string>("all");
   const [notifications, setNotifications] = useState<{id: string; message: string; type: "info" | "success" | "warning" | "error"; time: Date}[]>([]);
 
   // Fetch functions - defined before useEffects
@@ -208,6 +209,41 @@ const [searchQuery, setSearchQuery] = useState("");
     setPromotingId(null);
   };
 
+  const handlePromoteToAgent = async (agentId: string) => {
+    setPromotingId(agentId);
+    try {
+      // For DETECTIVE to AGENT promotion, we use demoteAgent with the reverse logic
+      // Actually, we need a new function. Let me check what's available.
+      // The demoteAgent function demotes BUREAU->AGENT and AGENT->DETECTIVE
+      // So we need a promoteToAgent function. Let me create a simple one here.
+      const supabase = (await import("@/lib/supabase/client")).createClientSupabaseClient();
+      
+      // First get the user
+      const { data: user } = await supabase.from('User').select('*').eq('id', agentId).single();
+      if (!user) throw new Error("User not found");
+
+      // Import the reprefixBadgeCode function
+      const { reprefixBadgeCode } = await import("@/lib/badge");
+      const newBadgeCode = reprefixBadgeCode(user.badgeCode, "AGENT");
+
+      const { error } = await supabase
+        .from('User')
+        .update({ role: "AGENT", badgeCode: newBadgeCode })
+        .eq('id', agentId);
+
+      if (error) throw error;
+
+      toast.success(`Promoted to AGT — new badge: ${newBadgeCode}`);
+      addNotification(`Detective promoted to AGT: ${newBadgeCode}`, "success");
+      setAgents((prev) => prev.filter((a) => a.id !== agentId));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to promote";
+      toast.error(msg);
+      addNotification(msg, "error");
+    }
+    setPromotingId(null);
+  };
+
   const handleDemote = async (agentId: string) => {
     setDemotingId(agentId);
     try {
@@ -251,6 +287,14 @@ const [searchQuery, setSearchQuery] = useState("");
     const matchesSearch = agent.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           agent.badgeCode.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesSearch;
+  });
+
+  const filteredUsers = agents.filter(agent => {
+    const matchesSearch = agent.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          agent.badgeCode.toLowerCase().includes(searchQuery.toLowerCase());
+    const role = getAgentRole(agent.badgeCode);
+    const matchesRole = roleFilter === "all" || role === roleFilter;
+    return matchesSearch && matchesRole;
   });
 
   const filteredTasks = tasks.filter(task => {
@@ -322,15 +366,15 @@ const [searchQuery, setSearchQuery] = useState("");
           DASHBOARD
         </button>
         <button
-          onClick={() => setActiveTab("agents")}
+          onClick={() => setActiveTab("users")}
           className={`flex items-center gap-1.5 px-3 py-1.5 text-[9px] sm:text-[10px] font-medium typewriter-label transition-colors whitespace-nowrap ${
-            activeTab === "agents"
+            activeTab === "users"
               ? "bg-[#0d0d0f] text-zinc-200 border border-[rgba(168,144,112,0.12)]"
               : "text-zinc-600 hover:text-zinc-400 border border-transparent"
           }`}
         >
           <Users className="w-3 h-3" />
-          AGENTS
+          USERS
           {agents.length > 0 && (
             <span className="inline-flex items-center justify-center w-4 h-4 bg-zinc-600 text-black text-[8px] font-bold">
               {agents.length}
@@ -438,69 +482,109 @@ const [searchQuery, setSearchQuery] = useState("");
         </div>
       )}
 
-      {/* Agents Tab */}
-      {activeTab === "agents" && (
+      {/* Users Tab */}
+      {activeTab === "users" && (
         <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}>
           <div className="bg-[#111113] border border-[rgba(168,144,112,0.08)] rounded">
             <div className="h-0.5 evidence-tape" />
             <div className="p-4">
               <div className="flex items-center gap-2 mb-4">
                 <Users className="w-4 h-4 text-[#d97706] opacity-50" />
-                <h2 className="text-xs font-semibold text-zinc-300 typewriter-label">ALL FIELD AGENTS</h2>
+                <h2 className="text-xs font-semibold text-zinc-300 typewriter-label">ALL USERS</h2>
               </div>
 
-              {agents.length === 0 ? (
+              <div className="flex flex-col sm:flex-row gap-2 mb-4">
+                <input
+                  type="text"
+                  placeholder="Search users..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="flex-1 bg-[#0a0a0c] border border-[rgba(168,144,112,0.08)] px-2 py-1 text-[10px] text-zinc-300 rounded outline-none focus:border-[#d97706]/30 placeholder:text-zinc-700"
+                />
+                <select
+                  value={roleFilter}
+                  onChange={(e) => setRoleFilter(e.target.value)}
+                  className="bg-[#0a0a0c] border border-[rgba(168,144,112,0.08)] px-2 py-1 text-[10px] text-zinc-300 rounded outline-none focus:border-[#d97706]/30 w-full sm:w-36"
+                >
+                  <option value="all">ALL ROLES</option>
+                  <option value="BUREAU">BUREAU</option>
+                  <option value="AGENT">AGENT</option>
+                  <option value="DETECTIVE">DETECTIVE</option>
+                </select>
+              </div>
+
+              {filteredUsers.length === 0 ? (
                 <div className="text-center py-8">
                   <Users className="w-6 h-6 text-zinc-700 mx-auto mb-2 opacity-50" />
-                  <p className="text-zinc-600 text-[10px] typewriter-label">NO ACTIVE AGENTS</p>
-                  <p className="text-zinc-700 text-[10px] mt-0.5">Approve elevation requests to recruit agents</p>
+                  <p className="text-zinc-600 text-[10px] typewriter-label">NO USERS FOUND</p>
                 </div>
               ) : (
                 <div className="space-y-1.5">
-                  {agents.map((agent) => (
-                    <div
-                      key={agent.id}
-                      className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-[#0a0a0c] border border-[rgba(168,144,112,0.06)] rounded"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-xs font-mono font-bold text-[#d97706]">{agent.badgeCode}</span>
-                          <span className="text-[10px] text-zinc-400">—</span>
-                          <span className="text-xs text-zinc-300 truncate">{agent.displayName}</span>
+                  {filteredUsers.map((agent) => {
+                    const role = getAgentRole(agent.badgeCode);
+                    const isSelf = agent.id === badge?.id;
+                    const canPromote = role === "DETECTIVE" || role === "AGENT";
+                    const canDemote = role === "BUREAU" || role === "AGENT";
+                    const promoteLabel = role === "DETECTIVE" ? "PROMOTE TO AGT" : "PROMOTE TO BRU";
+                    const demoteLabel = role === "BUREAU" ? "DEMOTE TO AGT" : "DEMOTE TO DET";
+
+                    return (
+                      <div
+                        key={agent.id}
+                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-[#0a0a0c] border border-[rgba(168,144,112,0.06)] rounded"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs font-mono font-bold text-[#d97706]">{agent.badgeCode}</span>
+                            <span className="text-[10px] text-zinc-400">—</span>
+                            <span className="text-xs text-zinc-300 truncate">{agent.displayName}</span>
+                            <span className={`inline-flex items-center px-1.5 py-0.5 text-[8px] font-medium rounded border typewriter-label ${getRoleColor(role)}`}>
+                              {role}
+                            </span>
+                            {isSelf && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 text-[8px] font-medium rounded border typewriter-label bg-zinc-700/50 text-zinc-300 border-zinc-600/30">
+                                YOU
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 text-[9px] text-zinc-500">
+                            {agent.handler && <span>Handler: <span className="font-mono">{agent.handler}</span></span>}
+                            {agent.phone && <span>• {agent.phone}</span>}
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 text-[9px] text-zinc-500">
-                          {agent.handler && <span>Handler: <span className="font-mono">{agent.handler}</span></span>}
-                          {agent.phone && <span>• {agent.phone}</span>}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {canPromote && !isSelf && (
+                            <button
+                              onClick={() => role === "DETECTIVE" ? handlePromoteToAgent(agent.id) : handlePromoteToBureau(agent.id)}
+                              disabled={promotingId === agent.id}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-medium bg-[#d97706]/15 border border-[#d97706]/30 text-[#d97706] typewriter-label hover:bg-[#d97706]/25 disabled:opacity-40 transition-colors"
+                            >
+                              {promotingId === agent.id ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <UserPlus className="w-3 h-3" />
+                              )}
+                              {promoteLabel}
+                            </button>
+                          )}
+                          {canDemote && !isSelf && (
+                            <button
+                              onClick={() => handleDemote(agent.id)}
+                              disabled={demotingId === agent.id}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-medium bg-red-500/10 border border-red-500/25 text-red-400 typewriter-label hover:bg-red-500/20 disabled:opacity-40 transition-colors"
+                            >
+                              {demotingId === agent.id ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <UserMinus className="w-3 h-3" />
+                              )}
+                              {demoteLabel}
+                            </button>
+                          )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={() => handleDemote(agent.id)}
-                          disabled={demotingId === agent.id}
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-medium bg-red-500/10 border border-red-500/25 text-red-400 typewriter-label hover:bg-red-500/20 disabled:opacity-40 transition-colors"
-                        >
-                          {demotingId === agent.id ? (
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                          ) : (
-                            <UserMinus className="w-3 h-3" />
-                          )}
-                          DEMOTE
-                        </button>
-                        <button
-                          onClick={() => handlePromoteToBureau(agent.id)}
-                          disabled={promotingId === agent.id}
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-medium bg-[#d97706]/15 border border-[#d97706]/30 text-[#d97706] typewriter-label hover:bg-[#d97706]/25 disabled:opacity-40 transition-colors"
-                        >
-                          {promotingId === agent.id ? (
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                          ) : (
-                            <UserPlus className="w-3 h-3" />
-                          )}
-                          PROMOTE TO BRU
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
 
