@@ -45,7 +45,7 @@ export async function createAgentUser(data: {
   return { ...user, temporaryPassword };
 }
 
-export async function promoteAgentToBureau(agentUserId: string, adminBadgeCode: string, adminUserId: string) {
+export async function promoteAgentToBureau(agentUserId: string, _adminBadgeCode: string, _adminUserId: string) {
   const caller = await getCurrentUser();
   if (!caller || caller.role !== "BUREAU") {
     return { error: "Unauthorized — only BUREAU users can promote agents" };
@@ -181,7 +181,7 @@ export async function setupBureauAdmin(code: string, passwordHash?: string, admi
     return { error: "Badge code collision — try with a new DET badge" };
   }
 
-  const updateData: any = {
+  const updateData: Record<string, unknown> = {
     role: "BUREAU",
     badgeCode: newBadgeCode,
     isAdmin: true,
@@ -233,7 +233,7 @@ export async function demoteAgent(agentUserId: string) {
 
   const newBadgeCode = reprefixBadgeCode(user.badgeCode, targetRole);
 
-  const updateData: any = {
+  const updateData: Record<string, unknown> = {
     role: targetRole,
     badgeCode: newBadgeCode,
     isAdmin: false,
@@ -256,7 +256,6 @@ export async function createBureauUser(displayName: string, adminBadgeCode: stri
   }
   if (!adminBadgeCode) throw new Error("Admin badge code is required to create a Bureau user");
 
-  const supabase = await createServerSupabaseClient();
   const { generateBadgeCode } = await import("@/lib/badge");
   const newBadgeCode = await generateBadgeCode("BUREAU");
 
@@ -265,4 +264,96 @@ export async function createBureauUser(displayName: string, adminBadgeCode: stri
     role: "BUREAU",
     badgeCode: newBadgeCode,
   });
+}
+
+// ─── Inactive User Cleanup ───
+
+export async function cleanupInactiveUsers(daysInactive: number = 30) {
+  // Only BUREAU can run this
+  const caller = await getCurrentUser();
+  if (!caller || caller.role !== "BUREAU") {
+    throw new Error("Unauthorized — only BUREAU can cleanup inactive users");
+  }
+
+  const supabase = await createServerSupabaseClient();
+  const cutoffDate = new Date(Date.now() - daysInactive * 24 * 60 * 60 * 1000).toISOString();
+
+  // Find inactive users (DETECTIVE and AGENT only, not BUREAU)
+  // who haven't been seen since cutoffDate
+  const { data: inactiveUsers, error: findError } = await supabase
+    .from('User')
+    .select("id, badgeCode, displayName, role, lastSeenAt")
+    .in("role", ["DETECTIVE", "AGENT"])
+    .or(`lastSeenAt.lt.${cutoffDate},lastSeenAt.is.null`)
+    .lt("createdAt", cutoffDate); // Only users created before cutoff
+
+  if (findError) {
+    throw new Error(`Failed to find inactive users: ${findError.message}`);
+  }
+
+  if (!inactiveUsers || inactiveUsers.length === 0) {
+    return { success: true, deletedCount: 0, deletedUsers: [] };
+  }
+
+  const userIds = inactiveUsers.map(u => u.id);
+
+  // Delete related data first (foreign key constraints)
+  // Delete votes
+  await supabase.from('Vote').delete().in("userId", userIds);
+  // Delete comments
+  await supabase.from('Comment').delete().in("userId", userIds);
+  // Delete task evidence
+  await supabase.from('AgentTaskEvidence').delete().in("agentId", userIds);
+  // Delete discussion messages
+  await supabase.from('AgentDiscussionMessage').delete().in("userId", userIds);
+  // Delete discussion participants
+  await supabase.from('DiscussionParticipant').delete().in("userId", userIds);
+  // Delete elevation requests
+  await supabase.from('ElevationRequest').delete().in("userId", userIds);
+  // Delete agent tasks (where they are agent or admin)
+  await supabase.from('AgentTask').delete().or(`agentId.in.(${userIds.join(",")}),adminId.in.(${userIds.join(",")})`);
+
+  // Finally delete the users
+  const { error: deleteError } = await supabase
+    .from('User')
+    .delete()
+    .in("id", userIds);
+
+  if (deleteError) {
+    throw new Error(`Failed to delete inactive users: ${deleteError.message}`);
+  }
+
+  return {
+    success: true,
+    deletedCount: inactiveUsers.length,
+    deletedUsers: inactiveUsers.map(u => ({
+      id: u.id,
+      badgeCode: u.badgeCode,
+      displayName: u.displayName,
+      role: u.role,
+      lastSeenAt: u.lastSeenAt,
+    })),
+  };
+}
+
+export async function getInactiveUsersPreview(daysInactive: number = 30) {
+  const caller = await getCurrentUser();
+  if (!caller || caller.role !== "BUREAU") {
+    throw new Error("Unauthorized");
+  }
+
+  const supabase = await createServerSupabaseClient();
+  const cutoffDate = new Date(Date.now() - daysInactive * 24 * 60 * 60 * 1000).toISOString();
+
+  const { data: inactiveUsers, error } = await supabase
+    .from('User')
+    .select("id, badgeCode, displayName, role, lastSeenAt, createdAt")
+    .in("role", ["DETECTIVE", "AGENT"])
+    .or(`lastSeenAt.lt.${cutoffDate},lastSeenAt.is.null`)
+    .lt("createdAt", cutoffDate)
+    .order("lastSeenAt", { ascending: true, nullsFirst: true });
+
+  if (error) throw new Error(error.message);
+
+  return inactiveUsers || [];
 }
