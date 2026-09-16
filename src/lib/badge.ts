@@ -1,5 +1,3 @@
-import { createServerSupabaseClient } from "@/lib/supabase/server";
-
 const BADGE_CHARS = "CDFGHJKLMNPQRSTUVWXYZ23456789"; // no I,O,0,1
 const BADGE_PREFIXES: Record<string, string> = {
   DETECTIVE: "DET",
@@ -33,37 +31,11 @@ function generateCodeWithSuffix(prefix: string, suffix: string): string {
 
 /**
  * Generate a new badge code for a role, reusing the existing suffix if provided.
+ * Server-only version in badge-server.ts
  */
 export async function generateBadgeCode(role: string = "DETECTIVE", existingCode?: string): Promise<string> {
-  const supabase = await createServerSupabaseClient();
-  const prefix = BADGE_PREFIXES[role] ?? "DET";
-
-  // If we have an existing code, reuse its suffix
-  if (existingCode) {
-    const suffix = extractSuffix(existingCode);
-    const newCode = generateCodeWithSuffix(prefix, suffix);
-    const { data: existing } = await supabase
-      .from('User')
-      .select("id")
-      .eq("badgeCode", newCode)
-      .maybeSingle();
-    if (!existing) return newCode;
-    // Fall through to random if suffix collision
-  }
-
-  // Fallback: random suffix
-  let attempts = 0;
-  while (attempts < 20) {
-    const code = generateCode(prefix);
-    const { data: existing } = await supabase
-      .from('User')
-      .select("id")
-      .eq("badgeCode", code)
-      .maybeSingle();
-    if (!existing) return code;
-    attempts++;
-  }
-  throw new Error("Unable to generate unique badge code");
+  const { generateBadgeCode: serverGenerate } = await import("./server/badge");
+  return serverGenerate(role, existingCode);
 }
 
 /**

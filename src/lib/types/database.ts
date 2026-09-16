@@ -147,6 +147,18 @@ export interface AgentTaskEvidence {
   updatedAt: string;
 }
 
+export interface AuditLog {
+  id: string;
+  userId: string | null;
+  action: string;
+  resource: string;
+  resourceId: string | null;
+  metadata: Record<string, unknown>;
+  ipAddress: string | null;
+  userAgent: string | null;
+  createdAt: string;
+}
+
 // Row helpers for Supabase inserts/updates
 export type DbInsert<T> = Omit<T, "id" | "createdAt" | "updatedAt">;
 export type DbUpdate<T> = Partial<DbInsert<T>>;

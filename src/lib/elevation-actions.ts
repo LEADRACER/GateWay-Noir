@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { generateBadgeCode } from "@/lib/badge";
+import { generateBadgeCode } from "@/lib/server/badge";
 import { getCurrentUser } from "@/lib/get-current-user";
 
 /**

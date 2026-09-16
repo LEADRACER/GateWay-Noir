@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { generateBadgeCode } from "@/lib/badge";
+import { generateBadgeCode } from "@/lib/server/badge";
 import { getBadgeProfileRequirements } from "@/lib/badge-profile";
 
 export async function POST(request: NextRequest) {

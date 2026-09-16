@@ -126,6 +126,27 @@ ALTER TABLE "public"."User"
 CREATE INDEX IF NOT EXISTS idx_user_connection_privacy ON "public"."User"("connectionPrivacy");
 
 -- ═══════════════════════════════════════════════════════════════════════════
+-- 4c. ADD AUDIT LOG TABLE
+-- ═══════════════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS "public"."AuditLog" (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  "userId" TEXT REFERENCES "public"."User"(id) ON DELETE SET NULL,
+  action TEXT NOT NULL,
+  resource TEXT NOT NULL,
+  "resourceId" TEXT,
+  metadata JSONB DEFAULT '{}'::jsonb,
+  "ipAddress" TEXT,
+  "userAgent" TEXT,
+  "createdAt" TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_log_user ON "public"."AuditLog"("userId");
+CREATE INDEX IF NOT EXISTS idx_audit_log_action ON "public"."AuditLog"(action);
+CREATE INDEX IF NOT EXISTS idx_audit_log_resource ON "public"."AuditLog"(resource, "resourceId");
+CREATE INDEX IF NOT EXISTS idx_audit_log_created ON "public"."AuditLog"("createdAt" DESC);
+
+-- ═══════════════════════════════════════════════════════════════════════════
 -- 5. ADD MISSING INDEXES
 -- ═══════════════════════════════════════════════════════════════════════════
 

@@ -216,7 +216,7 @@ const [activeTab, setActiveTab] = useState<TabKey>("dashboard");
       // Actually, we need a new function. Let me check what's available.
       // The demoteAgent function demotes BUREAU->AGENT and AGENT->DETECTIVE
       // So we need a promoteToAgent function. Let me create a simple one here.
-      const supabase = (await import("@/lib/supabase/client")).createClientSupabaseClient();
+      const supabase = (await import("@/lib/supabase/client")).createClient();
       
       // First get the user
       const { data: user } = await supabase.from('User').select('*').eq('id', agentId).single();

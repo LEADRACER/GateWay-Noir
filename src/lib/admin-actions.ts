@@ -256,7 +256,7 @@ export async function createBureauUser(displayName: string, adminBadgeCode: stri
   }
   if (!adminBadgeCode) throw new Error("Admin badge code is required to create a Bureau user");
 
-  const { generateBadgeCode } = await import("@/lib/badge");
+  const { generateBadgeCode } = await import("@/lib/server/badge");
   const newBadgeCode = await generateBadgeCode("BUREAU");
 
   return createAgentUser({
