@@ -17,7 +17,7 @@ interface AgentUser {
 }
 
 interface BureauHall {
-  bureau: BureauUser | null;
+  bureaus: BureauUser[];
   agents: AgentUser[];
 }
 
@@ -43,28 +43,34 @@ export async function GET() {
   const bureaus = (allUsers || []).filter((u) => u.role === "BUREAU");
   const agents = (allUsers || []).filter((u) => u.role === "AGENT");
 
-  const halls: BureauHall[] = bureaus.map((bureau) => {
-    const hallAgents = agents.filter((a) => a.handler === bureau.id);
-    return {
-      bureau: {
-        id: bureau.id,
-        badgeCode: bureau.badgeCode,
-        displayName: bureau.displayName,
-        avatarUrl: bureau.avatarUrl,
-      },
+  // Group bureaus into halls of max 3
+  const bureauHalls: BureauHall[] = [];
+  for (let i = 0; i < bureaus.length; i += 3) {
+    const hallBureaus = bureaus.slice(i, i + 3);
+    const bureauIds = new Set(hallBureaus.map((b) => b.id));
+    const hallAgents = agents.filter((a) => a.handler && bureauIds.has(a.handler));
+    
+    bureauHalls.push({
+      bureaus: hallBureaus.map((b) => ({
+        id: b.id,
+        badgeCode: b.badgeCode,
+        displayName: b.displayName,
+        avatarUrl: b.avatarUrl,
+      })),
       agents: hallAgents.map((a) => ({
         id: a.id,
         badgeCode: a.badgeCode,
         displayName: a.displayName,
         avatarUrl: a.avatarUrl,
       })),
-    };
-  });
+    });
+  }
 
+  // Unassigned agents as a hall with no bureaus
   const unassignedAgents = agents.filter((a) => !a.handler || !bureaus.some((b) => b.id === a.handler));
   if (unassignedAgents.length > 0) {
-    halls.push({
-      bureau: null,
+    bureauHalls.push({
+      bureaus: [],
       agents: unassignedAgents.map((a) => ({
         id: a.id,
         badgeCode: a.badgeCode,
@@ -74,5 +80,5 @@ export async function GET() {
     });
   }
 
-  return NextResponse.json({ halls });
+  return NextResponse.json({ halls: bureauHalls });
 }
