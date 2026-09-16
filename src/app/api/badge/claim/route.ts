@@ -3,57 +3,72 @@ import bcrypt from "bcryptjs";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { setSessionCookie } from "@/lib/session-cookie";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
+import { normalizePhone } from "@/lib/phone";
+import {
+  getBadgeProfileRequirements,
+  isDefaultBadgeName,
+} from "@/lib/badge-profile";
+
+function profilePayload(user: { displayName: string; phone: string | null | undefined }) {
+  const requirements = getBadgeProfileRequirements(user as { displayName: string; phone: string | undefined });
+  return {
+    needsName: requirements.needsName,
+    needsPhone: requirements.needsPhone,
+    profileComplete: !requirements.needsName && !requirements.needsPhone,
+  };
+}
 
 export async function POST(request: NextRequest) {
   try {
-    const { badgeCode, anonymousId, password } = await request.json();
+    const body = await request.json();
+    const badgeCode = typeof body.badgeCode === "string" ? body.badgeCode : "";
+    const anonymousId = typeof body.anonymousId === "string" ? body.anonymousId : "";
+    const password = typeof body.password === "string" ? body.password : "";
+    const displayName = typeof body.displayName === "string" ? body.displayName.trim() : "";
+    const phoneInput = typeof body.phone === "string" ? body.phone : "";
 
     if (!badgeCode || !anonymousId) {
       return NextResponse.json(
         { success: false, error: "badgeCode and anonymousId are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    if (!password?.trim() || !/^\d{8}$/.test(password.trim())) {
+    if (!password.trim() || !/^\d{8}$/.test(password.trim())) {
       return NextResponse.json(
         { success: false, error: "Passcode must be exactly 8 digits (0-9)" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const pwd = password.trim();
     const cleaned = badgeCode.toUpperCase().replace(/[^A-Z0-9-]/g, "");
-
-    // Rate limit claims (anti-enumeration + anti-brute-force)
     const ip = clientIp(request);
     if (!checkRateLimit(`claim:ip:${ip}`, 20, 60_000)) {
       return NextResponse.json(
         { success: false, error: "Too many attempts — try again later" },
-        { status: 429 }
+        { status: 429 },
       );
     }
     if (!checkRateLimit(`claim:code:${cleaned}`, 5, 60_000)) {
       return NextResponse.json(
         { success: false, error: "Too many attempts for this badge — try again later" },
-        { status: 429 }
+        { status: 429 },
       );
     }
 
     const supabase = await createServerSupabaseClient();
-
-    // Find user — suffix (4 chars, no dash) or full badge code (with dash)
     let user;
     if (cleaned.length === 4) {
       const { data } = await supabase
-        .from('User')
+        .from("User")
         .select("*")
         .like("badgeCode", `%-${cleaned}`)
         .maybeSingle();
       user = data;
     } else {
       const { data } = await supabase
-        .from('User')
+        .from("User")
         .select("*")
         .eq("badgeCode", cleaned)
         .maybeSingle();
@@ -63,110 +78,126 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return NextResponse.json(
         { success: false, error: "Invalid badge code — check the 4-character suffix or full code" },
-        { status: 404 }
+        { status: 404 },
+      );
+    }
+
+    const requirements = getBadgeProfileRequirements(user);
+    const profileUpdates: Record<string, string> = {};
+    const profileErrors: string[] = [];
+
+    if (requirements.needsName) {
+      if (!displayName || displayName.length > 40 || isDefaultBadgeName(displayName)) {
+        profileErrors.push("Choose a display name for this badge");
+      } else {
+        profileUpdates.displayName = displayName;
+      }
+    }
+
+    if (requirements.needsPhone) {
+      const normalizedPhone = normalizePhone(phoneInput);
+      if (!normalizedPhone) {
+        profileErrors.push("Enter a valid phone number, with or without +91");
+      } else {
+        profileUpdates.phone = normalizedPhone;
+      }
+    }
+
+    if (profileErrors.length > 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: profileErrors[0],
+          requiresProfile: true,
+          ...profilePayload(user),
+        },
+        { status: 400 },
       );
     }
 
     const linkedIds: string[] = Array.isArray(user.linkedIds) ? user.linkedIds : [];
+    const alreadyClaimed = linkedIds.includes(anonymousId) && Boolean(user.passwordHash);
 
-    // SECURITY: an unclaimed badge (no passcode set yet) may only be claimed by
-    // the anonymousId that generated/received it (linkedIds). Admin-created
-    // badges ship with a temporary passcode, so a stranger who guesses the
-    // 4-char code can never set a password on them — kills enumeration takeover.
     if (!user.passwordHash && !linkedIds.includes(anonymousId)) {
       return NextResponse.json(
         { success: false, error: "This badge is not linked to this device. Use the device that generated it." },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
-    // If already linked to this anonymousId, return success
-    // (but only if they also have a password set — otherwise fall through to set it)
-    if (linkedIds.includes(anonymousId) && user.passwordHash) {
-      const res = NextResponse.json({
-        success: true,
-        alreadyClaimed: true,
-        user: {
-          id: user.id,
-          badgeCode: user.badgeCode,
-          displayName: user.displayName,
-          role: user.role,
-          hasPassword: true,
-          isAdmin: user.isAdmin,
-        },
-      });
-      res.headers.set("Set-Cookie", setSessionCookie(user.badgeCode));
-      return res;
-    }
-
-    // Remove this anonymousId from any other user that has it
-    const { data: otherUsers } = await supabase
-      .from('User')
-      .select("id, linkedIds")
-      .filter("linkedIds", "ov", `{${anonymousId}}`);
-
-    for (const otherUser of otherUsers || []) {
-      const otherIds: string[] = Array.isArray(otherUser.linkedIds) ? otherUser.linkedIds : [];
-      await supabase
-        .from('User')
-        .update({ linkedIds: otherIds.filter((id: string) => id !== anonymousId) })
-        .eq("id", otherUser.id);
-    }
-
-    // Link the anonymousId to this user
-    linkedIds.push(anonymousId);
-
-    // Password: verify existing OR set new
-    let hasPassword = !!user.passwordHash;
     if (user.passwordHash) {
       const valid = await bcrypt.compare(pwd, user.passwordHash);
       if (!valid) {
         return NextResponse.json(
           { success: false, error: "Incorrect passcode for this badge" },
-          { status: 401 }
+          { status: 401 },
         );
       }
-      await supabase
-        .from('User')
-        .update({ linkedIds })
-        .eq("id", user.id);
-    } else {
-      const passwordHash = await bcrypt.hash(pwd, 10);
-      await supabase
-        .from('User')
-        .update({ linkedIds, passwordHash })
-        .eq("id", user.id);
-      hasPassword = true; // we just set it
     }
 
-    // Merge votes
+    if (!linkedIds.includes(anonymousId)) {
+      const { data: otherUsers } = await supabase
+        .from("User")
+        .select("id, linkedIds")
+        .filter("linkedIds", "ov", `{${anonymousId}}`);
+
+      for (const otherUser of otherUsers || []) {
+        const otherIds: string[] = Array.isArray(otherUser.linkedIds) ? otherUser.linkedIds : [];
+        await supabase
+          .from("User")
+          .update({ linkedIds: otherIds.filter((id: string) => id !== anonymousId) })
+          .eq("id", otherUser.id);
+      }
+      linkedIds.push(anonymousId);
+    }
+
+    const updateData: Record<string, unknown> = { linkedIds };
+    if (!user.passwordHash) {
+      updateData.passwordHash = await bcrypt.hash(pwd, 10);
+    }
+    Object.assign(updateData, profileUpdates);
+
+    const { error: updateError } = await supabase
+      .from("User")
+      .update(updateData)
+      .eq("id", user.id);
+    if (updateError) throw updateError;
+
     await supabase
-      .from('Vote')
+      .from("Vote")
       .update({ userId: user.id })
       .filter("anonymousId", "eq", anonymousId)
       .filter("userId", "is", null);
 
-    // Merge comments
     await supabase
-      .from('Comment')
+      .from("Comment")
       .update({ userId: user.id })
       .filter("anonymousId", "eq", anonymousId)
       .filter("userId", "is", null);
 
+    const updatedUser = {
+      ...user,
+      ...profileUpdates,
+      phone: profileUpdates.phone ?? user.phone,
+      displayName: profileUpdates.displayName ?? user.displayName,
+    };
     const res = NextResponse.json({
       success: true,
-      alreadyClaimed: false,
+      alreadyClaimed,
+      requiresProfile: false,
       votesMerged: true,
       user: {
-        id: user.id,
-        badgeCode: user.badgeCode,
-        displayName: user.displayName,
-        role: user.role,
-        hasPassword,
-        isAdmin: user.isAdmin,
+        id: updatedUser.id,
+        badgeCode: updatedUser.badgeCode,
+        displayName: updatedUser.displayName,
+        role: updatedUser.role,
+        phone: updatedUser.phone,
+        hasPassword: true,
+        isAdmin: updatedUser.isAdmin,
+        ...profilePayload(updatedUser),
       },
     });
-    res.headers.set("Set-Cookie", setSessionCookie(user.badgeCode));
+    res.headers.set("Set-Cookie", setSessionCookie(updatedUser.badgeCode));
     return res;
   } catch (err) {
     console.error("Badge claim error:", err);

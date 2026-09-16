@@ -147,6 +147,10 @@ CREATE TABLE IF NOT EXISTS "public"."AgentDiscussion" (
   title TEXT NOT NULL,
   description TEXT,
   "isOpen" BOOLEAN NOT NULL DEFAULT true,
+  visibility TEXT NOT NULL DEFAULT 'bru_agt_det'
+    CHECK (visibility IN ('bru_only', 'bru_agt', 'bru_agt_det', 'all')),
+  "spectatorVisibility" TEXT NOT NULL DEFAULT 'participants_only'
+    CHECK ("spectatorVisibility" IN ('participants_only', 'all')),
   "createdById" TEXT REFERENCES "public"."User"(id) ON DELETE SET NULL,
   "createdAt" TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now(),
   "updatedAt" TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now()

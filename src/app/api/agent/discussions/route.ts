@@ -1,131 +1,264 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/get-current-user";
+import {
+  canManageParticipants,
+  canViewDiscussion,
+  isDiscussionAudience,
+  isSpectatorVisibility,
+} from "@/lib/discussion-access";
 
-// GET /api/agent/discussions — list accessible discussions (DET+ only)
-// BUREAU sees all; AGENT sees visibility='all'/'agents' + invited; DETECTIVE sees visibility='all' + invited
+const DISCUSSION_SELECT = `
+  id,
+  title,
+  description,
+  "isOpen",
+  visibility,
+  "spectatorVisibility",
+  "createdById",
+  "createdAt",
+  "updatedAt",
+  summary,
+  createdBy:User(badgeCode, displayName)
+`;
+
+const DISCUSSION_ROLES = new Set(["DETECTIVE", "AGENT", "BUREAU"]);
+
+async function enrichDiscussions(
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
+  discussions: Array<Record<string, unknown>>,
+) {
+  return Promise.all(
+    discussions.map(async (discussion) => {
+      const [{ count: messageCount }, { count: participantCount }] = await Promise.all([
+        supabase
+          .from("AgentDiscussionMessage")
+          .select("*", { count: "exact", head: true })
+          .eq("discussionId", discussion.id),
+        supabase
+          .from("DiscussionParticipant")
+          .select("*", { count: "exact", head: true })
+          .eq("discussionId", discussion.id),
+      ]);
+
+      // Get active participants (users who posted in last 24 hours)
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const { data: recentMessages } = await supabase
+        .from("AgentDiscussionMessage")
+        .select("userId, createdAt, user:User(badgeCode, displayName, role)")
+        .eq("discussionId", discussion.id)
+        .gte("createdAt", oneDayAgo)
+        .order("createdAt", { ascending: false })
+        .limit(10);
+
+      // Get unique active participants with their latest activity
+      const activeParticipantsMap = new Map<string, { badgeCode: string; displayName: string; role: string; lastActive: string }>();
+      if (recentMessages) {
+        for (const msg of recentMessages) {
+          const user = Array.isArray(msg.user) ? msg.user[0] : msg.user;
+          if (user && !activeParticipantsMap.has(user.badgeCode)) {
+            activeParticipantsMap.set(user.badgeCode, {
+              badgeCode: user.badgeCode,
+              displayName: user.displayName,
+              role: user.role,
+              lastActive: msg.createdAt,
+            });
+          }
+        }
+      }
+      const activeParticipants = Array.from(activeParticipantsMap.values()).slice(0, 5);
+
+      const createdBy = Array.isArray(discussion.createdBy)
+        ? discussion.createdBy[0] ?? null
+        : discussion.createdBy ?? null;
+
+      return {
+        ...discussion,
+        createdBy,
+        _count: {
+          messages: messageCount ?? 0,
+          participants: participantCount ?? 0,
+        },
+        activeParticipants,
+      };
+    }),
+  );
+}
+
 export async function GET() {
   const user = await getCurrentUser();
-  if (!user || (user.role !== "DETECTIVE" && user.role !== "AGENT" && user.role !== "BUREAU")) {
+  if (user && !DISCUSSION_ROLES.has(user.role)) {
     return NextResponse.json({ error: "Not authorized" }, { status: 403 });
   }
 
   const supabase = await createServerSupabaseClient();
+  let query = supabase.from("AgentDiscussion").select(DISCUSSION_SELECT);
 
-  let query = supabase
-    .from('AgentDiscussion')
-    .select('id, title, description, isOpen, visibility, createdById, createdAt, updatedAt, createdBy:User(badgeCode, displayName)')
-    .order("updatedAt", { ascending: false });
-
-  // Filter for non-BUREAU users
-  if (user.role !== "BUREAU") {
-    // Get discussion IDs where user is a participant
-    const { data: participantDiscussions } = await supabase
-      .from('DiscussionParticipant')
-      .select('discussionId')
-      .eq('userId', user.id);
-
-    const participantIds = (participantDiscussions || []).map(p => p.discussionId);
-
-    if (user.role === "DETECTIVE") {
-      // DETECTIVE: only visibility='all' (which includes DET) OR user is participant
-      query = query.or(`visibility.eq.all,${participantIds.length > 0 ? `id.in.(${participantIds.join(",")})` : 'id.eq.none'}`);
-    } else {
-      // AGENT: visibility='all' or 'agents' OR user is participant
-      query = query.or(`visibility.in.(all,agents),${participantIds.length > 0 ? `id.in.(${participantIds.join(",")})` : 'id.eq.none'}`);
-    }
+  if (!user) {
+    // Visitors can no longer see any discussions since 'all' audience is removed
+    return NextResponse.json({ discussions: [] });
   }
 
-  const { data: discussions } = await query;
+  const { data: discussions, error } = await query.order("updatedAt", { ascending: false });
+  if (error) {
+    return NextResponse.json({ error: "Failed to load discussions" }, { status: 500 });
+  }
 
-  // Get message counts
-  const enriched = await Promise.all(
-    (discussions || []).map(async (d: any) => {
-      const { count } = await supabase
-        .from('AgentDiscussionMessage')
-        .select("*", { count: "exact", head: true })
-        .eq("discussionId", d.id);
-      return { ...d, _count: { messages: count ?? 0 } };
+  let participantDiscussionIds = new Set<string>();
+  if (user) {
+    const { data: participants, error: participantError } = await supabase
+      .from("DiscussionParticipant")
+      .select("discussionId")
+      .eq("userId", user.id);
+
+    if (participantError) {
+      return NextResponse.json({ error: "Failed to load discussions" }, { status: 500 });
+    }
+
+    participantDiscussionIds = new Set(
+      (participants || []).map((participant) => participant.discussionId),
+    );
+  }
+
+  const visibleDiscussions = (discussions || []).filter((discussion) =>
+    canViewDiscussion({
+      role: user?.role ?? null,
+      audience: isDiscussionAudience(discussion.visibility) ? discussion.visibility : "bru_agt_det",
+      spectatorVisibility: isSpectatorVisibility(discussion.spectatorVisibility)
+        ? discussion.spectatorVisibility
+        : "participants_only",
+      isParticipant: participantDiscussionIds.has(String(discussion.id)),
+      isCreator: discussion.createdById === user?.id,
     }),
   );
 
+  const enriched = await enrichDiscussions(supabase, visibleDiscussions);
   return NextResponse.json({ discussions: enriched });
 }
 
-// POST /api/agent/discussions — create a new discussion (DET+ only)
-// Body: { title, description?, visibility?: 'all'|'agents'|'invited', participantIds?: string[] }
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser();
-  if (!user || (user.role !== "DETECTIVE" && user.role !== "AGENT" && user.role !== "BUREAU")) {
+  if (!user || !DISCUSSION_ROLES.has(user.role)) {
     return NextResponse.json({ error: "Not authorized" }, { status: 403 });
   }
 
-  const { title, description, visibility, participantIds } = await req.json();
-  if (!title?.trim()) {
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
+
+  const requestBody = body as Record<string, unknown>;
+  const title = typeof requestBody.title === "string" ? requestBody.title.trim() : "";
+  if (!title) {
     return NextResponse.json({ error: "Title is required" }, { status: 400 });
   }
-
-  // Visibility rules:
-  // - BUREAU: can create 'all', 'agents', or 'invited'
-  // - AGENT: can create 'all' or 'agents' (not 'invited')
-  // - DETECTIVE: can only create 'all'
-  let finalVisibility = 'all';
-  if (user.role === "BUREAU") {
-    finalVisibility = visibility || 'all';
-  } else if (user.role === "AGENT") {
-    finalVisibility = visibility === 'agents' ? 'agents' : 'all';
+  if (title.length > 200) {
+    return NextResponse.json({ error: "Title is too long" }, { status: 400 });
   }
-  // DETECTIVE always gets 'all'
 
-  if (finalVisibility === 'invited' && user.role !== 'BUREAU') {
-    return NextResponse.json({ error: "Only Bureau can create invited-only discussions" }, { status: 403 });
+  const description =
+    typeof requestBody.description === "string" ? requestBody.description.trim() : "";
+  const requestedAudience = requestBody.visibility ?? "bru_agt_det";
+  if (!isDiscussionAudience(requestedAudience)) {
+    return NextResponse.json({ error: "Invalid audience" }, { status: 400 });
   }
-  if (finalVisibility === 'agents' && user.role === 'DETECTIVE') {
-    return NextResponse.json({ error: "Detectives cannot create agent-only discussions" }, { status: 403 });
+
+  if (
+    (user.role === "AGENT" && requestedAudience === "bru_only") ||
+    (user.role === "DETECTIVE" && requestedAudience !== "bru_agt_det")
+  ) {
+    return NextResponse.json({ error: "Your role cannot create this audience" }, { status: 403 });
+  }
+
+  const requestedSpectatorVisibility =
+    requestBody.spectatorVisibility ?? "participants_only";
+  if (!isSpectatorVisibility(requestedSpectatorVisibility)) {
+    return NextResponse.json({ error: "Invalid spectator visibility" }, { status: 400 });
+  }
+  // Spectator visibility 'all' is only relevant for 'all' audience which is removed
+  if (requestedSpectatorVisibility === "all") {
+    return NextResponse.json({ error: "Spectator visibility 'all' is not supported" }, { status: 400 });
+  }
+
+  let participantIds: string[] | undefined;
+  if (requestBody.participantIds !== undefined) {
+    if (!canManageParticipants(user.role) || !Array.isArray(requestBody.participantIds)) {
+      return NextResponse.json({ error: "Only Bureau can manage participants" }, { status: 403 });
+    }
+    if (
+      !requestBody.participantIds.every(
+        (participantId) =>
+          typeof participantId === "string" &&
+          participantId.trim().length > 0 &&
+          participantId.trim() === participantId,
+      )
+    ) {
+      return NextResponse.json({ error: "participantIds must contain user IDs" }, { status: 400 });
+    }
+    participantIds = [...new Set(requestBody.participantIds as string[])].filter(
+      (participantId) => participantId !== user.id,
+    );
   }
 
   const supabase = await createServerSupabaseClient();
 
+  if (participantIds?.length) {
+    const { data: users, error: usersError } = await supabase
+      .from("User")
+      .select("id")
+      .in("id", participantIds);
+
+    if (usersError || users?.length !== participantIds.length) {
+      return NextResponse.json({ error: "One or more participants do not exist" }, { status: 400 });
+    }
+  }
+
   const { data: discussion, error: insertError } = await supabase
-    .from('AgentDiscussion')
+    .from("AgentDiscussion")
     .insert({
-      title: title.trim(),
-      description: description?.trim() || null,
-      visibility: finalVisibility,
+      title,
+      description: description || null,
+      visibility: requestedAudience,
+      spectatorVisibility: requestedSpectatorVisibility,
       createdById: user.id,
       updatedAt: new Date().toISOString(),
     })
-    .select('*, createdBy:User(badgeCode, displayName)')
+    .select("*, createdBy:User(badgeCode, displayName)")
     .single();
 
-  if (insertError) {
-    console.error("Failed to create discussion:", insertError);
+  if (insertError || !discussion) {
     return NextResponse.json({ error: "Failed to create discussion" }, { status: 500 });
   }
 
-  // Add creator as participant
-  await supabase
-    .from('DiscussionParticipant')
-    .insert({
-      discussionId: discussion.id,
-      userId: user.id,
-      invitedBy: user.id,
-    });
+  const creatorInsert = await supabase.from("DiscussionParticipant").insert({
+    discussionId: discussion.id,
+    userId: user.id,
+    invitedBy: user.id,
+  });
+  if (creatorInsert.error) {
+    return NextResponse.json({ error: "Failed to create discussion" }, { status: 500 });
+  }
 
-  // Add additional participants (for invited discussions)
-  if (finalVisibility === 'invited' && participantIds?.length) {
-    const validParticipants = participantIds
-      .filter((id: string) => id !== user.id) // creator already added
-      .map((id: string) => ({
-        discussionId: discussion.id,
-        userId: id,
-        invitedBy: user.id,
-      }));
+  if (participantIds?.length) {
+    const { error: participantsError } = await supabase
+      .from("DiscussionParticipant")
+      .insert(
+        participantIds.map((participantId) => ({
+          discussionId: discussion.id,
+          userId: participantId,
+          invitedBy: user.id,
+        })),
+      );
 
-    if (validParticipants.length > 0) {
-      await supabase
-        .from('DiscussionParticipant')
-        .insert(validParticipants);
+    if (participantsError) {
+      await supabase.from("AgentDiscussion").delete().eq("id", discussion.id);
+      return NextResponse.json({ error: "Failed to add participants" }, { status: 500 });
     }
   }
 

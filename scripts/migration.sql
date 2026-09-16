@@ -72,8 +72,12 @@ ALTER TABLE "public"."AgentDiscussion"
 -- ═══════════════════════════════════════════════════════════════════════════
 
 ALTER TABLE "public"."AgentDiscussion"
-  ADD COLUMN IF NOT EXISTS "visibility" TEXT NOT NULL DEFAULT 'all'
-    CHECK (visibility IN ('all', 'invited'));
+  ADD COLUMN IF NOT EXISTS "visibility" TEXT NOT NULL DEFAULT 'bru_agt_det'
+    CHECK (visibility IN ('bru_only', 'bru_agt', 'bru_agt_det', 'all'));
+
+ALTER TABLE "public"."AgentDiscussion"
+  ADD COLUMN IF NOT EXISTS "spectatorVisibility" TEXT NOT NULL DEFAULT 'participants_only'
+    CHECK ("spectatorVisibility" IN ('participants_only', 'all'));
 
 CREATE TABLE IF NOT EXISTS "public"."DiscussionParticipant" (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,

@@ -14,6 +14,7 @@ import { getAllAgents, promoteToBureau, demoteAgent, createBureauUser, getAllUse
 import { getActiveAndConcludedTopics, concludeTopic, getStats, getUpcomingTopics } from "@/lib/actions";
 import { getAllTasks, updateTaskStatus } from "@/lib/task-actions";
 import { getAgentDiscussions } from "@/lib/discussion-actions";
+import { getAudienceLabel, type DiscussionAudience, type SpectatorVisibility } from "@/lib/discussion-access";
 import toast from "react-hot-toast";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -58,7 +59,8 @@ interface Discussion {
   title: string;
   description: string | null;
   isOpen: boolean;
-  visibility: "all" | "invited";
+  visibility: DiscussionAudience;
+  spectatorVisibility: SpectatorVisibility;
   createdById: string;
   createdAt: string;
   updatedAt: string;
@@ -286,10 +288,10 @@ export function BureauHQ({ stats, children }: BureauHQProps) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       {/* Notifications */}
       {notifications.length > 0 && (
-        <div className="fixed top-4 right-4 z-50 space-y-2 max-w-sm">
+        <div className="fixed top-4 right-4 z-50 space-y-2 max-w-xs w-full sm:max-w-sm">
           {notifications.map(n => (
             <motion.div
               key={n.id}
@@ -309,10 +311,11 @@ export function BureauHQ({ stats, children }: BureauHQProps) {
         </div>
       )}
 
-      <div className="flex items-center gap-1 bg-[#111113] border border-[rgba(168,144,112,0.08)] p-1 rounded">
+      {/* Tab Bar — scrollable on mobile */}
+      <div className="tab-scroll -mx-4 sm:mx-0 bg-[#111113] border border-[rgba(168,144,112,0.08)] p-1 flex gap-1 overflow-x-auto">
         <button
           onClick={() => setActiveTab("dashboard")}
-          className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium typewriter-label transition-colors ${
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-[9px] sm:text-[10px] font-medium typewriter-label transition-colors whitespace-nowrap ${
             activeTab === "dashboard"
               ? "bg-[#0d0d0f] text-zinc-200 border border-[rgba(168,144,112,0.12)]"
               : "text-zinc-600 hover:text-zinc-400 border border-transparent"
@@ -323,7 +326,7 @@ export function BureauHQ({ stats, children }: BureauHQProps) {
         </button>
         <button
           onClick={() => setActiveTab("agents")}
-          className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium typewriter-label transition-colors ${
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-[9px] sm:text-[10px] font-medium typewriter-label transition-colors whitespace-nowrap ${
             activeTab === "agents"
               ? "bg-[#0d0d0f] text-zinc-200 border border-[rgba(168,144,112,0.12)]"
               : "text-zinc-600 hover:text-zinc-400 border border-transparent"
@@ -339,7 +342,7 @@ export function BureauHQ({ stats, children }: BureauHQProps) {
         </button>
         <button
           onClick={() => setActiveTab("cases")}
-          className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium typewriter-label transition-colors ${
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-[9px] sm:text-[10px] font-medium typewriter-label transition-colors whitespace-nowrap ${
             activeTab === "cases"
               ? "bg-[#0d0d0f] text-zinc-200 border border-[rgba(168,144,112,0.12)]"
               : "text-zinc-600 hover:text-zinc-400 border border-transparent"
@@ -355,7 +358,7 @@ export function BureauHQ({ stats, children }: BureauHQProps) {
         </button>
         <button
           onClick={() => setActiveTab("tasks")}
-          className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium typewriter-label transition-colors ${
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-[9px] sm:text-[10px] font-medium typewriter-label transition-colors whitespace-nowrap ${
             activeTab === "tasks"
               ? "bg-[#0d0d0f] text-zinc-200 border border-[rgba(168,144,112,0.12)]"
               : "text-zinc-600 hover:text-zinc-400 border border-transparent"
@@ -371,7 +374,7 @@ export function BureauHQ({ stats, children }: BureauHQProps) {
         </button>
         <button
           onClick={() => setActiveTab("discussions")}
-          className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium typewriter-label transition-colors ${
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-[9px] sm:text-[10px] font-medium typewriter-label transition-colors whitespace-nowrap ${
             activeTab === "discussions"
               ? "bg-[#0d0d0f] text-zinc-200 border border-[rgba(168,144,112,0.12)]"
               : "text-zinc-600 hover:text-zinc-400 border border-transparent"
@@ -387,7 +390,7 @@ export function BureauHQ({ stats, children }: BureauHQProps) {
         </button>
         <button
           onClick={() => setActiveTab("analytics")}
-          className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium typewriter-label transition-colors ${
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-[9px] sm:text-[10px] font-medium typewriter-label transition-colors whitespace-nowrap ${
             activeTab === "analytics"
               ? "bg-[#0d0d0f] text-zinc-200 border border-[rgba(168,144,112,0.12)]"
               : "text-zinc-600 hover:text-zinc-400 border border-transparent"
@@ -398,7 +401,7 @@ export function BureauHQ({ stats, children }: BureauHQProps) {
         </button>
         <button
           onClick={() => setActiveTab("settings")}
-          className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium typewriter-label transition-colors ${
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-[9px] sm:text-[10px] font-medium typewriter-label transition-colors whitespace-nowrap ${
             activeTab === "settings"
               ? "bg-[#0d0d0f] text-zinc-200 border border-[rgba(168,144,112,0.12)]"
               : "text-zinc-600 hover:text-zinc-400 border border-transparent"
@@ -604,7 +607,7 @@ export function BureauHQ({ stats, children }: BureauHQProps) {
                   <ClipboardList className="w-4 h-4 text-[#d97706] opacity-50" />
                   <h2 className="text-xs font-semibold text-zinc-300 typewriter-label">ALL AGENT TASKS</h2>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
@@ -620,7 +623,7 @@ export function BureauHQ({ stats, children }: BureauHQProps) {
                     placeholder="Search tasks..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="bg-[#0a0a0c] border border-[rgba(168,144,112,0.08)] px-2 py-1 text-[10px] text-zinc-300 rounded outline-none focus:border-[#d97706]/30 placeholder:text-zinc-700 w-48"
+                    className="bg-[#0a0a0c] border border-[rgba(168,144,112,0.08)] px-2 py-1 text-[10px] text-zinc-300 rounded outline-none focus:border-[#d97706]/30 placeholder:text-zinc-700 w-full sm:w-48"
                   />
                   <button
                     onClick={fetchTasks}
@@ -719,7 +722,7 @@ export function BureauHQ({ stats, children }: BureauHQProps) {
                   <MessageSquare className="w-4 h-4 text-[#d97706] opacity-50" />
                   <h2 className="text-xs font-semibold text-zinc-300 typewriter-label">AGENT DISCUSSIONS</h2>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
@@ -734,7 +737,7 @@ export function BureauHQ({ stats, children }: BureauHQProps) {
                     placeholder="Search discussions..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="bg-[#0a0a0c] border border-[rgba(168,144,112,0.08)] px-2 py-1 text-[10px] text-zinc-300 rounded outline-none focus:border-[#d97706]/30 placeholder:text-zinc-700 w-48"
+                    className="bg-[#0a0a0c] border border-[rgba(168,144,112,0.08)] px-2 py-1 text-[10px] text-zinc-300 rounded outline-none focus:border-[#d97706]/30 placeholder:text-zinc-700 w-full sm:w-48"
                   />
                   <button
                     onClick={fetchDiscussions}
@@ -767,13 +770,22 @@ export function BureauHQ({ stats, children }: BureauHQProps) {
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className={`inline-flex items-center px-1.5 py-0.5 text-[8px] font-medium rounded typewriter-label ${
-                            d.visibility === "all"
+                          <span className={`inline-flex items-center px-1.5 py-0.5 text-[8px] font-medium rounded border typewriter-label ${
+                            d.visibility === "bru_only"
+                              ? "bg-amber-500/20 text-amber-400 border border-amber-500/20"
+                              : d.visibility === "bru_agt"
                               ? "bg-blue-500/20 text-blue-400 border border-blue-500/20"
-                              : "bg-amber-500/20 text-amber-400 border border-amber-500/20"
+                              : d.visibility === "bru_agt_det"
+                              ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/20"
+                              : "bg-violet-500/20 text-violet-400 border border-violet-500/20"
                           }`}>
-                            {d.visibility.toUpperCase()}
+                            {getAudienceLabel(d.visibility)}
                           </span>
+                          {d.spectatorVisibility === "all" && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 text-[8px] font-medium rounded border bg-violet-500/15 text-violet-400 border-violet-500/25 typewriter-label">
+                              SPECTATOR
+                            </span>
+                          )}
                           {d.isOpen && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" title="Open" />}
                           {!d.isOpen && <span className="w-1.5 h-1.5 rounded-full bg-zinc-500" title="Closed" />}
                         </div>

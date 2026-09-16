@@ -135,14 +135,14 @@ export function PasswordDialog({
                 onCancel();
               }}
               disabled={verifying}
-              className="flex-1 px-2 py-1.5 text-[10px] font-medium text-zinc-500 border border-[rgba(168,144,112,0.08)] hover:bg-[rgba(168,144,112,0.04)] typewriter-label disabled:opacity-40 transition-colors"
+               className="flex-1 px-2 py-1.5 text-[10px] font-medium text-zinc-500 border border-[rgba(168,144,112,0.08)] hover:bg-[rgba(168,144,112,0.04)] typewriter-label disabled:opacity-40 transition-colors min-h-[44px] flex items-center justify-center"
             >
               CANCEL
             </button>
             <button
               type="submit"
               disabled={!password.trim() || verifying}
-              className="flex-1 px-2 py-1.5 text-[10px] font-medium bg-amber-600 text-black typewriter-label hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors inline-flex items-center justify-center gap-1"
+              className="flex-1 px-2 py-1.5 text-[10px] font-medium bg-amber-600 text-black typewriter-label hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors min-h-[44px] flex items-center justify-center gap-1"
             >
               {verifying ? (
                 <Loader2 className="w-3 h-3 animate-spin" />

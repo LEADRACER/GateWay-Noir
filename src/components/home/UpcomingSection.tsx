@@ -75,7 +75,7 @@ export function UpcomingSection({ topics: initialTopics }: UpcomingSectionProps)
   if (topics.length === 0) return null;
 
   return (
-    <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-4">
+    <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-6 pb-4">
       {/* Section Header */}
       <div className="flex items-center gap-2 mb-2">
         <Inbox className="w-3.5 h-3.5 text-[#d97706] opacity-50" />

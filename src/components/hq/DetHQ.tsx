@@ -94,7 +94,7 @@ export function DetHQ() {
   };
 
   return (
-    <div className="space-y-4 max-w-2xl">
+    <div className="space-y-4 w-full max-w-2xl mx-auto px-4 sm:px-6">
       {/* Badge Hero Card */}
       <motion.div
         initial={{ opacity: 0, y: 6 }}
@@ -145,24 +145,24 @@ export function DetHQ() {
               <span className="typewriter-label">{maskPhone(badge.phone)}</span>
             </div>
           ) : (
-            <div className="flex gap-2">
-              <input
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="+1 (555) 000-0000"
-                className="flex-1 bg-black/40 border border-[rgba(168,144,112,0.1)] px-2.5 py-1.5 text-[11px] font-mono text-zinc-300 outline-none focus:border-[#d97706]/40 transition-colors placeholder:text-zinc-700"
-                onKeyDown={(e) => e.key === "Enter" && handlePhoneRegister()}
-              />
-              <button
-                onClick={handlePhoneRegister}
-                disabled={phoneSaving || phone.trim().length < 7}
-                className="px-3 py-1.5 bg-[#d97706]/20 border border-[#d97706]/30 text-[10px] text-[#d97706] typewriter-label hover:bg-[#d97706]/30 disabled:opacity-40 transition-all"
-              >
-                {phoneSaving ? "..." : "SAVE"}
-              </button>
-            </div>
-          )}
+             <div className="flex flex-col sm:flex-row gap-2">
+               <input
+                 type="tel"
+                 value={phone}
+                 onChange={(e) => setPhone(e.target.value)}
+                 placeholder="+1 (555) 000-0000"
+                 className="flex-1 bg-black/40 border border-[rgba(168,144,112,0.1)] px-2.5 py-1.5 text-[11px] font-mono text-zinc-300 outline-none focus:border-[#d97706]/40 transition-colors placeholder:text-zinc-700"
+                 onKeyDown={(e) => e.key === "Enter" && handlePhoneRegister()}
+               />
+               <button
+                 onClick={handlePhoneRegister}
+                 disabled={phoneSaving || phone.trim().length < 7}
+                 className="px-3 py-1.5 bg-[#d97706]/20 border border-[#d97706]/30 text-[10px] text-[#d97706] typewriter-label hover:bg-[#d97706]/30 disabled:opacity-40 transition-all min-h-[44px] justify-center sm:justify-normal"
+               >
+                 {phoneSaving ? "..." : "SAVE"}
+               </button>
+             </div>
+           )}
           {phoneError && (
             <p className="flex items-center gap-1 text-[9px] text-red-400/80 mt-1.5">
               <AlertCircle className="w-2.5 h-2.5" />

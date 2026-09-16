@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { generateBadgeCode } from "@/lib/badge";
+import { getBadgeProfileRequirements } from "@/lib/badge-profile";
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,6 +27,8 @@ export async function POST(request: NextRequest) {
 
     if (error) throw error;
 
+    const requirements = getBadgeProfileRequirements(user);
+
     return NextResponse.json({
       success: true,
       user: {
@@ -33,6 +36,10 @@ export async function POST(request: NextRequest) {
         badgeCode: user.badgeCode,
         displayName: user.displayName,
         role: user.role,
+        phone: user.phone,
+        needsName: requirements.needsName,
+        needsPhone: requirements.needsPhone,
+        profileComplete: !requirements.needsName && !requirements.needsPhone,
       },
     });
   } catch (err) {

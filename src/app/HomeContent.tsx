@@ -144,7 +144,7 @@ export function HomeContent({
   };
 
   return (
-    <div className="mx-auto px-4 sm:px-6 lg:px-8 pb-12" style={{ maxWidth: '80%' }}>
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-12">
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Main Content */}
         <div className="flex-1 min-w-0 space-y-6">

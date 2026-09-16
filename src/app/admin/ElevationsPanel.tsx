@@ -121,7 +121,7 @@ export function ElevationsPanel({
   return (
     <>
       {/* Tab Navigation */}
-      <div className="flex items-center gap-1 bg-[#111113] border border-[rgba(168,144,112,0.08)] p-1">
+      <div className="tab-scroll -mx-4 sm:mx-0 flex items-center gap-1 bg-[#111113] border border-[rgba(168,144,112,0.08)] p-1 overflow-x-auto">
         <button
           onClick={() => { setActiveTab("dashboard"); window.location.hash = ""; }}
           className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium typewriter-label transition-colors ${
@@ -215,22 +215,22 @@ export function ElevationsPanel({
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-1.5 flex-shrink-0">
-                        <button
-                          onClick={() => handleReject(elevation.id)}
-                          disabled={processingId === elevation.id}
-                          className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium bg-[#dc2626]/10 text-[#dc2626] border border-[#dc2626]/15 hover:bg-[#dc2626]/20 typewriter-label disabled:opacity-40"
-                        >
-                          {processingId === elevation.id ? "..." : <><XCircle className="w-3 h-3" /> REJECT</>}
-                        </button>
-                        <button
-                          onClick={() => handleApprove(elevation.id)}
-                          disabled={processingId === elevation.id}
-                          className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium bg-[#d97706] text-black typewriter-label disabled:opacity-40"
-                        >
-                          {processingId === elevation.id ? "..." : <><CheckCircle2 className="w-3 h-3" /> APPROVE</>}
-                        </button>
-                      </div>
+                       <div className="flex items-center gap-1.5 flex-shrink-0">
+                         <button
+                           onClick={() => handleReject(elevation.id)}
+                           disabled={processingId === elevation.id}
+                           className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium bg-[#dc2626]/10 text-[#dc2626] border border-[#dc2626]/15 hover:bg-[#dc2626]/20 typewriter-label disabled:opacity-40 min-h-[44px]"
+                         >
+                           {processingId === elevation.id ? "..." : <><XCircle className="w-3 h-3" /> REJECT</>}
+                         </button>
+                         <button
+                           onClick={() => handleApprove(elevation.id)}
+                           disabled={processingId === elevation.id}
+                           className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium bg-[#d97706] text-black typewriter-label disabled:opacity-40 min-h-[44px]"
+                         >
+                           {processingId === elevation.id ? "..." : <><CheckCircle2 className="w-3 h-3" /> APPROVE</>}
+                         </button>
+                       </div>
                     </div>
                   ))}
                 </div>

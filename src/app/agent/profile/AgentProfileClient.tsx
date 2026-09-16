@@ -218,7 +218,7 @@ export function AgentProfileClient() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-5 py-2 bg-amber/15 text-amber border border-amber/30 rounded-md text-xs font-medium uppercase tracking-wider hover:bg-amber/25 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full sm:w-auto px-5 py-2 bg-amber/15 text-amber border border-amber/30 rounded-md text-xs font-medium uppercase tracking-wider hover:bg-amber/25 transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px]"
           >
             {saving ? "Saving..." : "Save Changes"}
           </button>
@@ -245,44 +245,44 @@ export function AgentProfileClient() {
       <div className="bg-[#111113] border border-[rgba(168,144,112,0.12)] rounded-lg p-6">
         <h2 className="text-sm font-semibold text-zinc-300 mb-4 uppercase tracking-wider">Statistics</h2>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-          {/* Votes */}
-          <div className="bg-[#08080a] border border-[rgba(168,144,112,0.08)] rounded-md p-4 text-center">
-            <p className="text-2xl font-bold text-zinc-100">{profile.voteCount}</p>
-            <p className="text-xs text-zinc-500 mt-1">Votes Cast</p>
-          </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+           {/* Votes */}
+           <div className="bg-[#08080a] border border-[rgba(168,144,112,0.08)] rounded-md p-3 text-center">
+             <p className="text-xl sm:text-2xl font-bold text-zinc-100">{profile.voteCount}</p>
+             <p className="text-[10px] text-zinc-500 mt-1">Votes Cast</p>
+           </div>
 
-          {/* Comments */}
-          <div className="bg-[#08080a] border border-[rgba(168,144,112,0.08)] rounded-md p-4 text-center">
-            <p className="text-2xl font-bold text-zinc-100">{profile.commentCount}</p>
-            <p className="text-xs text-zinc-500 mt-1">Comments</p>
-          </div>
+           {/* Comments */}
+           <div className="bg-[#08080a] border border-[rgba(168,144,112,0.08)] rounded-md p-3 text-center">
+             <p className="text-xl sm:text-2xl font-bold text-zinc-100">{profile.commentCount}</p>
+             <p className="text-[10px] text-zinc-500 mt-1">Comments</p>
+           </div>
 
-          {/* Pending Tasks */}
-          <div className="bg-[#08080a] border border-[rgba(168,144,112,0.08)] rounded-md p-4 text-center">
-            <p className="text-2xl font-bold text-blue">{profile.taskCounts["PENDING"] || 0}</p>
-            <p className="text-xs text-zinc-500 mt-1">Pending Tasks</p>
-          </div>
+           {/* Pending Tasks */}
+           <div className="bg-[#08080a] border border-[rgba(168,144,112,0.08)] rounded-md p-3 text-center">
+             <p className="text-xl sm:text-2xl font-bold text-blue">{profile.taskCounts["PENDING"] || 0}</p>
+             <p className="text-[10px] text-zinc-500 mt-1">Pending Tasks</p>
+           </div>
 
-          {/* In Progress Tasks */}
-          <div className="bg-[#08080a] border border-[rgba(168,144,112,0.08)] rounded-md p-4 text-center">
-            <p className="text-2xl font-bold text-amber">{profile.taskCounts["IN_PROGRESS"] || 0}</p>
-            <p className="text-xs text-zinc-500 mt-1">In Progress</p>
-          </div>
+           {/* In Progress Tasks */}
+           <div className="bg-[#08080a] border border-[rgba(168,144,112,0.08)] rounded-md p-3 text-center">
+             <p className="text-xl sm:text-2xl font-bold text-amber">{profile.taskCounts["IN_PROGRESS"] || 0}</p>
+             <p className="text-[10px] text-zinc-500 mt-1">In Progress</p>
+           </div>
 
-          {/* Completed Tasks */}
-          <div className="bg-[#08080a] border border-[rgba(168,144,112,0.08)] rounded-md p-4 text-center">
-            <p className="text-2xl font-bold text-green">{profile.taskCounts["COMPLETED"] || 0}</p>
-            <p className="text-xs text-zinc-500 mt-1">Completed</p>
-          </div>
+           {/* Completed Tasks */}
+           <div className="bg-[#08080a] border border-[rgba(168,144,112,0.08)] rounded-md p-3 text-center">
+             <p className="text-xl sm:text-2xl font-bold text-green">{profile.taskCounts["COMPLETED"] || 0}</p>
+             <p className="text-[10px] text-zinc-500 mt-1">Completed</p>
+           </div>
 
-          {/* Total Tasks */}
-          <div className="bg-[#08080a] border border-[rgba(168,144,112,0.08)] rounded-md p-4 text-center">
-            <p className="text-2xl font-bold text-zinc-100">
-              {Object.values(profile.taskCounts).reduce((a, b) => a + b, 0)}
-            </p>
-            <p className="text-xs text-zinc-500 mt-1">Total Tasks</p>
-          </div>
+           {/* Total Tasks */}
+           <div className="bg-[#08080a] border border-[rgba(168,144,112,0.08)] rounded-md p-3 text-center">
+             <p className="text-xl sm:text-2xl font-bold text-zinc-100">
+               {Object.values(profile.taskCounts).reduce((a, b) => a + b, 0)}
+             </p>
+             <p className="text-[10px] text-zinc-500 mt-1">Total Tasks</p>
+           </div>
         </div>
       </div>
     </div>

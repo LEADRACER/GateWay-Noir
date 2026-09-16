@@ -22,26 +22,50 @@
   --blue-dim: rgba(37, 99, 235, 0.18);
 }
 
-/* 80% width container */
+/* 80% width container — responsive across all breakpoints */
 .max-w-7xl {
-  max-width: 80% !important;
+  max-width: 100%;
+}
+@media (min-width: 640px) {
+  .max-w-7xl {
+    max-width: 100%;
+  }
+}
+@media (min-width: 1024px) {
+  .max-w-7xl {
+    max-width: 80%;
+  }
+}
+.max-w-8xl {
+  max-width: 100%;
+}
+@media (min-width: 1024px) {
+  .max-w-8xl {
+    max-width: 100%;
+  }
 }
 
-/* ── MOBILE RESPONSIVE ── */
+/* ── MOBILE RESPONSIVE PATCHES ── */
 @media (max-width: 640px) {
-  /* Override 80% containers to full width on mobile */
-  [style*="max-width: 80"] {
-    max-width: 100% !important;
+  /* Override px-4 with inline styles to tighten margins on tiny screens */
+  [style*="max-width"] {
     padding-left: 0.75rem !important;
     padding-right: 0.75rem !important;
   }
-  /* Override inline px-4 to tighten margins on tiny screens */
   .case-file, .case-file-card {
     border-width: 1px;
   }
+  html {
+    /* Fix mobile viewport height (avoids 100vh issues with browser chrome) */
+    height: 100dvh;
+    height: 100vh;
+  }
 }
 @media (min-width: 641px) and (max-width: 1024px) {
-  [style*="max-width: 80"] {
+  .max-w-7xl, .max-w-8xl {
+    max-width: 95%;
+  }
+  [style*="max-width"] {
     max-width: 95% !important;
   }
 }
@@ -368,4 +392,81 @@ input::placeholder, textarea::placeholder {
   text-transform: uppercase;
   border-radius: 0;
   border: 1px solid;
+}
+
+/* ═══════════════════════════════════════
+   MOBILE & TABLET OPTIMISATIONS
+   ═══════════════════════════════════════ */
+
+/* Prevent elastic scrolling / bounce on mobile */
+body {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* Fix mobile browser address bar height issues */
+@supports (height: 1dvh) {
+  .h-screen {
+    height: 100dvh;
+  }
+  .min-h-screen {
+    min-height: 100dvh;
+  }
+}
+
+/* Prevent accidental text selection / context menu on tap for interactive elements */
+button, a, [role="button"] {
+  -webkit-tap-highlight-color: rgba(217, 119, 6, 0.15);
+  user-select: none;
+}
+
+/* Ensure inputs don't trigger zoom on iOS (minimum 16px font) */
+@media (hover: none) and (pointer: coarse) {
+  input, textarea, select {
+    font-size: 16px !important;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+/* Larger tap targets on mobile for buttons and links */
+@media (max-width: 768px) {
+  button, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  /* But don't force tiny icon-only buttons to be huge — use padding instead */
+  button:not([class*="w-"]):not([class*="h-"]) {
+    min-height: 44px;
+  }
+  button.inline-flex {
+    min-height: 40px;
+  }
+  a.inline-flex {
+    min-height: 40px;
+  }
+}
+
+/* Wider scrollbar on mobile for easier dragging */
+@media (hover: none) and (pointer: coarse) {
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+}
+
+/* Horizontal scroll for tab bars on mobile */
+.tab-scroll {
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Prevent fixed elements from being too wide on mobile */
+@media (max-width: 640px) {
+  .mobile-full {
+    width: 100% !important;
+    max-width: 100% !important;
+    left: 0 !important;
+    right: 0 !important;
+  }
 }

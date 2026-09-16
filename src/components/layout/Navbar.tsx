@@ -35,7 +35,7 @@ export function Navbar() {
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 border-b-2 border-[rgba(168,144,112,0.15)] bg-[#060608]/95 backdrop-blur-sm shadow-[0_4px_12px_rgba(0,0,0,0.5)]">
-      <div className="mx-auto px-4 sm:px-6 lg:px-8" style={{ maxWidth: '80%' }}>
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-14">
           {/* Left: Logo only */}
           <Link href="/" className="flex items-center gap-2.5 group flex-shrink-0">
@@ -86,11 +86,11 @@ export function Navbar() {
 
             {/* Right: Discussions -> Cases -> New Case */}
             <div className="flex items-center gap-3 flex-shrink-0">
-              {(role === "AGENT" || role === "BUREAU") && (
+              {(role === "DETECTIVE" || role === "AGENT" || role === "BUREAU" || !role) && (
                 <Link
                   href="/agent/discussions"
                   className={`${navButtonDefault} hover:text-amber-400`}
-                  title="Agent Discussions"
+                  title="Discussions"
                 >
                   <MessageSquare className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">DISCUSSIONS</span>
@@ -157,7 +157,7 @@ export function Navbar() {
 
             <div className="border-t border-[rgba(168,144,112,0.08)] pt-3 space-y-2">
               {/* Discussions */}
-              {(role === "AGENT" || role === "BUREAU") && (
+              {(role === "DETECTIVE" || role === "AGENT" || role === "BUREAU" || !role) && (
                 <Link
                   href="/agent/discussions"
                   className={`${mobileButtonDefault} hover:text-amber-400`}

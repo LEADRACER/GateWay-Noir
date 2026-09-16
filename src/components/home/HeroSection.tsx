@@ -6,7 +6,7 @@ import { Scale } from "lucide-react";
 export function HeroSection() {
   return (
     <section className="border-b border-[rgba(168,144,112,0.08)] bg-[#0a0a0c]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="flex items-center justify-center w-7 h-7 bg-[#d97706]">

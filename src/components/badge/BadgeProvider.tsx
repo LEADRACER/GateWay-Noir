@@ -1,8 +1,9 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode } from "react";
-import { BadgeUser, checkBadgeStatus, claimBadge, setPassword, verifyPassword, generateBadgeCode } from "@/lib/badge-client";
+import { BadgeUser, checkBadgeStatus, claimBadge, setPassword, verifyPassword, generateBadgeCode, updateBadgeName, registerPhone } from "@/lib/badge-client";
 import { saveBadgeCodeToCookie, getBadgeCodeFromCookie } from "@/lib/badge-cookie";
+import { getBadgeProfileRequirements, isBadgeProfileComplete } from "@/lib/badge-profile";
 
 interface BadgeContextValue {
   badge: BadgeUser | null;
@@ -12,6 +13,8 @@ interface BadgeContextValue {
   setShowBadgeModal: (show: boolean) => void;
   showPasswordModal: boolean;
   setShowPasswordModal: (show: boolean) => void;
+  showProfileModal: boolean;
+  setShowProfileModal: (show: boolean) => void;
   passwordVerified: boolean;
   claimCode: (code: string, password?: string) => Promise<{ success: boolean; error?: string }>;
   generateBadge: () => Promise<{ success: boolean; user?: BadgeUser; error?: string }>;
@@ -19,6 +22,9 @@ interface BadgeContextValue {
   updateBadge: (updates: Partial<BadgeUser>) => void;
   handleSetPassword: (password: string) => Promise<{ success: boolean; error?: string }>;
   handleVerifyPassword: (password: string) => Promise<{ success: boolean; error?: string }>;
+  updateProfile: (displayName?: string, phone?: string) => Promise<{ success: boolean; error?: string; needsName?: boolean; needsPhone?: boolean }>;
+  checkProfileComplete: () => boolean;
+  getProfileRequirements: () => { needsName: boolean; needsPhone: boolean };
 }
 
 const BadgeContext = createContext<BadgeContextValue>({
@@ -29,6 +35,8 @@ const BadgeContext = createContext<BadgeContextValue>({
   setShowBadgeModal: () => {},
   showPasswordModal: false,
   setShowPasswordModal: () => {},
+  showProfileModal: false,
+  setShowProfileModal: () => {},
   passwordVerified: false,
   claimCode: async () => ({ success: false }),
   generateBadge: async () => ({ success: false }),
@@ -36,6 +44,9 @@ const BadgeContext = createContext<BadgeContextValue>({
   updateBadge: () => {},
   handleSetPassword: async () => ({ success: false }),
   handleVerifyPassword: async () => ({ success: false }),
+  updateProfile: async () => ({ success: false, error: "Not initialized" }),
+  checkProfileComplete: () => false,
+  getProfileRequirements: () => ({ needsName: false, needsPhone: false }),
 });
 
 const PASSWORD_VERIFIED_KEY = "noirgateway_pw_verified";
@@ -51,6 +62,7 @@ export function BadgeProvider({ children, initialUser }: { children: ReactNode; 
   const [isNew, setIsNew] = useState(false);
   const [showBadgeModal, setShowBadgeModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
   const [passwordVerified, setPasswordVerified] = useState(!!initialUser);
   const hasServerSeed = useRef(!!initialUser);
 
@@ -103,11 +115,101 @@ export function BadgeProvider({ children, initialUser }: { children: ReactNode; 
       if (status.isNew) {
         setShowBadgeModal(true);
       }
+
+      // Check if agent needs profile completion
+      if (status.user.role === "AGENT" && !isBadgeProfileComplete(status.user)) {
+        setShowProfileModal(true);
+      }
     } else if (!hasServerSeed.current) {
       setBadge(null);
     }
     setLoading(false);
   }, []);
+
+  const checkProfileComplete = useCallback(() => {
+    if (!badge) return false;
+    return isBadgeProfileComplete(badge);
+  }, [badge]);
+
+  const getProfileRequirements = useCallback(() => {
+    if (!badge) return { needsName: false, needsPhone: false };
+    return getBadgeProfileRequirements(badge);
+  }, [badge]);
+
+  const updateProfile = useCallback(async (displayName?: string, phone?: string) => {
+    if (!badge) return { success: false, error: "No badge" };
+
+    const requirements = getBadgeProfileRequirements(badge);
+    const errors: string[] = [];
+
+    if (displayName !== undefined) {
+      if (requirements.needsName) {
+        if (!displayName || displayName.length > 40 || displayName === "Detective" || displayName === "Agent" || displayName === "Field Agent" || displayName === "Bureau Chief" || displayName === "Anonymous") {
+          errors.push("Choose a unique display name (1-40 characters)");
+        }
+      }
+    }
+
+    if (phone !== undefined) {
+      if (requirements.needsPhone) {
+        if (phone) {
+          const { normalizePhone } = await import("@/lib/phone");
+          const normalized = normalizePhone(phone);
+          if (!normalized) {
+            errors.push("Enter a valid phone number, with or without +91");
+          }
+        }
+      }
+    }
+
+    if (errors.length > 0) {
+      return { success: false, error: errors[0], needsName: requirements.needsName, needsPhone: requirements.needsPhone };
+    }
+
+    const updates: Record<string, string> = {};
+    if (displayName !== undefined && requirements.needsName) {
+      updates.displayName = displayName.trim();
+    }
+    if (phone !== undefined && requirements.needsPhone && phone) {
+      const { normalizePhone } = await import("@/lib/phone");
+      const normalized = normalizePhone(phone);
+      if (normalized) updates.phone = normalized;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return { success: true, needsName: false, needsPhone: false };
+    }
+
+    try {
+      // Update via API
+      if (updates.displayName) {
+        const res = await fetch("/api/badge/name", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ badgeCode: badge.badgeCode, displayName: updates.displayName }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to update name");
+      }
+      if (updates.phone) {
+        const res = await fetch("/api/badge/phone", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ badgeCode: badge.badgeCode, phone: updates.phone }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to update phone");
+      }
+
+      // Refresh badge
+      await refreshBadge();
+
+      const newRequirements = getBadgeProfileRequirements({ ...badge, ...updates });
+      return { success: true, needsName: newRequirements.needsName, needsPhone: newRequirements.needsPhone };
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : "Failed to update profile" };
+    }
+  }, [badge]);
 
   useEffect(() => {
     refreshBadge();
@@ -121,6 +223,10 @@ export function BadgeProvider({ children, initialUser }: { children: ReactNode; 
       if (result.user.hasPassword) {
         localStorage.setItem(PASSWORD_VERIFIED_KEY, "true");
         setPasswordVerified(true);
+      }
+      // Check if agent needs profile completion
+      if (result.user.role === "AGENT" && !isBadgeProfileComplete(result.user)) {
+        setShowProfileModal(true);
       }
       return { success: true };
     }
@@ -165,9 +271,11 @@ export function BadgeProvider({ children, initialUser }: { children: ReactNode; 
         badge, loading, isNew,
         showBadgeModal, setShowBadgeModal,
         showPasswordModal, setShowPasswordModal,
+        showProfileModal, setShowProfileModal,
         passwordVerified,
         claimCode, generateBadge, refreshBadge, updateBadge,
         handleSetPassword, handleVerifyPassword,
+        updateProfile, checkProfileComplete, getProfileRequirements,
       }}
     >
       {children}

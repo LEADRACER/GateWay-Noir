@@ -4,6 +4,7 @@ import { ReactNode } from "react";
 import { BadgeProvider } from "@/components/badge/BadgeProvider";
 import { BadgeModal } from "@/components/badge/BadgeModal";
 import { PasswordModal } from "@/components/badge/PasswordModal";
+import { ProfileModal } from "@/components/badge/ProfileModal";
 import { Navbar } from "@/components/layout/Navbar";
 import { RotatingLiquidText } from "@/components/layout/RotatingLiquidText";
 import { Footer } from "@/components/layout/Footer";
@@ -21,6 +22,7 @@ export function ClientLayout({ children, initialUser }: { children: ReactNode; i
       <Footer />
       <BadgeModal />
       <PasswordModal />
+      <ProfileModal />
       <Toaster
         position="bottom-right"
         toastOptions={{

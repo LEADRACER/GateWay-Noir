@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/get-current-user";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
+import { getBadgeProfileRequirements } from "@/lib/badge-profile";
 
 const DEFAULT_NAMES = ["Detective", "Agent", "Field Agent", "Bureau Chief", "Anonymous"];
 
@@ -54,7 +55,7 @@ export async function POST(request: NextRequest) {
 
     const { data: user, error: findError } = await supabase
       .from('User')
-      .select("id, badgeCode, role")
+      .select("id, badgeCode, role, displayName, phone")
       .eq("badgeCode", badgeCode)
       .maybeSingle();
 
@@ -79,7 +80,9 @@ export async function POST(request: NextRequest) {
 
     if (updateError) throw updateError;
 
-    return NextResponse.json({ success: true, displayName: name });
+    const requirements = getBadgeProfileRequirements(user);
+
+    return NextResponse.json({ success: true, displayName: name, needsName: requirements.needsName, needsPhone: requirements.needsPhone, profileComplete: !requirements.needsName && !requirements.needsPhone });
   } catch (err) {
     console.error("Badge name update error:", err);
     return NextResponse.json(

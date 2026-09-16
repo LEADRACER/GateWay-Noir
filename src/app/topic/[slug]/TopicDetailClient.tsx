@@ -22,11 +22,11 @@ export function TopicDetailClient({ topic }: TopicDetailClientProps) {
   const categoryName = topic.category?.name || "UNCATEGORIZED";
 
   return (
-    <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
       {/* Back Button */}
       <Link
         href="/"
-        className="inline-flex items-center gap-1.5 text-xs text-zinc-600 hover:text-zinc-400 transition-colors mb-4 typewriter-label"
+        className="inline-flex items-center gap-1.5 text-xs text-zinc-600 hover:text-zinc-400 transition-colors mb-4 typewriter-label min-h-[36px]"
       >
         <ArrowLeft className="w-3 h-3" />
         RETURN TO CASE BOARD
@@ -86,9 +86,9 @@ export function TopicDetailClient({ topic }: TopicDetailClientProps) {
                 </p>
               </div>
 
-              {/* Timer Section */}
-              <div className="mx-5 sm:mx-6 mb-5">
-                <div className="bg-[#0a0a0c] border border-[rgba(168,144,112,0.06)] p-4">
+               {/* Timer Section */}
+               <div className="mx-4 sm:mx-6 mb-4 sm:mb-5">
+                 <div className="bg-[#0a0a0c] border border-[rgba(168,144,112,0.06)] p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <Clock className="w-3.5 h-3.5 text-[#d97706] opacity-50" />
                     <h3 className="case-number text-zinc-500">
@@ -99,15 +99,15 @@ export function TopicDetailClient({ topic }: TopicDetailClientProps) {
                 </div>
               </div>
 
-              {/* Verdict Banner */}
-              {isConcluded && topic.verdict && (
-                <div className="mx-5 sm:mx-6 mb-5">
-                  <VerdictBanner verdict={topic.verdict} summary={topic.summary} />
-                </div>
-              )}
+               {/* Verdict Banner */}
+               {isConcluded && topic.verdict && (
+                 <div className="mx-4 sm:mx-6 mb-4 sm:mb-5">
+                   <VerdictBanner verdict={topic.verdict} summary={topic.summary} />
+                 </div>
+               )}
 
-              {/* Witness Statements */}
-              <div className="mx-5 sm:mx-6 mb-5">
+               {/* Witness Statements */}
+               <div className="mx-4 sm:mx-6 mb-4 sm:mb-5">
                 <div className="bg-[#0a0a0c] border border-[rgba(168,144,112,0.06)] p-4">
                   <CommentSection
                     topicId={topic.id}
@@ -129,18 +129,17 @@ export function TopicDetailClient({ topic }: TopicDetailClientProps) {
             </div>
           </main>
 
-          {/* Right Sidebar - Evidence Archive */}
-          <aside className="lg:sticky lg:top-24 space-y-6">
-            <div className="bg-[#0a0a0c] border border-[rgba(168,144,112,0.06)] p-4">
-              <div className="flex items-center gap-2 mb-4">
-                <BookOpen className="w-4 h-4 text-[#d97706] opacity-50" />
-                <h3 className="text-xs font-semibold text-zinc-400 typewriter-label tracking-wide">
-                  EVIDENCE ARCHIVE
-                </h3>
-              </div>
-              <EvidenceSection topicId={topic.id} topicEvidence={topic.evidence} />
-            </div>
-          </aside>
+           <aside className="lg:sticky lg:top-24 space-y-6">
+             <div className="bg-[#0a0a0c] border border-[rgba(168,144,112,0.06]) p-4">
+               <div className="flex items-center gap-2 mb-4">
+                 <BookOpen className="w-4 h-4 text-[#d97706] opacity-50" />
+                 <h3 className="text-xs font-semibold text-zinc-400 typewriter-label tracking-wide">
+                   EVIDENCE ARCHIVE
+                 </h3>
+               </div>
+               <EvidenceSection topicId={topic.id} topicEvidence={topic.evidence} />
+             </div>
+           </aside>
         </div>
       </motion.div>
     </div>

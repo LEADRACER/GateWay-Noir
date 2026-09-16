@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { setSessionCookie } from "@/lib/session-cookie";
+import { getBadgeProfileRequirements } from "@/lib/badge-profile";
 
 export async function POST(request: NextRequest) {
   try {
@@ -54,6 +55,8 @@ export async function POST(request: NextRequest) {
 
     revalidatePath("/admin");
 
+    const requirements = getBadgeProfileRequirements(user);
+
     const res = NextResponse.json({
       success: true,
       user: {
@@ -61,6 +64,10 @@ export async function POST(request: NextRequest) {
         badgeCode: user.badgeCode,
         displayName: user.displayName,
         role: user.role,
+        phone: user.phone,
+        needsName: requirements.needsName,
+        needsPhone: requirements.needsPhone,
+        profileComplete: !requirements.needsName && !requirements.needsPhone,
       },
     });
     res.headers.set("Set-Cookie", setSessionCookie(user.badgeCode));

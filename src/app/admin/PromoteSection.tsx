@@ -131,7 +131,7 @@ export function PromoteSection({
               <button
                 onClick={() => handlePromoteClick(agent.id)}
                 disabled={promoting === agent.id}
-                className="px-2.5 py-1 text-[10px] font-medium text-amber-400/80 border border-amber-600/30 rounded hover:bg-amber-900/30 hover:text-amber-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors typewriter-label shrink-0"
+                 className="px-2.5 py-1 text-[10px] font-medium text-amber-400/80 border border-amber-600/30 rounded hover:bg-amber-900/30 hover:text-amber-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors typewriter-label shrink-0 min-h-[44px] flex items-center justify-center"
               >
                 {promoting === agent.id ? (
                   <Loader2 className="w-3 h-3 animate-spin" />

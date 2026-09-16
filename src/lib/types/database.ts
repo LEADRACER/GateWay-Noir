@@ -27,7 +27,8 @@ export interface AgentDiscussion {
   title: string;
   description: string | null;
   isOpen: boolean;
-  visibility: "all" | "invited";
+  visibility: "bru_only" | "bru_agt" | "bru_agt_det" | "all";
+  spectatorVisibility: "participants_only" | "all";
   summary: string | null;
   createdById: string;
   createdAt: string;

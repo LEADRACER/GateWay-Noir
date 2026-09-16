@@ -15,6 +15,7 @@ import { registerPhone } from "@/lib/badge-client";
 import { getAgentProfile, updateAgentProfile } from "@/lib/profile-actions";
 import { getAgentTasks, updateTaskStatus } from "@/lib/task-actions";
 import { getAgentDiscussions } from "@/lib/discussion-actions";
+import { getAudienceLabel, type DiscussionAudience, type SpectatorVisibility } from "@/lib/discussion-access";
 import { formatDate } from "@/lib/utils";
 import { BadgeCard } from "@/components/badge/BadgeCard";
 import { RoleAvatar } from "@/components/badge/RoleAvatar";
@@ -35,7 +36,8 @@ interface Discussion {
   title: string;
   description: string | null;
   isOpen: boolean;
-  visibility: "all" | "invited";
+  visibility: DiscussionAudience;
+  spectatorVisibility: SpectatorVisibility;
   createdById: string;
   createdAt: string;
   updatedAt: string;
@@ -238,7 +240,7 @@ export function AgentHQ() {
 
   if (loading) {
     return (
-      <div className="max-w-2xl mx-auto py-16 text-center">
+      <div className="max-w-2xl mx-auto px-4 py-16 text-center">
         <p className="text-zinc-500 text-sm">Loading...</p>
       </div>
     );
@@ -246,17 +248,17 @@ export function AgentHQ() {
 
   if (!badge) {
     return (
-      <div className="max-w-2xl mx-auto py-16 text-center">
+      <div className="max-w-2xl mx-auto px-4 py-16 text-center">
         <p className="text-zinc-500 text-sm">No badge linked. Claim a badge first.</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4 max-w-2xl">
+    <div className="space-y-4 w-full max-w-2xl mx-auto px-4 sm:px-6">
       {/* Notifications */}
       {notifications.length > 0 && (
-        <div className="fixed top-4 right-4 z-50 space-y-2 max-w-sm">
+        <div className="fixed top-4 right-4 z-50 space-y-2 max-w-xs w-full sm:max-w-sm">
           {notifications.map(n => (
             <motion.div
               key={n.id}
@@ -316,11 +318,11 @@ export function AgentHQ() {
         )}
       </motion.div>
 
-      {/* Tab navigation */}
-      <div className="flex items-center gap-1 bg-[#111113] border border-[rgba(168,144,112,0.08)] p-1">
+      {/* Tab navigation — scrollable on mobile */}
+      <div className="tab-scroll -mx-4 sm:mx-0 flex items-center gap-1 bg-[#111113] border border-[rgba(168,144,112,0.08)] p-1 overflow-x-auto">
         <button
           onClick={() => setActiveTab("tasks")}
-          className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium typewriter-label transition-colors ${
+          className={`flex items-center justify-center gap-1.5 px-3 py-1.5 text-[9px] sm:text-[10px] font-medium typewriter-label transition-colors whitespace-nowrap ${
             activeTab === "tasks"
               ? "bg-[#0d0d0f] text-zinc-200 border border-[rgba(168,144,112,0.12)]"
               : "text-zinc-600 hover:text-zinc-400 border border-transparent"
@@ -336,7 +338,7 @@ export function AgentHQ() {
         </button>
         <button
           onClick={() => setActiveTab("discussions")}
-          className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium typewriter-label transition-colors ${
+          className={`flex items-center justify-center gap-1.5 px-3 py-1.5 text-[9px] sm:text-[10px] font-medium typewriter-label transition-colors whitespace-nowrap ${
             activeTab === "discussions"
               ? "bg-[#0d0d0f] text-zinc-200 border border-[rgba(168,144,112,0.12)]"
               : "text-zinc-600 hover:text-zinc-400 border border-transparent"
@@ -352,7 +354,7 @@ export function AgentHQ() {
         </button>
         <button
           onClick={() => setActiveTab("analytics")}
-          className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium typewriter-label transition-colors ${
+          className={`flex items-center justify-center gap-1.5 px-3 py-1.5 text-[9px] sm:text-[10px] font-medium typewriter-label transition-colors whitespace-nowrap ${
             activeTab === "analytics"
               ? "bg-[#0d0d0f] text-zinc-200 border border-[rgba(168,144,112,0.12)]"
               : "text-zinc-600 hover:text-zinc-400 border border-transparent"
@@ -363,7 +365,7 @@ export function AgentHQ() {
         </button>
         <button
           onClick={() => setActiveTab("profile")}
-          className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium typewriter-label transition-colors ${
+          className={`flex items-center justify-center gap-1.5 px-3 py-1.5 text-[9px] sm:text-[10px] font-medium typewriter-label transition-colors whitespace-nowrap ${
             activeTab === "profile"
               ? "bg-[#0d0d0f] text-zinc-200 border border-[rgba(168,144,112,0.12)]"
               : "text-zinc-600 hover:text-zinc-400 border border-transparent"
@@ -379,7 +381,7 @@ export function AgentHQ() {
             placeholder="Search..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="bg-[#0a0a0c] border border-[rgba(168,144,112,0.08)] px-2 py-1 text-[10px] text-zinc-300 rounded outline-none focus:border-[#d97706]/30 placeholder:text-zinc-700 w-40"
+            className="bg-[#0a0a0c] border border-[rgba(168,144,112,0.08)] px-2 py-1 text-[10px] text-zinc-300 rounded outline-none focus:border-[#d97706]/30 placeholder:text-zinc-700 w-32 sm:w-40"
           />
           <select
             value={statusFilter}
@@ -501,13 +503,22 @@ export function AgentHQ() {
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className={`inline-flex items-center px-1.5 py-0.5 text-[8px] font-medium rounded typewriter-label ${
-                            d.visibility === "all"
+                          <span className={`inline-flex items-center px-1.5 py-0.5 text-[8px] font-medium rounded border typewriter-label ${
+                            d.visibility === "bru_only"
+                              ? "bg-amber-500/20 text-amber-400 border border-amber-500/20"
+                              : d.visibility === "bru_agt"
                               ? "bg-blue-500/20 text-blue-400 border border-blue-500/20"
-                              : "bg-amber-500/20 text-amber-400 border border-amber-500/20"
+                              : d.visibility === "bru_agt_det"
+                              ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/20"
+                              : "bg-violet-500/20 text-violet-400 border border-violet-500/20"
                           }`}>
-                            {d.visibility.toUpperCase()}
+                            {getAudienceLabel(d.visibility)}
                           </span>
+                          {d.spectatorVisibility === "all" && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 text-[8px] font-medium rounded border bg-violet-500/15 text-violet-400 border-violet-500/25 typewriter-label">
+                              SPECTATOR
+                            </span>
+                          )}
                           {d.isOpen && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" title="Open" />}
                           {!d.isOpen && <span className="w-1.5 h-1.5 rounded-full bg-zinc-500" title="Closed" />}
                         </div>
@@ -704,24 +715,24 @@ export function AgentHQ() {
                 <span className="typewriter-label">{maskPhone(badge.phone)}</span>
               </div>
             ) : (
-              <div className="flex gap-2">
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+1 (555) 000-0000"
-                  className="flex-1 bg-[#08080a] border border-[rgba(168,144,112,0.15)] rounded px-2.5 py-1.5 text-xs font-mono text-zinc-300 outline-none focus:border-[#d97706]/40 placeholder:text-zinc-700"
-                  onKeyDown={(e) => e.key === "Enter" && handlePhoneRegister()}
-                />
-                <button
-                  onClick={handlePhoneRegister}
-                  disabled={phoneSaving || phone.trim().length < 7}
-                  className="px-3 py-1.5 bg-[#d97706]/20 border border-[#d97706]/30 text-[10px] text-[#d97706] typewriter-label hover:bg-[#d97706]/30 disabled:opacity-40 transition-all"
-                >
-                  {phoneSaving ? "..." : "SAVE"}
-                </button>
-              </div>
-            )}
+               <div className="flex flex-col sm:flex-row gap-2">
+                 <input
+                   type="tel"
+                   value={phone}
+                   onChange={(e) => setPhone(e.target.value)}
+                   placeholder="+1 (555) 000-0000"
+                   className="flex-1 bg-[#08080a] border border-[rgba(168,144,112,0.15)] rounded px-2.5 py-1.5 text-xs font-mono text-zinc-300 outline-none focus:border-[#d97706]/40 placeholder:text-zinc-700"
+                   onKeyDown={(e) => e.key === "Enter" && handlePhoneRegister()}
+                 />
+                 <button
+                   onClick={handlePhoneRegister}
+                   disabled={phoneSaving || phone.trim().length < 7}
+                   className="px-3 py-1.5 bg-[#d97706]/20 border border-[#d97706]/30 text-[10px] text-[#d97706] typewriter-label hover:bg-[#d97706]/30 disabled:opacity-40 transition-all min-h-[44px] justify-center sm:justify-normal"
+                 >
+                   {phoneSaving ? "..." : "SAVE"}
+                 </button>
+               </div>
+             )}
             {phoneError && <p className="flex items-center gap-1 text-[9px] text-red-400/80 mt-1.5"><AlertCircle className="w-2.5 h-2.5" />{phoneError}</p>}
             {phoneSuccess && <p className="flex items-center gap-1 text-[9px] text-green-400/80 mt-1.5"><CheckCircle className="w-2.5 h-2.5" />Phone registered</p>}
           </div>

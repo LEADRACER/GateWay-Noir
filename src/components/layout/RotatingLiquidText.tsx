@@ -42,7 +42,7 @@ export function RotatingLiquidText() {
       {/* Liquid ripple line */}
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#d97706]/20 to-transparent" />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-center h-8">
           {/* Decorative dot */}
           <span className="w-1 h-1 rounded-full bg-[#d97706]/30 mr-3 flex-shrink-0" />

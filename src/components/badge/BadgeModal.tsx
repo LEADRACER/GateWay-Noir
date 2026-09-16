@@ -237,7 +237,7 @@ export function BadgeModal() {
                     <button
                       onClick={handleNameSubmit}
                       disabled={nameSaving || !nameInput.trim()}
-                      className="px-3 py-1.5 bg-[#d97706]/20 border border-[#d97706]/30 text-[10px] text-[#d97706] typewriter-label hover:bg-[#d97706]/30 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                      className="px-3 py-1.5 bg-[#d97706]/20 border border-[#d97706]/30 text-[10px] text-[#d97706] typewriter-label hover:bg-[#d97706]/30 disabled:opacity-40 disabled:cursor-not-allowed transition-all min-h-[44px] flex items-center justify-center"
                     >
                       {nameSaving ? "..." : "SET NAME & DOWNLOAD"}
                     </button>
@@ -304,7 +304,7 @@ export function BadgeModal() {
                     <button
                       onClick={handlePhoneRegister}
                       disabled={phoneSaving || phone.trim().length < 7}
-                      className="px-3 py-1.5 bg-[#d97706]/20 border border-[#d97706]/30 text-[10px] text-[#d97706] typewriter-label hover:bg-[#d97706]/30 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                      className="px-3 py-1.5 bg-[#d97706]/20 border border-[#d97706]/30 text-[10px] text-[#d97706] typewriter-label hover:bg-[#d97706]/30 disabled:opacity-40 disabled:cursor-not-allowed transition-all min-h-[44px] flex items-center justify-center"
                     >
                       {phoneSaving ? "..." : "SAVE"}
                     </button>
@@ -354,7 +354,7 @@ export function BadgeModal() {
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-400 transition-colors"
+                      className="absolute right-1 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-400 transition-colors p-1.5 min-w-[44px] min-h-[44px] flex items-center justify-center"
                       tabIndex={-1}
                     >
                       {showPassword ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
@@ -417,7 +417,7 @@ export function BadgeModal() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-400 transition-colors"
+                     className="absolute right-1 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-400 transition-colors p-1.5 min-w-[44px] min-h-[44px] flex items-center justify-center"
                     tabIndex={-1}
                   >
                     {showPassword ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
@@ -519,7 +519,7 @@ export function BadgeModal() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-400 transition-colors"
+                     className="absolute right-1 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-400 transition-colors p-1.5 min-w-[44px] min-h-[44px] flex items-center justify-center"
                     tabIndex={-1}
                   >
                     {showPassword ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}

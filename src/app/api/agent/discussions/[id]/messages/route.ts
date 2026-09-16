@@ -1,96 +1,142 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/get-current-user";
+import {
+  canDiscussDiscussion,
+  canViewDiscussion,
+  isDiscussionAudience,
+  isSpectatorVisibility,
+} from "@/lib/discussion-access";
 
-// Check if user has access to discussion
-async function checkDiscussionAccess(supabase: any, user: any, discussion: any): Promise<boolean> {
-  // BUREAU has access to everything
-  if (user.role === "BUREAU") return true;
+const DISCUSSION_ROLES = new Set(["DETECTIVE", "AGENT", "BUREAU"]);
 
-  // Creator has access
-  if (discussion.createdById === user.id) return true;
-
-  // For visibility='all', all DETECTIVE, AGENT, BUREAU have access
-  if (discussion.visibility === 'all') return true;
-
-  // For visibility='agents', AGENT and BUREAU have access
-  if (discussion.visibility === 'agents' && (user.role === 'AGENT' || user.role === 'BUREAU')) return true;
-
-  // For visibility='invited', check if user is participant
-  const { data: participant } = await supabase
-    .from('DiscussionParticipant')
-    .select('id')
-    .eq('discussionId', discussion.id)
-    .eq('userId', user.id)
+async function isParticipant(
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
+  userId: string,
+  discussionId: string,
+) {
+  const { data } = await supabase
+    .from("DiscussionParticipant")
+    .select("id")
+    .eq("discussionId", discussionId)
+    .eq("userId", userId)
     .maybeSingle();
-
-  return !!participant;
+  return Boolean(data);
 }
 
-// GET /api/agent/discussions/[id]/messages — get messages for a discussion
+function canView(
+  user: Awaited<ReturnType<typeof getCurrentUser>>,
+  discussion: {
+    visibility: unknown;
+    spectatorVisibility: unknown;
+    createdById: string;
+    id: string;
+  },
+  participant: boolean,
+) {
+  return canViewDiscussion({
+    role: user?.role ?? null,
+    audience: isDiscussionAudience(discussion.visibility) ? discussion.visibility : "bru_agt_det",
+    spectatorVisibility: isSpectatorVisibility(discussion.spectatorVisibility)
+      ? discussion.spectatorVisibility
+      : "participants_only",
+    isParticipant: participant,
+    isCreator: discussion.createdById === user?.id,
+  });
+}
+
 export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
   const user = await getCurrentUser();
-  if (!user || (user.role !== "DETECTIVE" && user.role !== "AGENT" && user.role !== "BUREAU")) {
+  if (user && !DISCUSSION_ROLES.has(user.role)) {
     return NextResponse.json({ error: "Not authorized" }, { status: 403 });
   }
 
   const supabase = await createServerSupabaseClient();
-
-  const { data: discussion } = await supabase
-    .from('AgentDiscussion')
-    .select("id, title, description, isOpen, visibility, summary, createdById, updatedAt, createdAt")
+  const { data: discussion, error: discussionError } = await supabase
+    .from("AgentDiscussion")
+    .select(
+      `id, title, description, "isOpen", visibility, "spectatorVisibility", summary, "createdById", "updatedAt", "createdAt"`,
+    )
     .eq("id", id)
     .maybeSingle();
 
-  if (!discussion) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (discussionError || !discussion) {
+    return NextResponse.json(
+      { error: discussionError ? "Failed to load discussion" : "Discussion not found" },
+      { status: discussionError ? 500 : 404 },
+    );
   }
 
-  // Check access
-  const hasAccess = await checkDiscussionAccess(supabase, user, discussion);
-  if (!hasAccess) {
+  const participant = user ? await isParticipant(supabase, user.id, id) : false;
+  if (!canView(user, discussion, participant)) {
     return NextResponse.json({ error: "Not authorized to view this discussion" }, { status: 403 });
   }
 
-  const { data: messages } = await supabase
-    .from('AgentDiscussionMessage')
-    .select('*, user:User(badgeCode, displayName, role)')
+  const { data: messages, error: messagesError } = await supabase
+    .from("AgentDiscussionMessage")
+    .select("*, user:User(badgeCode, displayName, role)")
     .eq("discussionId", id)
     .order("createdAt", { ascending: true });
 
-  return NextResponse.json({ discussion, messages: messages || [] });
+  if (messagesError) {
+    return NextResponse.json({ error: "Failed to load messages" }, { status: 500 });
+  }
+
+  return NextResponse.json({
+    discussion,
+    messages: messages || [],
+    canDiscuss: user
+      ? canDiscussDiscussion({
+          role: user.role,
+          audience: isDiscussionAudience(discussion.visibility)
+            ? discussion.visibility
+            : "bru_agt_det",
+          isParticipant: participant,
+          isCreator: discussion.createdById === user.id,
+        })
+      : false,
+  });
 }
 
-// POST /api/agent/discussions/[id]/messages — post a message
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
   const user = await getCurrentUser();
-  if (!user || (user.role !== "DETECTIVE" && user.role !== "AGENT" && user.role !== "BUREAU")) {
+  if (!user || !DISCUSSION_ROLES.has(user.role)) {
     return NextResponse.json({ error: "Not authorized" }, { status: 403 });
   }
 
   const supabase = await createServerSupabaseClient();
-
-  const { data: discussion } = await supabase
-    .from('AgentDiscussion')
-    .select("id, isOpen, visibility, createdById")
+  const { data: discussion, error: discussionError } = await supabase
+    .from("AgentDiscussion")
+    .select(`id, "isOpen", visibility, "spectatorVisibility", "createdById"`)
     .eq("id", id)
     .maybeSingle();
 
-  if (!discussion) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (discussionError || !discussion) {
+    return NextResponse.json(
+      { error: discussionError ? "Failed to load discussion" : "Discussion not found" },
+      { status: discussionError ? 500 : 404 },
+    );
   }
 
-  // Check access for posting
-  const hasAccess = await checkDiscussionAccess(supabase, user, discussion);
-  if (!hasAccess) {
+  const participant = await isParticipant(supabase, user.id, id);
+  if (
+    !canDiscussDiscussion({
+      role: user.role,
+      audience: isDiscussionAudience(discussion.visibility)
+        ? discussion.visibility
+        : "bru_agt_det",
+      isParticipant: participant,
+      isCreator: discussion.createdById === user.id,
+    })
+  ) {
     return NextResponse.json({ error: "Not authorized to post in this discussion" }, { status: 403 });
   }
 
@@ -98,33 +144,43 @@ export async function POST(
     return NextResponse.json({ error: "Discussion is closed" }, { status: 400 });
   }
 
-  const { content } = await req.json();
-  if (!content?.trim()) {
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
+
+  const requestBody = body as Record<string, unknown>;
+  const rawContent = requestBody.content;
+  const content = typeof rawContent === "string" ? rawContent.trim() : "";
+  if (!content) {
     return NextResponse.json({ error: "Message is required" }, { status: 400 });
   }
-  if (content.trim().length > 5000) {
+  if (content.length > 5000) {
     return NextResponse.json({ error: "Message too long (max 5000 chars)" }, { status: 400 });
   }
 
   const { data: message, error: insertError } = await supabase
-    .from('AgentDiscussionMessage')
+    .from("AgentDiscussionMessage")
     .insert({
       discussionId: id,
-      content: content.trim(),
+      content,
       userId: user.id,
     })
-    .select('*, user:User(badgeCode, displayName, role)')
+    .select("*, user:User(badgeCode, displayName, role)")
     .single();
 
-  // SECURITY/BUG: check insert errors — no silent fake success
-  if (insertError) {
-    console.error("Failed to send message:", insertError);
+  if (insertError || !message) {
     return NextResponse.json({ error: "Failed to send message" }, { status: 500 });
   }
 
-  // Touch the discussion's updatedAt
   await supabase
-    .from('AgentDiscussion')
+    .from("AgentDiscussion")
     .update({ updatedAt: new Date().toISOString() })
     .eq("id", id);
 

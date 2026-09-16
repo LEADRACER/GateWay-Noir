@@ -9,6 +9,9 @@ export interface BadgeUser {
   handler?: string;
   hasPassword?: boolean;
   isAdmin?: boolean;
+  needsName?: boolean;
+  needsPhone?: boolean;
+  profileComplete?: boolean;
   voteCount?: number;
   commentCount?: number;
   createdAt?: string;
@@ -52,9 +55,16 @@ export async function generateBadgeCode(): Promise<{
   }
 }
 
-export async function claimBadge(badgeCode: string, password?: string): Promise<{
+export async function claimBadge(
+  badgeCode: string,
+  password?: string,
+  profile?: { displayName?: string; phone?: string },
+): Promise<{
   success: boolean;
   alreadyClaimed?: boolean;
+  requiresProfile?: boolean;
+  needsName?: boolean;
+  needsPhone?: boolean;
   error?: string;
   user?: BadgeUser;
 }> {
@@ -65,7 +75,7 @@ export async function claimBadge(badgeCode: string, password?: string): Promise<
     const res = await fetch("/api/badge/claim", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ badgeCode, anonymousId, password }),
+      body: JSON.stringify({ badgeCode, anonymousId, password, ...profile }),
     });
     return await res.json();
   } catch {

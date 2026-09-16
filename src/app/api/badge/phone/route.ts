@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/get-current-user";
 import { normalizePhone } from "@/lib/phone";
 import { getHandlerBadgeInfo } from "@/lib/handler";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
+import { getBadgeProfileRequirements } from "@/lib/badge-profile";
 
 export async function POST(request: NextRequest) {
   try {
@@ -53,10 +54,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 403 });
     }
 
-    await supabase
+    const { data: updated, error: updateError } = await supabase
       .from('User')
       .update({ phone: normalized, whatsappId: null })
-      .eq("badgeCode", badgeCode);
+      .eq("badgeCode", badgeCode)
+      .select("displayName, phone")
+      .single();
+
+    if (updateError || !updated) {
+      return NextResponse.json({ success: false, error: "Failed to register phone" });
+    }
+
+    const requirements = getBadgeProfileRequirements(updated);
 
     // Resolve the agent's handler to the handler's BADGE code — the identifier
     // used for display and WA addressing in agent-facing flows.

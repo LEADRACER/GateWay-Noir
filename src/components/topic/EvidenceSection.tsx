@@ -49,7 +49,7 @@ export function EvidenceSection({ topicId, topicEvidence }: EvidenceSectionProps
     <motion.div
       initial={{ opacity: 0, height: 0 }}
       animate={{ opacity: 1, height: "auto" }}
-      className="mx-5 sm:mx-6 mb-5"
+      className="mx-0 sm:mx-5 lg:mx-6 mb-4 sm:mb-5"
     >
       <div className="bg-[#0a0a0c] border border-[rgba(168,144,112,0.06)] overflow-hidden">
         <button

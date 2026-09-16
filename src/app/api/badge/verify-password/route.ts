@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { setSessionCookie } from "@/lib/session-cookie";
+import { getBadgeProfileRequirements } from "@/lib/badge-profile";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
@@ -63,6 +64,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const requirements = getBadgeProfileRequirements(user);
+
     const res = NextResponse.json({
       success: true,
       user: {
@@ -73,6 +76,9 @@ export async function POST(request: NextRequest) {
         phone: user.phone,
         handler: user.handler,
         hasPassword: !!user.passwordHash,
+        needsName: requirements.needsName,
+        needsPhone: requirements.needsPhone,
+        profileComplete: !requirements.needsName && !requirements.needsPhone,
       },
     });
     res.headers.set("Set-Cookie", setSessionCookie(user.badgeCode));

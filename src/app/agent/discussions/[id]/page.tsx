@@ -19,16 +19,19 @@ import {
   UserPlus,
   UserMinus,
   ChevronDown,
+  Eye,
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import toast from "react-hot-toast";
+import type { DiscussionAudience, SpectatorVisibility } from "@/lib/discussion-access";
 
 interface Discussion {
   id: string;
   title: string;
   description: string | null;
   isOpen: boolean;
-  visibility: "all" | "agents" | "invited";
+  visibility: DiscussionAudience;
+  spectatorVisibility: SpectatorVisibility;
   summary: string | null;
   createdById: string;
   createdAt: string;
@@ -52,7 +55,7 @@ interface Agent {
 interface Participant {
   id: string;
   userId: string;
-  user: Agent;
+  user: Agent | null;
   joinedAt: string;
 }
 
@@ -71,6 +74,9 @@ export default function DiscussionDetailPage() {
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
+  const [editVisibility, setEditVisibility] = useState<DiscussionAudience>("bru_agt_det");
+  const [editSpectatorVisibility, setEditSpectatorVisibility] = useState<SpectatorVisibility>("participants_only");
+  const [canDiscuss, setCanDiscuss] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // Reopen confirmation (prevents accidental data loss)
@@ -115,12 +121,14 @@ export default function DiscussionDetailPage() {
 
   // Load participants on mount for BRU
   useEffect(() => {
-    if (!badgeLoading && badge?.role === "BUREAU" && discussion?.visibility === "invited") {
-      loadParticipants();
+    if (!badgeLoading && badge?.role === "BUREAU" && discussion) {
+      queueMicrotask(() => {
+        void loadParticipants();
+      });
     }
-  }, [badgeLoading, badge?.role, discussion?.visibility, loadParticipants]);
+  }, [badgeLoading, badge?.role, discussion, loadParticipants]);
 
-  const fetchMessages = async () => {
+  const fetchMessages = useCallback(async () => {
     try {
       const res = await fetch(`/api/agent/discussions/${params.id}/messages`);
       if (!res.ok) {
@@ -133,16 +141,21 @@ export default function DiscussionDetailPage() {
       const data = await res.json();
       setDiscussion(data.discussion);
       setMessages(data.messages);
+      setCanDiscuss(Boolean(data.canDiscuss));
     } catch {
       setError("Failed to load discussion");
     } finally {
       setLoading(false);
     }
-  };
+  }, [params.id]);
 
   useEffect(() => {
-    if (!badgeLoading) fetchMessages();
-  }, [badgeLoading, params.id]);
+    if (!badgeLoading) {
+      queueMicrotask(() => {
+        void fetchMessages();
+      });
+    }
+  }, [badgeLoading, fetchMessages]);
 
   // Polling for real-time message updates
   useEffect(() => {
@@ -233,20 +246,30 @@ export default function DiscussionDetailPage() {
     if (!discussion) return;
     setEditTitle(discussion.title);
     setEditDescription(discussion.description || "");
+    setEditVisibility(discussion.visibility);
+    setEditSpectatorVisibility(discussion.spectatorVisibility);
     setEditing(true);
   };
 
   const handleSaveEdit = async () => {
-    if (!editTitle.trim() || saving) return;
+    if (!editTitle.trim() || saving || !discussion) return;
     setSaving(true);
     try {
+      const canEditAudience = badge?.role === "AGENT" || badge?.role === "BUREAU";
+      const body: Record<string, unknown> = {
+        title: editTitle.trim(),
+        description: editDescription.trim(),
+      };
+      if (canEditAudience) {
+        body.visibility = editVisibility;
+        if (badge?.role === "BUREAU") {
+          body.spectatorVisibility = editSpectatorVisibility;
+        }
+      }
       const res = await fetch(`/api/agent/discussions/${params.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: editTitle.trim(),
-          description: editDescription.trim(),
-        }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (data.discussion) {
@@ -271,15 +294,6 @@ export default function DiscussionDetailPage() {
     );
   }
 
-  if (!badge || (badge.role !== "DETECTIVE" && badge.role !== "AGENT" && badge.role !== "BUREAU")) {
-    return (
-      <div className="max-w-3xl mx-auto py-16 text-center">
-        <Lock className="w-8 h-8 text-zinc-700 mx-auto mb-3" />
-        <p className="text-zinc-500 text-sm">Not authorized.</p>
-      </div>
-    );
-  }
-
   if (error || !discussion) {
     return (
       <div className="max-w-3xl mx-auto py-16 text-center">
@@ -294,15 +308,16 @@ export default function DiscussionDetailPage() {
     );
   }
 
-  const canClose = discussion.createdById === badge.id || badge.role === "BUREAU";
+  const canClose = discussion.createdById === badge?.id || badge?.role === "BUREAU" || badge?.role === "AGENT";
+  const canEditAudience = badge?.role === "AGENT" || badge?.role === "BUREAU";
 
   return (
-    <div className="max-w-8xl mx-auto py-8 px-4">
+     <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
         {/* Header */}
         <button
           onClick={() => router.push("/agent/discussions")}
-          className="inline-flex items-center gap-1 text-[10px] text-zinc-600 hover:text-zinc-400 mb-3 typewriter-label transition-colors"
+          className="inline-flex items-center gap-1 text-[10px] text-zinc-600 hover:text-zinc-400 mb-3 typewriter-label transition-colors min-h-[36px]"
         >
           <ArrowLeft className="w-3 h-3" />
           DISCUSSIONS
@@ -328,6 +343,57 @@ export default function DiscussionDetailPage() {
                     placeholder="Description (optional)"
                     className="w-full bg-[#0a0a0c] border border-[rgba(168,144,112,0.1)] px-2.5 py-1.5 text-[11px] text-zinc-400 placeholder:text-zinc-700 focus:outline-none focus:border-[rgba(168,144,112,0.25)] transition-colors resize-none"
                   />
+                  {canEditAudience && (
+                    <div className="space-y-2">
+                      <label className="text-[8px] text-zinc-600 typewriter-label">AUDIENCE</label>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {([
+                          ["bru_only", "BRU ONLY"],
+                          ["bru_agt", "BRU + AGT"],
+                          ["bru_agt_det", "BRU + AGT + DET"],
+                          ["all", "ALL"],
+                        ] as Array<[DiscussionAudience, string]>).map(([value, label]) => (
+                          <button
+                            key={value}
+                            type="button"
+                            disabled={badge?.role === "AGENT" && value === "bru_only"}
+                            onClick={() => setEditVisibility(value)}
+                            className={`px-2 py-1.5 text-[8px] border rounded typewriter-label transition-colors ${
+                              editVisibility === value
+                                ? "border-amber-500/40 bg-amber-500/10 text-amber-400"
+                                : "border-[rgba(168,144,112,0.1)] text-zinc-600 hover:text-zinc-300"
+                            } disabled:opacity-30 disabled:cursor-not-allowed`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                      {badge?.role === "BUREAU" && (
+                        <>
+                          <label className="text-[8px] text-zinc-600 typewriter-label">SPECTATOR VISIBILITY</label>
+                          <div className="flex gap-1.5">
+                            {([
+                              ["participants_only", "PARTICIPANTS ONLY"],
+                              ["all", "ALL VISITORS"],
+                            ] as Array<[SpectatorVisibility, string]>).map(([value, label]) => (
+                              <button
+                                key={value}
+                                type="button"
+                                onClick={() => setEditSpectatorVisibility(value)}
+                                className={`flex-1 px-2 py-1.5 text-[8px] border rounded typewriter-label transition-colors ${
+                                  editSpectatorVisibility === value
+                                    ? "border-violet-500/40 bg-violet-500/10 text-violet-400"
+                                    : "border-[rgba(168,144,112,0.1)] text-zinc-600 hover:text-zinc-300"
+                                }`}
+                              >
+                                {label}
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               ) : (
                 <>
@@ -343,8 +409,26 @@ export default function DiscussionDetailPage() {
                       </span>
                     )}
                   </div>
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    <span className={`inline-flex items-center px-1.5 py-0.5 text-[7px] font-medium rounded border typewriter-label ${
+                      discussion.visibility === "bru_only" ? "bg-amber-500/15 text-amber-400 border-amber-500/25" :
+                      discussion.visibility === "bru_agt" ? "bg-blue-500/15 text-blue-400 border-blue-500/25" :
+                      discussion.visibility === "bru_agt_det" ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/25" :
+                      "bg-violet-500/15 text-violet-400 border-violet-500/25"
+                    }`}>
+                      {discussion.visibility === "bru_only" ? "BRU ONLY" :
+                       discussion.visibility === "bru_agt" ? "BRU + AGT" :
+                       discussion.visibility === "bru_agt_det" ? "BRU + AGT + DET" : "ALL"}
+                    </span>
+                    {discussion.spectatorVisibility === "all" && (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[7px] font-medium rounded border bg-violet-500/15 text-violet-400 border-violet-500/25 typewriter-label">
+                        <Eye className="w-2.5 h-2.5" />
+                        SPECTATOR VIEW
+                      </span>
+                    )}
+                  </div>
                   {discussion.description && (
-                    <p className="text-[11px] text-zinc-500 mt-1">{discussion.description}</p>
+                    <p className="text-[11px] text-zinc-500 mt-2">{discussion.description}</p>
                   )}
                   <p className="text-[9px] text-zinc-700 mt-1">
                     Opened {formatDate(discussion.createdAt)} · {messages.length} message{messages.length !== 1 ? "s" : ""}
@@ -395,7 +479,7 @@ export default function DiscussionDetailPage() {
                     REOPEN
                   </button>
                 )}
-                {badge.role === "BUREAU" && discussion.visibility === "invited" && (
+                {badge.role === "BUREAU" && (
                   <button
                     onClick={() => {
                       setShowParticipantPanel(true);
@@ -450,13 +534,13 @@ export default function DiscussionDetailPage() {
         )}
 
         {/* Participant Management Panel (BRU only, for invited discussions) */}
-        {showParticipantPanel && badge.role === "BUREAU" && discussion.visibility === "invited" && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="w-full max-w-lg bg-[#111113] border-2 border-[rgba(168,144,112,0.2)] rounded-lg p-6 max-h-[80vh] overflow-hidden"
-            >
+         {showParticipantPanel && badge?.role === "BUREAU" && (
+           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-0 sm:p-4">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="w-full sm:max-w-lg bg-[#111113] border-t sm:border-2 border-[rgba(168,144,112,0.2)] sm:rounded-lg p-4 max-h-[70vh] sm:max-h-[80vh] overflow-hidden flex flex-col"
+              >
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <Users className="w-4 h-4 text-amber-400/70" />
@@ -483,14 +567,14 @@ export default function DiscussionDetailPage() {
                         className="flex items-center justify-between p-2 bg-[#0a0a0c] border border-[rgba(168,144,112,0.06)] rounded"
                       >
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-mono text-amber-400">{p.user.badgeCode}</span>
-                          <span className="text-xs text-zinc-400">{p.user.displayName}</span>
+                          <span className="text-xs font-mono text-amber-400">{p.user?.badgeCode ?? "?"}</span>
+                          <span className="text-xs text-zinc-400">{p.user?.displayName ?? "Unknown"}</span>
                           <span className={`text-[8px] px-1.5 py-[1px] rounded ${
-                            p.user.role === "BUREAU" ? "bg-amber-500/20 text-amber-400" :
-                            p.user.role === "AGENT" ? "bg-blue-500/20 text-blue-400" :
+                            p.user?.role === "BUREAU" ? "bg-amber-500/20 text-amber-400" :
+                            p.user?.role === "AGENT" ? "bg-blue-500/20 text-blue-400" :
                             "bg-zinc-500/20 text-zinc-500"
                           }`}>
-                            {p.user.role}
+                            {p.user?.role ?? "UNKNOWN"}
                           </span>
                         </div>
                         {p.userId !== discussion.createdById && (
@@ -624,18 +708,18 @@ export default function DiscussionDetailPage() {
             messages.map((msg) => {
               const isBRU = msg.user.role === "BUREAU";
               const isAGT = msg.user.role === "AGENT";
-              const isMine = msg.user.badgeCode === badge?.badgeCode;
+              const isMine = Boolean(badge && msg.user.badgeCode === badge.badgeCode);
               return (
                 <div
                   key={msg.id}
                   className={`flex gap-2 ${isMine ? "flex-row-reverse" : ""}`}
                 >
-                  <div
-                    className={`max-w-[80%] bg-[#111113] border ${
-                      isMine
-                        ? "border-[rgba(217,119,6,0.12)]"
-                        : "border-[rgba(168,144,112,0.06)]"
-                    } p-2.5`}
+                   <div
+                     className={`max-w-[90%] sm:max-w-[80%] bg-[#111113] border ${
+                       isMine
+                         ? "border-[rgba(217,119,6,0.12)]"
+                         : "border-[rgba(168,144,112,0.06)]"
+                     } p-2.5`}
                   >
                     <div className="flex items-center gap-1.5 mb-1">
                       <span
@@ -658,7 +742,7 @@ export default function DiscussionDetailPage() {
                             : "bg-zinc-800 text-zinc-600 border border-zinc-700"
                         }`}
                       >
-                        {msg.user.role === "BUREAU" ? "BRU" : msg.user.role === "AGENT" ? "AGT" : "DET"}
+                        {msg.user.role === "BUREAU" ? "BRU" : msg.user.role === "AGENT" ? "AGT" : msg.user.role === "DETECTIVE" ? "DET" : "UNKNOWN"}
                       </span>
                       <span className="text-[8px] text-zinc-700 ml-auto">
                         {formatDate(msg.createdAt)}
@@ -676,20 +760,20 @@ export default function DiscussionDetailPage() {
         </div>
 
         {/* Message Input */}
-        {discussion.isOpen ? (
-          <form onSubmit={handleSend} className="flex gap-2">
-            <input
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              placeholder="Type your message..."
-              maxLength={5000}
-              className="flex-1 bg-[#0a0a0c] border border-[rgba(168,144,112,0.1)] px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-700 focus:outline-none focus:border-[rgba(168,144,112,0.25)] transition-colors"
-            />
-            <button
-              type="submit"
-              disabled={!newMessage.trim() || sending}
-              className="px-3 py-2 bg-amber-600 text-black disabled:opacity-40 disabled:cursor-not-allowed hover:bg-amber-500 transition-colors"
-            >
+         {discussion.isOpen && canDiscuss && badge ? (
+           <form onSubmit={handleSend} className="flex gap-2">
+             <input
+               value={newMessage}
+               onChange={(e) => setNewMessage(e.target.value)}
+               placeholder="Type your message..."
+               maxLength={5000}
+               className="flex-1 bg-[#0a0a0c] border border-[rgba(168,144,112,0.1)] px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-700 focus:outline-none focus:border-[rgba(168,144,112,0.25)] transition-colors"
+             />
+             <button
+               type="submit"
+               disabled={!newMessage.trim() || sending}
+               className="px-3 py-2 bg-amber-600 text-black disabled:opacity-40 disabled:cursor-not-allowed hover:bg-amber-500 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+             >
               {sending ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
@@ -697,6 +781,13 @@ export default function DiscussionDetailPage() {
               )}
             </button>
           </form>
+        ) : discussion.isOpen ? (
+          <div className="bg-[#111113] border border-[rgba(168,144,112,0.06)] p-3 text-center">
+            <Eye className="w-3.5 h-3.5 text-violet-400/70 mx-auto mb-1" />
+            <p className="text-[10px] text-zinc-600 typewriter-label">
+              {badge ? "THIS AUDIENCE IS READ-ONLY FOR YOUR ROLE" : "SPECTATOR MODE · CLAIM A BADGE TO DISCUSS"}
+            </p>
+          </div>
         ) : (
           <div className="bg-[#111113] border border-[rgba(168,144,112,0.06)] p-3 text-center">
             <CheckCircle2 className="w-3.5 h-3.5 text-zinc-600 mx-auto mb-1" />

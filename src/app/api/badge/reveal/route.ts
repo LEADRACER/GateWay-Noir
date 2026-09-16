@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { setSessionCookie } from "@/lib/session-cookie";
+import { getBadgeProfileRequirements } from "@/lib/badge-profile";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -34,6 +35,8 @@ export async function GET(request: NextRequest) {
       supabase.from('Comment').select("*", { count: "exact", head: true }).eq("userId", linkedUser.id),
     ]);
 
+    const requirements = getBadgeProfileRequirements(linkedUser);
+
     const res = NextResponse.json({
       success: true,
       hasBadge: true,
@@ -46,6 +49,9 @@ export async function GET(request: NextRequest) {
         handler: linkedUser.handler,
         hasPassword: !!linkedUser.passwordHash,
         isAdmin: linkedUser.isAdmin,
+        needsName: requirements.needsName,
+        needsPhone: requirements.needsPhone,
+        profileComplete: !requirements.needsName && !requirements.needsPhone,
         voteCount,
         commentCount,
         createdAt: linkedUser.createdAt,

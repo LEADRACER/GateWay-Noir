@@ -13,7 +13,7 @@ export function Button({
   disabled,
   ...props
 }: ButtonProps) {
-  const base = "inline-flex items-center justify-center font-semibold transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed typewriter-label tracking-wide border-none";
+  const base = "inline-flex items-center justify-center font-semibold transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed typewriter-label tracking-wide border-none min-h-[44px] w-full sm:w-auto";
   const variants: Record<string, string> = {
     primary: "bg-[#d97706] text-black hover:bg-[#b45309] shadow-[0_2px_0_rgba(0,0,0,0.3),0_4px_8px_rgba(0,0,0,0.3)] active:shadow-[0_1px_0_rgba(0,0,0,0.3)] active:translate-y-[1px]",
     secondary: "bg-[#1c1c1f] text-zinc-300 hover:bg-[#252528] border border-[rgba(168,144,112,0.12)] shadow-[0_1px_0_rgba(0,0,0,0.2)]",
@@ -22,9 +22,9 @@ export function Button({
     danger: "bg-[#dc2626] text-white hover:bg-[#b91c1c] shadow-[0_2px_0_rgba(0,0,0,0.3)]",
   };
   const sizes: Record<string, string> = {
-    sm: "px-2.5 py-1 text-[10px] gap-1",
-    md: "px-3.5 py-1.5 text-xs gap-1.5",
-    lg: "px-5 py-2.5 text-sm gap-2",
+    sm: "px-2.5 py-1 text-[10px] gap-1 min-h-[44px]",
+    md: "px-3.5 py-1.5 text-xs gap-1.5 min-h-[44px]",
+    lg: "px-5 py-2.5 text-sm gap-2 min-h-[44px]",
   };
 
   return (
