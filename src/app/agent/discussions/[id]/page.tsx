@@ -18,6 +18,29 @@ import {
   Users,
   UserMinus,
   Eye,
+  UserCheck,
+  UserPlus,
+  Smile,
+  Heart,
+  ThumbsUp,
+  Flag,
+  MoreVertical,
+  Reply,
+  Copy,
+  Trash2,
+  Edit2,
+  Clock,
+  Wifi,
+  WifiOff,
+  Bell,
+  BellOff,
+  Search,
+  FileText,
+  Settings,
+  ChevronLeft,
+  ChevronRight,
+  Minimize2,
+  Maximize2,
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import toast from "react-hot-toast";
@@ -41,6 +64,8 @@ interface Message {
   content: string;
   createdAt: string;
   user: { badgeCode: string; displayName: string; role: string; isConnected?: boolean };
+  reactions?: Record<string, string[]>; // emoji -> user badge codes
+  replyTo?: string;
 }
 
 interface Agent {
@@ -57,11 +82,17 @@ interface Participant {
   joinedAt: string;
 }
 
+type ReactionEmoji = "👍" | "❤️" | "😊" | "🚩";
+const REACTIONS: ReactionEmoji[] = ["👍", "❤️", "😊", "🚩"];
+
 export default function DiscussionDetailPage() {
   const { badge, loading: badgeLoading } = useBadge();
   const params = useParams();
   const router = useRouter();
   const msgEndRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
 
   const [discussion, setDiscussion] = useState<Discussion | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -90,6 +121,18 @@ export default function DiscussionDetailPage() {
   const [loadingAgents, setLoadingAgents] = useState(false);
   const [selectedAgentIds, setSelectedAgentIds] = useState<string[]>([]);
 
+  // UI state
+  const [showSidebar, setShowSidebar] = useState(true);
+  const [sidebarTab, setSidebarTab] = useState<"participants" | "info" | "search">("participants");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showReactions, setShowReactions] = useState<string | null>(null);
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+  const [typingUsers, setTypingUsers] = useState<string[]>([]);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [compactMode, setCompactMode] = useState(false);
+  const [showMessageMenu, setShowMessageMenu] = useState<{ messageId: string; x: number; y: number } | null>(null);
+
+  // Load participants on mount for BRU
   const loadParticipants = useCallback(async () => {
     try {
       const res = await fetch(`/api/agent/discussions/${params.id}/participants`);
@@ -126,7 +169,7 @@ export default function DiscussionDetailPage() {
     }
   }, [badgeLoading, badge?.role, discussion, loadParticipants]);
 
-  const fetchMessages = useCallback(async () => {
+const fetchMessages = useCallback(async () => {
     try {
       const res = await fetch(`/api/agent/discussions/${params.id}/messages`);
       if (!res.ok) {
@@ -155,13 +198,14 @@ export default function DiscussionDetailPage() {
     }
   }, [badgeLoading, fetchMessages]);
 
-  // Polling for real-time message updates
+  // Polling for real-time message updates (faster interval)
   useEffect(() => {
     if (!discussion?.isOpen) return;
     
+    // Initial quick poll, then slower
     pollIntervalRef.current = setInterval(() => {
       fetchMessages();
-    }, 10000); // 10 second interval
+    }, 5000); // 5 second interval for more real-time feel
 
     return () => {
       if (pollIntervalRef.current) {
@@ -172,24 +216,35 @@ export default function DiscussionDetailPage() {
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
-    msgEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages.length]);
+
+  // Typing indicator simulation (local only)
+  useEffect(() => {
+    if (!newMessage.trim()) return;
+    const timeout = setTimeout(() => {
+      setTypingUsers(prev => [...prev, badge?.badgeCode || "You"]);
+    }, 500);
+    return () => clearTimeout(timeout);
+  }, [newMessage, badge?.badgeCode]);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() || sending) return;
 
+    const content = replyingTo ? `@${replyingTo.user.badgeCode} ${newMessage.trim()}` : newMessage.trim();
+    setReplyingTo(null);
+    setNewMessage("");
     setSending(true);
     try {
       const res = await fetch(`/api/agent/discussions/${params.id}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: newMessage.trim() }),
+        body: JSON.stringify({ content }),
       });
       const data = await res.json();
       if (data.message) {
         setMessages((prev) => [...prev, data.message]);
-        setNewMessage("");
       } else {
         toast.error(data.error || "Failed to send");
       }
@@ -197,6 +252,65 @@ export default function DiscussionDetailPage() {
       toast.error("Network error");
     } finally {
       setSending(false);
+      setTypingUsers([]);
+    }
+  };
+
+  const handleReaction = async (messageId: string, emoji: ReactionEmoji) => {
+    const msg = messages.find(m => m.id === messageId);
+    if (!msg) return;
+    
+    const userBadge = badge?.badgeCode || "";
+    const reactions = msg.reactions || {};
+    const users = reactions[emoji] || [];
+    
+    if (users.includes(userBadge)) {
+      // Remove reaction
+      delete reactions[emoji];
+    } else {
+      // Add reaction
+      reactions[emoji] = [...users, userBadge];
+    }
+    
+    setMessages(prev => prev.map(m => 
+      m.id === messageId ? { ...m, reactions } : m
+    ));
+    
+    // Optimistically update, then sync with server
+    try {
+      await fetch(`/api/agent/discussions/${params.id}/messages/${messageId}/reactions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emoji }),
+      });
+    } catch {
+      // Revert on failure
+      setMessages(prev => prev.map(m => 
+        m.id === messageId ? { ...m, reactions: msg.reactions } : m
+      ));
+    }
+  };
+
+  const handleReply = (msg: Message) => {
+    setReplyingTo(msg);
+    inputRef.current?.focus();
+  };
+
+  const handleCopy = async (msg: Message) => {
+    await navigator.clipboard.writeText(msg.content);
+    toast.success("Copied to clipboard");
+  };
+
+  const handleDelete = async (msg: Message) => {
+    if (!confirm("Delete this message?")) return;
+    try {
+      await fetch(`/api/agent/discussions/${params.id}/messages/${msg.id}`, {
+        method: "DELETE",
+      });
+      setMessages(prev => prev.filter(m => m.id !== msg.id));
+      toast.success("Message deleted");
+    } catch {
+      toast.error("Failed to delete");
     }
   };
 
@@ -284,9 +398,13 @@ export default function DiscussionDetailPage() {
     }
   };
 
+  const filteredMessages = messages.filter(msg => 
+    msg.content.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   if (badgeLoading || loading) {
     return (
-      <div className="max-w-3xl mx-auto py-16 flex items-center justify-center">
+      <div className="max-w-7xl mx-auto py-16 flex items-center justify-center">
         <Loader2 className="w-5 h-5 text-zinc-600 animate-spin" />
       </div>
     );
@@ -294,7 +412,7 @@ export default function DiscussionDetailPage() {
 
   if (error || !discussion) {
     return (
-      <div className="max-w-3xl mx-auto py-16 text-center">
+      <div className="max-w-7xl mx-auto py-16 text-center">
         <p className="text-zinc-500 text-sm">{error || "Not found"}</p>
         <button
           onClick={() => router.push("/agent/discussions")}
@@ -310,7 +428,7 @@ export default function DiscussionDetailPage() {
   const canEditAudience = badge?.role === "AGENT" || badge?.role === "BUREAU";
 
   return (
-     <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+    <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
         {/* Header */}
         <button
