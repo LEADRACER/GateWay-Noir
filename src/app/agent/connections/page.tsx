@@ -332,22 +332,12 @@ function ConnectionsPage() {
 
       setRequests((prev) => prev.filter((item) => item.id !== requestId));
       if (action === "accept" && request) {
-        setConnections((prev) => [
-          ...prev,
-          {
-            id: data.connectionId || requestId,
-            connectedUserId: request.user.id,
-            createdAt: new Date().toISOString(),
-            status: "accepted",
-            connectedUser: request.user,
-          },
-        ]);
         toast.success(`Connected to ${request.user.displayName}`);
+        await refreshConnections(signal);
       } else {
         toast.success("Request rejected");
       }
 
-      // Optimistic update already applied, just refresh stats
       await refreshStats(signal);
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;

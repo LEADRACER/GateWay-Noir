@@ -114,5 +114,13 @@ export async function POST(
     return NextResponse.json({ error: "Failed to create connection" }, { status: 500 });
   }
 
-  return NextResponse.json({ success: true, action: "accepted" });
+  const { data: newConnection } = await supabase
+    .from("UserConnection")
+    .select("id")
+    .eq("userId", user.id)
+    .eq("connectedUserId", request.userId)
+    .eq("status", "accepted")
+    .maybeSingle();
+
+  return NextResponse.json({ success: true, action: "accepted", connectionId: newConnection?.id });
 }
