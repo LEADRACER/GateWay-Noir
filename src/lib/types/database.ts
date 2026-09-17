@@ -57,6 +57,7 @@ export interface UserConnection {
   userId: string;
   connectedUserId: string;
   createdAt: string;
+  status: "pending" | "accepted" | "rejected";
   metadata: Record<string, unknown>;
 }
 

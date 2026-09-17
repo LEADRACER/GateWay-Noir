@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/get-current-user";
 
-const DISCUSSION_ROLES = new Set(["DETECTIVE", "AGENT", "BUREAU"]);
+const CONNECTION_ROLES = new Set(["AGENT", "BUREAU"]);
 const CONNECTION_LIMITS = { AGENT: 100, BUREAU: 200 };
 
 export async function GET() {
   const user = await getCurrentUser();
-  if (!user || !DISCUSSION_ROLES.has(user.role)) {
+  if (!user || !CONNECTION_ROLES.has(user.role)) {
     return NextResponse.json({ error: "Not authorized" }, { status: 403 });
   }
 
@@ -18,10 +18,12 @@ export async function GET() {
       id,
       connectedUserId,
       createdAt,
+      status,
       metadata,
       connectedUser:User!UserConnection_connectedUserId_fkey(badgeCode, displayName, role)
     `)
     .eq("userId", user.id)
+    .eq("status", "accepted")
     .order("createdAt", { ascending: false });
 
   if (error) {
@@ -33,7 +35,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser();
-  if (!user || !DISCUSSION_ROLES.has(user.role)) {
+  if (!user || !CONNECTION_ROLES.has(user.role)) {
     return NextResponse.json({ error: "Not authorized" }, { status: 403 });
   }
 
@@ -49,7 +51,10 @@ export async function POST(req: NextRequest) {
   }
 
   const requestBody = body as Record<string, unknown>;
-  const targetBadgeCode = typeof requestBody.badgeCode === "string" ? requestBody.badgeCode.trim().toUpperCase() : "";
+  const targetBadgeCode = typeof requestBody.badgeCode === "string"
+    ? requestBody.badgeCode.trim().toUpperCase()
+    : "";
+
   if (!targetBadgeCode) {
     return NextResponse.json({ error: "Badge code is required" }, { status: 400 });
   }
@@ -59,34 +64,23 @@ export async function POST(req: NextRequest) {
   }
 
   const supabase = await createServerSupabaseClient();
-
   const { data: targetUser, error: targetError } = await supabase
     .from("User")
     .select("id, badgeCode, displayName, role")
     .eq("badgeCode", targetBadgeCode)
     .maybeSingle();
 
-  if (targetError || !targetUser) {
+  if (targetError || !targetUser || !CONNECTION_ROLES.has(targetUser.role)) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
-  if (targetUser.role === "DETECTIVE") {
-    return NextResponse.json({ error: "Cannot connect to Detectives" }, { status: 403 });
-  }
+  const privacyResult = await supabase
+    .from("User")
+    .select("connectionPrivacy")
+    .eq("id", targetUser.id)
+    .maybeSingle();
 
-  // Check connectionPrivacy if column exists (default to 'open' for backwards compatibility)
-  let targetPrivacy = "open";
-  try {
-    const { data: privacyData } = await supabase
-      .from("User")
-      .select("connectionPrivacy")
-      .eq("id", targetUser.id)
-      .maybeSingle();
-    targetPrivacy = privacyData?.connectionPrivacy || "open";
-  } catch {
-    // Column doesn't exist yet, default to open
-  }
-
+  const targetPrivacy = privacyResult.data?.connectionPrivacy || "open";
   if (targetPrivacy === "closed") {
     return NextResponse.json({ error: "User is not accepting connections" }, { status: 403 });
   }
@@ -97,6 +91,7 @@ export async function POST(req: NextRequest) {
       .select("id")
       .eq("userId", targetUser.id)
       .eq("connectedUserId", user.id)
+      .eq("status", "accepted")
       .maybeSingle();
 
     if (!mutual) {
@@ -104,44 +99,91 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const limit = CONNECTION_LIMITS[user.role as keyof typeof CONNECTION_LIMITS] ?? 50;
+  const limit = CONNECTION_LIMITS[user.role as keyof typeof CONNECTION_LIMITS] ?? 100;
   const { count } = await supabase
     .from("UserConnection")
     .select("*", { count: "exact", head: true })
-    .eq("userId", user.id);
+    .eq("userId", user.id)
+    .eq("status", "accepted");
 
   if (count && count >= limit) {
     return NextResponse.json({ error: `Connection limit reached (${limit})` }, { status: 400 });
   }
 
-  const { data: existing } = await supabase
-    .from("UserConnection")
-    .select("id")
-    .eq("userId", user.id)
-    .eq("connectedUserId", targetUser.id)
-    .maybeSingle();
+  const [{ data: outgoing }, { data: incoming }] = await Promise.all([
+    supabase
+      .from("UserConnection")
+      .select("id, status")
+      .eq("userId", user.id)
+      .eq("connectedUserId", targetUser.id)
+      .maybeSingle(),
+    supabase
+      .from("UserConnection")
+      .select("id, status")
+      .eq("userId", targetUser.id)
+      .eq("connectedUserId", user.id)
+      .maybeSingle(),
+  ]);
 
-  if (existing) {
+  if (outgoing?.status === "pending") {
+    return NextResponse.json({ error: "Request already sent" }, { status: 409 });
+  }
+
+  if (outgoing?.status === "accepted" || incoming?.status === "accepted") {
     return NextResponse.json({ error: "Already connected" }, { status: 409 });
   }
 
-  const metadata = (typeof requestBody.metadata === "object" && requestBody.metadata !== null)
+  if (incoming?.status === "pending") {
+    return NextResponse.json({ error: "A request from this user is waiting for your response" }, { status: 409 });
+  }
+
+  const metadata = typeof requestBody.metadata === "object" && requestBody.metadata !== null && !Array.isArray(requestBody.metadata)
     ? requestBody.metadata as Record<string, unknown>
     : {};
 
-  const { error: insertError } = await supabase
-    .from("UserConnection")
-    .insert([
-      { userId: user.id, connectedUserId: targetUser.id, metadata },
-      { userId: targetUser.id, connectedUserId: user.id, metadata: {} },
-    ]);
+  const requestRow = {
+    userId: user.id,
+    connectedUserId: targetUser.id,
+    status: "pending" as const,
+    metadata,
+  };
 
-  if (insertError) {
-    return NextResponse.json({ error: "Failed to create connection" }, { status: 500 });
+  let requestId = outgoing?.id;
+
+  if (outgoing?.status === "rejected") {
+    const { error } = await supabase
+      .from("UserConnection")
+      .update(requestRow)
+      .eq("id", outgoing.id);
+
+    if (error) {
+      return NextResponse.json({ error: "Failed to resend connection request" }, { status: 500 });
+    }
+  } else {
+    const { data, error } = await supabase
+      .from("UserConnection")
+      .insert(requestRow)
+      .select("id")
+      .single();
+
+    if (error || !data) {
+      return NextResponse.json({ error: "Failed to send connection request" }, { status: 500 });
+    }
+
+    requestId = data.id;
   }
 
   return NextResponse.json(
-    { connection: { connectedUserId: targetUser.id, badgeCode: targetUser.badgeCode, displayName: targetUser.displayName, role: targetUser.role } },
-    { status: 201 }
+    {
+      request: {
+        id: requestId,
+        connectedUserId: targetUser.id,
+        badgeCode: targetUser.badgeCode,
+        displayName: targetUser.displayName,
+        role: targetUser.role,
+        status: "pending",
+      },
+    },
+    { status: 201 },
   );
 }

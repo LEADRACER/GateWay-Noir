@@ -18,7 +18,7 @@ export async function DELETE(
 
   const { data: connection, error: fetchError } = await supabase
     .from("UserConnection")
-    .select("userId, connectedUserId")
+    .select("userId, connectedUserId, status")
     .eq("id", id)
     .maybeSingle();
 
@@ -26,17 +26,34 @@ export async function DELETE(
     return NextResponse.json({ error: "Connection not found" }, { status: 404 });
   }
 
-  if (connection.userId !== user.id) {
-    return NextResponse.json({ error: "Not authorized to delete this connection" }, { status: 403 });
+  // User can delete/cancel if they are the requester (userId) OR the recipient (connectedUserId)
+  // For accepted connections, delete both directions
+  // For pending requests, only delete the single row
+
+  if (connection.userId !== user.id && connection.connectedUserId !== user.id) {
+    return NextResponse.json({ error: "Not authorized" }, { status: 403 });
   }
 
-  const { error: deleteError } = await supabase
-    .from("UserConnection")
-    .delete()
-    .or(`and(userId.eq.${user.id},connectedUserId.eq.${connection.connectedUserId}),and(userId.eq.${connection.connectedUserId},connectedUserId.eq.${user.id})`);
+  if (connection.status === "accepted") {
+    // Delete both directions for accepted connections
+    const { error: deleteError } = await supabase
+      .from("UserConnection")
+      .delete()
+      .or(`and(userId.eq.${user.id},connectedUserId.eq.${connection.connectedUserId}),and(userId.eq.${connection.connectedUserId},connectedUserId.eq.${user.id})`);
 
-  if (deleteError) {
-    return NextResponse.json({ error: "Failed to delete connection" }, { status: 500 });
+    if (deleteError) {
+      return NextResponse.json({ error: "Failed to delete connection" }, { status: 500 });
+    }
+  } else {
+    // For pending/rejected, just delete this row
+    const { error: deleteError } = await supabase
+      .from("UserConnection")
+      .delete()
+      .eq("id", id);
+
+    if (deleteError) {
+      return NextResponse.json({ error: "Failed to cancel request" }, { status: 500 });
+    }
   }
 
   return NextResponse.json({ success: true });

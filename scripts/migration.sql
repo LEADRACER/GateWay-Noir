@@ -107,6 +107,7 @@ CREATE TABLE IF NOT EXISTS "public"."UserConnection" (
   "userId" TEXT NOT NULL REFERENCES "public"."User"(id) ON DELETE CASCADE,
   "connectedUserId" TEXT NOT NULL REFERENCES "public"."User"(id) ON DELETE CASCADE,
   "createdAt" TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now(),
+  status TEXT NOT NULL DEFAULT 'accepted' CHECK (status IN ('pending', 'accepted', 'rejected')),
   metadata JSONB DEFAULT '{}'::jsonb,
   UNIQUE("userId", "connectedUserId")
 );
@@ -114,9 +115,44 @@ CREATE TABLE IF NOT EXISTS "public"."UserConnection" (
 CREATE INDEX IF NOT EXISTS idx_user_connection_user ON "public"."UserConnection"("userId");
 CREATE INDEX IF NOT EXISTS idx_user_connection_connected ON "public"."UserConnection"("connectedUserId");
 
--- Add metadata column if table exists without it
+-- Add status and metadata columns if the table already exists
+DO $$
+DECLARE
+  status_column_exists BOOLEAN;
+BEGIN
+  SELECT EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'UserConnection'
+      AND column_name = 'status'
+  ) INTO status_column_exists;
+
+  IF NOT status_column_exists THEN
+    ALTER TABLE "public"."UserConnection"
+      ADD COLUMN status TEXT NOT NULL DEFAULT 'accepted'
+      CHECK (status IN ('pending', 'accepted', 'rejected'));
+  ELSE
+    ALTER TABLE "public"."UserConnection"
+      ALTER COLUMN status SET DEFAULT 'accepted';
+  END IF;
+END $$;
+
 ALTER TABLE "public"."UserConnection"
   ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb;
+
+-- Backfill only pre-existing bidirectional rows as accepted.
+UPDATE "public"."UserConnection" AS connection
+SET status = 'accepted'
+WHERE connection.status = 'pending'
+  AND EXISTS (
+    SELECT 1
+    FROM "public"."UserConnection" AS reverse_connection
+    WHERE reverse_connection."userId" = connection."connectedUserId"
+      AND reverse_connection."connectedUserId" = connection."userId"
+  );
+
+CREATE INDEX IF NOT EXISTS idx_user_connection_status ON "public"."UserConnection"(status);
 
 -- Add connectionPrivacy to User
 ALTER TABLE "public"."User"

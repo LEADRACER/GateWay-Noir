@@ -21,8 +21,16 @@ export async function GET(
   const supabase = await createServerSupabaseClient();
 
   const [{ data: myConnections }, { data: theirConnections }] = await Promise.all([
-    supabase.from("UserConnection").select("connectedUserId").eq("userId", user.id),
-    supabase.from("UserConnection").select("connectedUserId").eq("userId", userId),
+    supabase
+      .from("UserConnection")
+      .select("connectedUserId")
+      .eq("userId", user.id)
+      .eq("status", "accepted"),
+    supabase
+      .from("UserConnection")
+      .select("connectedUserId")
+      .eq("userId", userId)
+      .eq("status", "accepted"),
   ]);
 
   const myIds = new Set((myConnections || []).map(c => c.connectedUserId));

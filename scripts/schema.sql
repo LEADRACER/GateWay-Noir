@@ -31,7 +31,9 @@ CREATE TABLE IF NOT EXISTS "public"."User" (
   "avatarUrl" TEXT,
   "createdAt" TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now(),
   "lastSeenAt" TIMESTAMP WITHOUT TIME ZONE,
-  "updatedAt" TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now()
+  "updatedAt" TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now(),
+  "connectionPrivacy" TEXT NOT NULL DEFAULT 'open'
+    CHECK ("connectionPrivacy" IN ('open', 'mutual_only', 'closed'))
 );
 
 -- ============================================================================
@@ -169,12 +171,33 @@ CREATE TABLE IF NOT EXISTS "public"."AgentDiscussionMessage" (
 );
 
 -- ============================================================================
+-- UserConnection
+-- Directed connection requests; accepted connections are stored in both directions.
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS "public"."UserConnection" (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  "userId" TEXT NOT NULL REFERENCES "public"."User"(id) ON DELETE CASCADE,
+  "connectedUserId" TEXT NOT NULL REFERENCES "public"."User"(id) ON DELETE CASCADE,
+  "createdAt" TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now(),
+  status TEXT NOT NULL DEFAULT 'accepted'
+    CHECK (status IN ('pending', 'accepted', 'rejected')),
+  metadata JSONB DEFAULT '{}'::jsonb,
+  UNIQUE("userId", "connectedUserId")
+);
+
+-- ============================================================================
 -- Indexes
 -- ============================================================================
 
 -- User
 CREATE INDEX IF NOT EXISTS idx_user_badge_code ON "public"."User"("badgeCode");
 CREATE INDEX IF NOT EXISTS idx_user_role ON "public"."User"(role);
+CREATE INDEX IF NOT EXISTS idx_user_connection_privacy ON "public"."User"("connectionPrivacy");
+
+-- UserConnection
+CREATE INDEX IF NOT EXISTS idx_user_connection_user ON "public"."UserConnection"("userId");
+CREATE INDEX IF NOT EXISTS idx_user_connection_connected ON "public"."UserConnection"("connectedUserId");
+CREATE INDEX IF NOT EXISTS idx_user_connection_status ON "public"."UserConnection"(status);
 
 -- Topic
 CREATE INDEX IF NOT EXISTS idx_topic_slug ON "public"."Topic"(slug);

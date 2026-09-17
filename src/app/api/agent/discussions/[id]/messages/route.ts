@@ -31,7 +31,8 @@ async function getUserConnections(
   const { data } = await supabase
     .from("UserConnection")
     .select("connectedUserId")
-    .eq("userId", userId);
+    .eq("userId", userId)
+    .eq("status", "accepted");
   return new Set((data || []).map((c) => c.connectedUserId));
 }
 

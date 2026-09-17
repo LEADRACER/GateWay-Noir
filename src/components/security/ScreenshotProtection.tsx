@@ -35,7 +35,7 @@ export function ScreenshotProtection() {
       document.body.style.pointerEvents = "none";
 
       // Force immediate paint
-      overlay.offsetHeight;
+      void overlay.offsetHeight;
 
       // Remove after 3 seconds
       setTimeout(hideProtection, 3000);

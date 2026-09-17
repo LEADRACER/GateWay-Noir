@@ -12,35 +12,56 @@ export async function GET() {
 
   const supabase = await createServerSupabaseClient();
 
-  const [{ count: totalConnections }, { data: myConnections }] = await Promise.all([
-    supabase.from("UserConnection").select("*", { count: "exact", head: true }).eq("userId", user.id),
-    supabase.from("UserConnection").select("connectedUserId").eq("userId", user.id),
-  ]);
-
-  let mutualConnections = 0;
-  if (myConnections?.length) {
-    const ids = myConnections.map(c => c.connectedUserId);
-    const { count } = await supabase
+  const [{ count: totalConnections }, { count: pendingSent }, { count: pendingReceived }] = await Promise.all([
+    supabase
       .from("UserConnection")
       .select("*", { count: "exact", head: true })
-      .in("userId", ids)
-      .eq("connectedUserId", user.id);
-    mutualConnections = count || 0;
-  }
+      .eq("userId", user.id)
+      .eq("status", "accepted"),
+    supabase
+      .from("UserConnection")
+      .select("*", { count: "exact", head: true })
+      .eq("userId", user.id)
+      .eq("status", "pending"),
+    supabase
+      .from("UserConnection")
+      .select("*", { count: "exact", head: true })
+      .eq("connectedUserId", user.id)
+      .eq("status", "pending"),
+  ]);
 
   const { data: connections } = await supabase
     .from("UserConnection")
-    .select("connectedUser:User!UserConnection_connectedUserId_fkey(role)")
-    .eq("userId", user.id);
+    .select("connectedUserId")
+    .eq("userId", user.id)
+    .eq("status", "accepted");
 
-  const roleBreakdown = (connections || []).reduce((acc, c) => {
-    const role = (c.connectedUser as { role?: string }[])?.find(x => x?.role)?.role || "UNKNOWN";
-    acc[role] = (acc[role] || 0) + 1;
+  const connectedIds = (connections || []).map((connection) => connection.connectedUserId);
+  let mutualConnections = 0;
+  if (connectedIds.length) {
+    const { count } = await supabase
+      .from("UserConnection")
+      .select("*", { count: "exact", head: true })
+      .in("userId", connectedIds)
+      .eq("connectedUserId", user.id)
+      .eq("status", "accepted");
+    mutualConnections = count || 0;
+  }
+
+  const { data: users } = await supabase
+    .from("User")
+    .select("id, role")
+    .in("id", connectedIds);
+
+  const roleBreakdown = (users || []).reduce<Record<string, number>>((acc, connectedUser) => {
+    acc[connectedUser.role] = (acc[connectedUser.role] || 0) + 1;
     return acc;
-  }, {} as Record<string, number>);
+  }, {});
 
   return NextResponse.json({
     totalConnections: totalConnections || 0,
+    pendingSent: pendingSent || 0,
+    pendingReceived: pendingReceived || 0,
     mutualConnections,
     roleBreakdown,
   });
