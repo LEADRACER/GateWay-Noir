@@ -1,8 +1,9 @@
 "use client";
 
 import { useBadge } from "@/components/badge/BadgeProvider";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
@@ -96,7 +97,7 @@ const tabs = [
   { id: "recent", label: "RECENT", icon: Clock },
 ] as const;
 
-export default function ConnectionsPage() {
+function ConnectionsPage() {
   const { badge, loading: badgeLoading } = useBadge();
   const router = useRouter();
   const [connections, setConnections] = useState<Connection[]>([]);
@@ -119,9 +120,19 @@ export default function ConnectionsPage() {
   const [activeTab, setActiveTab] = useState<TabType>("all");
   const [requestView, setRequestView] = useState<RequestView>("received");
 
-  const refreshConnections = useCallback(async () => {
+  // Refs to avoid dependency loop in searchUsers
+  const connectionsRef = useRef(connections);
+  const requestsRef = useRef(requests);
+  const badgeIdRef = useRef(badge?.id);
+
+  // Keep refs in sync
+  connectionsRef.current = connections;
+  requestsRef.current = requests;
+  badgeIdRef.current = badge?.id;
+
+  const refreshConnections = useCallback(async (signal?: AbortSignal) => {
     try {
-      const res = await fetch("/api/agent/connections");
+      const res = await fetch("/api/agent/connections", { signal });
       if (!res.ok) return;
       const data = await res.json();
       const connData = data.connections || [];
@@ -136,17 +147,18 @@ export default function ConnectionsPage() {
         bureau: connData.filter((connection: Connection) => connection.connectedUser.role === "BUREAU").length,
         thisWeek: connData.filter((connection: Connection) => new Date(connection.createdAt) > weekAgo).length,
       }));
-    } catch {
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
       // Silent fail keeps the page usable when the API is unavailable.
     } finally {
       setLoading(false);
     }
   }, []);
 
-  const refreshRequests = useCallback(async () => {
+  const refreshRequests = useCallback(async (signal?: AbortSignal) => {
     try {
       setRequestsLoading(true);
-      const res = await fetch("/api/agent/connections/requests");
+      const res = await fetch("/api/agent/connections/requests", { signal });
       if (!res.ok) return;
       const data = (await res.json()) as ConnectionRequestResponse;
 
@@ -169,16 +181,17 @@ export default function ConnectionsPage() {
         pendingSent: sent.length,
         pendingReceived: received.length,
       }));
-    } catch {
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
       // Silent fail keeps the page usable when the API is unavailable.
     } finally {
       setRequestsLoading(false);
     }
   }, []);
 
-  const refreshStats = useCallback(async () => {
+  const refreshStats = useCallback(async (signal?: AbortSignal) => {
     try {
-      const res = await fetch("/api/agent/connections/stats");
+      const res = await fetch("/api/agent/connections/stats", { signal });
       if (!res.ok) return;
       const data = await res.json();
       setStats((prev) => ({
@@ -188,7 +201,8 @@ export default function ConnectionsPage() {
         pendingSent: data.pendingSent ?? prev.pendingSent,
         pendingReceived: data.pendingReceived ?? prev.pendingReceived,
       }));
-    } catch {
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
       // Silent fail keeps the page usable when the API is unavailable.
     }
   }, []);
@@ -196,11 +210,21 @@ export default function ConnectionsPage() {
   useEffect(() => {
     if (badgeLoading) return undefined;
 
+    const controller = new AbortController();
+    const { signal } = controller;
+
     const timeout = setTimeout(() => {
-      void Promise.all([refreshConnections(), refreshRequests(), refreshStats()]);
+      void Promise.all([
+        refreshConnections(signal),
+        refreshRequests(signal),
+        refreshStats(signal),
+      ]);
     }, 0);
 
-    return () => clearTimeout(timeout);
+    return () => {
+      clearTimeout(timeout);
+      controller.abort();
+    };
   }, [badgeLoading, refreshConnections, refreshRequests, refreshStats]);
 
   const searchUsers = useCallback(async () => {
@@ -210,9 +234,9 @@ export default function ConnectionsPage() {
       const res = await fetch("/api/agent/users");
       if (!res.ok) return;
       const data = await res.json();
-      const connectedIds = new Set(connections.map((connection) => connection.connectedUserId));
-      const sentRequestIds = new Set(requests.filter((request) => request.direction === "sent").map((request) => request.user.id));
-      const receivedRequestIds = new Set(requests.filter((request) => request.direction === "received").map((request) => request.user.id));
+      const connectedIds = new Set(connectionsRef.current.map((connection) => connection.connectedUserId));
+      const sentRequestIds = new Set(requestsRef.current.filter((request) => request.direction === "sent").map((request) => request.user.id));
+      const receivedRequestIds = new Set(requestsRef.current.filter((request) => request.direction === "received").map((request) => request.user.id));
 
       const results = (data.agents || [])
         .filter((agent: UserSummary) =>
@@ -226,7 +250,7 @@ export default function ConnectionsPage() {
           return {
             ...agent,
             isConnected,
-            isSelf: badge?.id === agent.id,
+            isSelf: badgeIdRef.current === agent.id,
             requestState: isConnected ? "none" : isSent ? "sent" : isReceived ? "received" : "none",
           };
         });
@@ -238,7 +262,7 @@ export default function ConnectionsPage() {
     } finally {
       setSearching(false);
     }
-  }, [searchQuery, searching, connections, requests, badge?.id]);
+  }, [searchQuery, searching]);
 
   useEffect(() => {
     if (searchQuery.trim()) {
@@ -250,12 +274,13 @@ export default function ConnectionsPage() {
     return () => clearTimeout(timer);
   }, [searchQuery, searchUsers]);
 
-  const sendRequest = async (targetUserId: string, targetBadgeCode: string, targetDisplayName: string) => {
+  const sendRequest = async (targetUserId: string, targetBadgeCode: string, targetDisplayName: string, signal?: AbortSignal) => {
     try {
       const res = await fetch("/api/agent/connections", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ badgeCode: targetBadgeCode }),
+        signal,
       });
       const data = await res.json();
       if (!data.request) {
@@ -284,18 +309,20 @@ export default function ConnectionsPage() {
         result.id === targetUserId ? { ...result, requestState: "sent" } : result,
       ));
       toast.success(`Request sent to ${targetDisplayName}`);
-    } catch {
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
       toast.error("Network error");
     }
   };
 
-  const respondToRequest = async (requestId: string, action: "accept" | "reject") => {
+  const respondToRequest = async (requestId: string, action: "accept" | "reject", signal?: AbortSignal) => {
     const request = requests.find((item) => item.id === requestId);
     try {
       const res = await fetch(`/api/agent/connections/${requestId}/respond`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action }),
+        signal,
       });
       const data = await res.json();
       if (!res.ok) {
@@ -320,15 +347,17 @@ export default function ConnectionsPage() {
         toast.success("Request rejected");
       }
 
-      await Promise.all([refreshConnections(), refreshRequests(), refreshStats()]);
-    } catch {
+      // Optimistic update already applied, just refresh stats
+      await refreshStats(signal);
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
       toast.error("Network error");
     }
   };
 
-  const cancelRequest = async (requestId: string) => {
+  const cancelRequest = async (requestId: string, signal?: AbortSignal) => {
     try {
-      const res = await fetch(`/api/agent/connections/${requestId}`, { method: "DELETE" });
+      const res = await fetch(`/api/agent/connections/${requestId}`, { method: "DELETE", signal });
       const data = await res.json();
       if (!res.ok) {
         toast.error(data.error || "Failed to cancel request");
@@ -336,14 +365,15 @@ export default function ConnectionsPage() {
       }
       setRequests((prev) => prev.filter((request) => request.id !== requestId));
       toast.success("Request cancelled");
-    } catch {
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
       toast.error("Network error");
     }
   };
 
-  const removeConnection = async (connectionId: string, badgeCode: string) => {
+  const removeConnection = async (connectionId: string, badgeCode: string, signal?: AbortSignal) => {
     try {
-      const res = await fetch(`/api/agent/connections/${connectionId}`, { method: "DELETE" });
+      const res = await fetch(`/api/agent/connections/${connectionId}`, { method: "DELETE", signal });
       const data = await res.json();
       if (!res.ok) {
         toast.error(data.error || "Failed to remove connection");
@@ -354,19 +384,21 @@ export default function ConnectionsPage() {
         result.badgeCode === badgeCode ? { ...result, requestState: "none", isConnected: false } : result,
       ));
       toast.success("Connection removed");
-    } catch {
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
       toast.error("Network error");
     }
   };
 
-  const viewMutualConnections = async (userId: string, displayName: string) => {
+  const viewMutualConnections = async (userId: string, displayName: string, signal?: AbortSignal) => {
     try {
-      const res = await fetch(`/api/agent/connections/mutual/${userId}`);
+      const res = await fetch(`/api/agent/connections/mutual/${userId}`, { signal });
       const data = await res.json();
       if (res.ok) {
         toast.success(`${data.count || 0} mutual connections with ${displayName}`);
       }
-    } catch {
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
       toast.error("Failed to load mutual connections");
     }
   };
@@ -765,5 +797,13 @@ function RequestCard({
         )}
       </div>
     </div>
+  );
+}
+
+export default function ConnectionsPageWrapper() {
+  return (
+    <ErrorBoundary>
+      <ConnectionsPage />
+    </ErrorBoundary>
   );
 }

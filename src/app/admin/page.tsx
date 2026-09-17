@@ -5,8 +5,8 @@ import { getCurrentUser } from "@/lib/get-current-user";
 import { safeToISOString } from "@/lib/session-cookie";
 import { ElevationsPanel } from "./ElevationsPanel";
 import { BureauContent } from "./BureauContent";
-import { DetHQ } from "@/components/hq/DetHQ";
-import { AgentHQ } from "@/components/hq/AgentHQ";
+import { DetHQWrapper } from "@/components/hq/DetHQ";
+import { AgentHQWrapper } from "@/components/hq/AgentHQ";
 
 export const dynamic = "force-dynamic";
 
@@ -23,12 +23,12 @@ export default async function AdminPage() {
 
   // DET view — elevation request + profile
   if (user.role === "DETECTIVE") {
-    return <DetHQ />;
+    return <DetHQWrapper />;
   }
 
   // AGT view — tasks + profile merged
   if (user.role === "AGENT") {
-    return <AgentHQ />;
+    return <AgentHQWrapper />;
   }
 
   // BRU view — full admin HQ

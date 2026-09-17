@@ -1,6 +1,6 @@
 "use client";
 
-import { BureauHQ } from "@/components/hq/BureauHQ";
+import { BureauHQWrapper } from "@/components/hq/BureauHQ";
 import { ElevationsPanel } from "./ElevationsPanel";
 import { PromoteSection } from "./PromoteSection";
 import { Scale, MessageSquare, Check, Trash2 } from "lucide-react";
@@ -101,7 +101,7 @@ export function BureauContent({ stats, upcomingTopics, pendingElevations, approv
   };
 
   return (
-    <BureauHQ stats={stats}>
+    <BureauHQWrapper stats={stats}>
       {/* Dashboard tab content — rendered below stats */}
       <div className="space-y-3">
         {/* Elevation requests inline on dashboard */}
@@ -186,6 +186,6 @@ export function BureauContent({ stats, upcomingTopics, pendingElevations, approv
           </Link>
         </div>
       </div>
-    </BureauHQ>
+    </BureauHQWrapper>
   );
 }

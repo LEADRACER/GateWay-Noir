@@ -8,6 +8,7 @@ import { registerPhone } from "@/lib/badge-client";
 import { requestElevation, getMyElevationStatus } from "@/lib/elevation-actions";
 import { BadgeCard } from "@/components/badge/BadgeCard";
 import { RoleAvatar } from "@/components/badge/RoleAvatar";
+import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 
 interface ElevationStatus {
   status: string;
@@ -234,5 +235,13 @@ export function DetHQ() {
         )}
       </motion.div>
     </div>
+  );
+}
+
+export function DetHQWrapper() {
+  return (
+    <ErrorBoundary>
+      <DetHQ />
+    </ErrorBoundary>
   );
 }

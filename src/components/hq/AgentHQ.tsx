@@ -19,6 +19,7 @@ import { getAudienceLabel, type DiscussionAudience, type SpectatorVisibility } f
 import { formatDate } from "@/lib/utils";
 import { BadgeCard } from "@/components/badge/BadgeCard";
 import { RoleAvatar } from "@/components/badge/RoleAvatar";
+import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 
 interface Task {
   id: string;
@@ -142,7 +143,8 @@ export function AgentHQ() {
     Promise.all([
       getAgentProfile(badge.id),
       getAgentTasks(badge.id),
-    ]).then(([profileData, taskData]) => {
+      getAgentDiscussions(),
+    ]).then(([profileData, taskData, discussionsData]) => {
       if (profileData) {
         const p = profileData as ProfileData;
         setProfile(p);
@@ -150,6 +152,7 @@ export function AgentHQ() {
         setBio(p.bio || "");
       }
       setTasks(taskData as Task[]);
+      setDiscussions(discussionsData as Discussion[]);
       setLoading(false);
     });
   }, [badge]);
@@ -760,5 +763,13 @@ export function AgentHQ() {
         </div>
       )}
     </div>
+  );
+}
+
+export function AgentHQWrapper() {
+  return (
+    <ErrorBoundary>
+      <AgentHQ />
+    </ErrorBoundary>
   );
 }

@@ -17,6 +17,7 @@ import { getAgentDiscussions } from "@/lib/discussion-actions";
 import { getAudienceLabel, type DiscussionAudience, type SpectatorVisibility } from "@/lib/discussion-access";
 import toast from "react-hot-toast";
 import Link from "next/link";
+import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 
 interface AgentUser {
   id: string;
@@ -1132,5 +1133,13 @@ function CreateAdminForm() {
         </p>
       )}
     </>
+  );
+}
+
+export function BureauHQWrapper({ stats, children }: BureauHQProps) {
+  return (
+    <ErrorBoundary>
+      <BureauHQ stats={stats} children={children} />
+    </ErrorBoundary>
   );
 }
