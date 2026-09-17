@@ -73,6 +73,11 @@ interface Participant {
 
 type SidebarTab = "people" | "details" | "search";
 
+interface TypingUser {
+  badgeCode: string;
+  displayName: string;
+}
+
 const audienceClasses: Record<DiscussionAudience, string> = {
   bru_only: "bg-amber-500/15 text-amber-400 border-amber-500/25",
   bru_agt: "bg-blue-500/15 text-blue-400 border-blue-500/25",
@@ -175,6 +180,9 @@ export default function DiscussionDetailPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
   const [isOnline, setIsOnline] = useState(true);
+  const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isDocumentHiddenRef = useRef(false);
 
   const loadParticipants = useCallback(async () => {
     try {
@@ -244,13 +252,50 @@ export default function DiscussionDetailPage() {
     if (!discussion?.isOpen) return;
 
     pollIntervalRef.current = setInterval(() => {
-      if (!document.hidden) void fetchMessages();
+      if (!document.hidden && !isDocumentHiddenRef.current) {
+        void fetchMessages();
+      }
     }, 5000);
 
+    const handleVisibilityChange = () => {
+      isDocumentHiddenRef.current = document.hidden;
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => {
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [discussion?.isOpen, fetchMessages]);
+
+  // Typing indicator logic
+  useEffect(() => {
+    if (!badge || !discussion?.isOpen || !canDiscuss) return;
+
+    const sendTyping = async () => {
+      try {
+        await fetch(`/api/agent/discussions/${params.id}/typing`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ badgeCode: badge.badgeCode }),
+        });
+      } catch {
+        // silent fail
+      }
+    };
+
+    const handleInputChange = () => {
+      void sendTyping();
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = setTimeout(() => {
+        // Stop typing indicator after 3 seconds of inactivity
+      }, 3000);
+    };
+
+    return () => {
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    };
+  }, [badge, discussion?.isOpen, canDiscuss, params.id]);
 
   useEffect(() => {
     if (!badgeLoading && badge && discussion) {
@@ -806,6 +851,35 @@ export default function DiscussionDetailPage() {
                 </div>
               ))
             )}
+            {/* Typing indicator */}
+            {typingUsers.length > 0 && (
+              <div className="flex items-center gap-1.5 px-2 py-1 text-[9px] text-zinc-500 typewriter-label animate-pulse">
+                <span className="flex gap-0.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-zinc-500/50 animate-bounce [animation-delay:0ms]" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-zinc-500/50 animate-bounce [animation-delay:150ms]" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-zinc-500/50 animate-bounce [animation-delay:300ms]" />
+                </span>
+                {typingUsers.length === 1 ? (
+                  <>
+                    <span className="font-mono text-amber-400">{typingUsers[0].badgeCode}</span>
+                    <span>is typing...</span>
+                  </>
+                ) : typingUsers.length === 2 ? (
+                  <>
+                    <span className="font-mono text-amber-400">{typingUsers[0].badgeCode}</span>
+                    <span>and</span>
+                    <span className="font-mono text-amber-400">{typingUsers[1].badgeCode}</span>
+                    <span>are typing...</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="font-mono text-amber-400">{typingUsers[0].badgeCode}</span>
+                    <span>and {typingUsers.length - 1} others</span>
+                    <span>are typing...</span>
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
           {discussion.isOpen && canDiscuss && badge ? (
@@ -813,7 +887,18 @@ export default function DiscussionDetailPage() {
               <div className="flex items-end gap-2">
                 <textarea
                   value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
+                  onChange={(e) => {
+                    setNewMessage(e.target.value);
+                    // Trigger typing indicator
+                    if (!e.target.value.trim()) return;
+                    try {
+                      fetch(`/api/agent/discussions/${params.id}/typing`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ badgeCode: badge?.badgeCode }),
+                      }).catch(() => {});
+                    } catch {}
+                  }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();

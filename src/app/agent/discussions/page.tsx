@@ -1,9 +1,9 @@
 "use client";
 
 import { useBadge } from "@/components/badge/BadgeProvider";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   MessageSquare,
   Plus,
@@ -18,6 +18,9 @@ import {
   BarChart2,
   UserCircle,
   Zap,
+  Wifi,
+  WifiOff,
+  RefreshCw,
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import {
@@ -70,6 +73,14 @@ const audienceFilterOptions: Array<{ value: DiscussionAudience | "all"; label: s
   { value: "bru_agt_det", label: "BRU + AGT + DET" },
 ];
 
+function formatClock(value: string) {
+  return new Intl.DateTimeFormat("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(new Date(value));
+}
+
 export default function AgentDiscussionsPage() {
   const { badge, loading: badgeLoading } = useBadge();
   const router = useRouter();
@@ -79,11 +90,17 @@ export default function AgentDiscussionsPage() {
   const [filter, setFilter] = useState<DiscussionFilter>("all");
   const [audience, setAudience] = useState<DiscussionAudience | "all">("all");
   const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [showStats, setShowStats] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
+  const [lastSynced, setLastSynced] = useState<string | null>(null);
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isDocumentHiddenRef = useRef(false);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const fetchDiscussions = useCallback(async () => {
-    setLoading(true);
+  const fetchDiscussions = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     setError(null);
     try {
       const res = await fetch("/api/agent/discussions");
@@ -96,10 +113,13 @@ export default function AgentDiscussionsPage() {
       }
       const data = await res.json();
       setDiscussions(data.discussions || []);
+      setIsOnline(true);
+      setLastSynced(new Date().toISOString());
     } catch {
-      setError("Failed to load discussions");
+      setIsOnline(false);
+      if (!silent) setError("Failed to load discussions");
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
@@ -125,6 +145,39 @@ export default function AgentDiscussionsPage() {
     }
   }, [badgeLoading, fetchDiscussions, fetchUserStats]);
 
+  // Real-time polling for live updates
+  useEffect(() => {
+    if (!badge || isDocumentHiddenRef.current) return;
+
+    pollIntervalRef.current = setInterval(() => {
+      if (!document.hidden && !isDocumentHiddenRef.current) {
+        void fetchDiscussions(true); // silent refresh
+        void fetchUserStats();
+      }
+    }, 8000); // Poll every 8 seconds
+
+    const handleVisibilityChange = () => {
+      isDocumentHiddenRef.current = document.hidden;
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [badge, fetchDiscussions, fetchUserStats]);
+
+  // Debounced search
+  useEffect(() => {
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    searchTimeoutRef.current = setTimeout(() => {
+      setDebouncedQuery(query);
+    }, 300);
+    return () => {
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    };
+  }, [query]);
+
   const canCreate = Boolean(
     badge && (badge.role === "DETECTIVE" || badge.role === "AGENT" || badge.role === "BUREAU"),
   );
@@ -142,10 +195,10 @@ export default function AgentDiscussionsPage() {
     const matchesAudience =
       audience === "all" || discussion.visibility === audience;
     const matchesQuery =
-      !query.trim() ||
+      !debouncedQuery.trim() ||
       `${discussion.title} ${discussion.description || ""}`
         .toLowerCase()
-        .includes(query.trim().toLowerCase());
+        .includes(debouncedQuery.trim().toLowerCase());
     return matchesFilter && matchesAudience && matchesQuery;
   });
 
@@ -171,6 +224,12 @@ export default function AgentDiscussionsPage() {
               <h1 className="text-sm font-semibold text-zinc-200 typewriter-label">
                 {isVisitor ? "PUBLIC CHANNEL" : "AGENT CHANNEL"}
               </h1>
+              {!isVisitor && (
+                <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-[7px] font-medium rounded border typewriter-label ${isOnline ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/25" : "bg-red-500/10 text-red-400 border-red-500/25"}`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${isOnline ? "bg-emerald-500" : "bg-red-500"}`} />
+                  {isOnline ? "LIVE" : "OFFLINE"}
+                </span>
+              )}
             </div>
             <p className="text-[10px] text-zinc-600">
               {isVisitor
@@ -178,15 +237,34 @@ export default function AgentDiscussionsPage() {
                 : "Role-based discussions · choose an audience before opening a thread"}
             </p>
           </div>
-          {canCreate && (
-            <button
-              onClick={() => router.push("/agent/discussions/new")}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-[10px] font-medium bg-amber-600 text-black typewriter-label hover:bg-amber-500 transition-colors min-h-[40px] justify-center sm:justify-normal"
-            >
-              <Plus className="w-3 h-3" />
-              NEW DISCUSSION
-            </button>
-          )}
+          <div className="flex items-center gap-2 flex-wrap">
+            {!isVisitor && (
+              <div className="flex items-center gap-1.5 text-[8px] text-zinc-500 typewriter-label">
+                {isOnline ? <Wifi className="h-3 w-3 text-emerald-500/80" /> : <WifiOff className="h-3 w-3 text-red-400/80" />}
+                {isOnline ? "LIVE SYNC" : "RECONNECTING"}
+                {lastSynced && <span className="hidden sm:inline">· {formatClock(lastSynced)}</span>}
+              </div>
+            )}
+            {canCreate && (
+              <button
+                onClick={() => router.push("/agent/discussions/new")}
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-[10px] font-medium bg-amber-600 text-black typewriter-label hover:bg-amber-500 transition-colors min-h-[40px] justify-center sm:justify-normal"
+              >
+                <Plus className="w-3 h-3" />
+                NEW DISCUSSION
+              </button>
+            )}
+            {!isVisitor && !loading && (
+              <button
+                onClick={() => void fetchDiscussions()}
+                disabled={loading}
+                className="p-2 text-[8px] text-zinc-500 hover:text-zinc-300 transition-colors rounded hover:bg-[#111113] min-h-[40px] min-w-[40px]"
+                title="Refresh discussions"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+              </button>
+            )}
+          </div>
         </div>
 
         {error && (
@@ -286,14 +364,21 @@ export default function AgentDiscussionsPage() {
               </option>
             ))}
           </select>
-          <label className="flex items-center gap-2 bg-[#111113] border border-[rgba(168,144,112,0.1)] px-2.5 py-1.5 min-w-0">
+          <label className="flex items-center gap-2 bg-[#111113] border border-[rgba(168,144,112,0.1)] px-2.5 py-1.5 min-w-0 relative">
             <Search className="w-3 h-3 text-zinc-700 shrink-0" />
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search discussions"
-              className="bg-transparent outline-none text-[9px] text-zinc-400 placeholder:text-zinc-700 w-full"
+              className="bg-transparent outline-none text-[9px] text-zinc-400 placeholder:text-zinc-700 w-full pr-16"
             />
+            {query !== debouncedQuery && (
+              <span className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 text-[7px] text-amber-500 typewriter-label animate-pulse">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500/50 animate-bounce [animation-delay:0ms]" />
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500/50 animate-bounce [animation-delay:150ms]" />
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500/50 animate-bounce [animation-delay:300ms]" />
+              </span>
+            )}
           </label>
         </div>
 
@@ -301,7 +386,7 @@ export default function AgentDiscussionsPage() {
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-5 h-5 text-zinc-600 animate-spin" />
           </div>
-        ) : visibleDiscussions.length === 0 ? (
+) : visibleDiscussions.length === 0 ? (
           <div className="text-center py-12 bg-[#111113] border border-[rgba(168,144,112,0.08)]">
             <MessageSquare className="w-6 h-6 text-zinc-700 mx-auto mb-2" />
             <p className="text-zinc-600 text-xs typewriter-label">NO DISCUSSIONS FOUND</p>
@@ -309,11 +394,14 @@ export default function AgentDiscussionsPage() {
           </div>
         ) : (
           <>
-            <div className="flex items-center gap-2 mb-3">
-              <TrendingUp className="w-3 h-3 text-zinc-600" />
-              <p className="text-[9px] text-zinc-500 typewriter-label">
-                {visibleDiscussions.length} DISCUSSION{visibleDiscussions.length !== 1 ? "S" : ""} · {discussions.filter(d => d.isOpen).length} OPEN · {totalMessages} MESSAGES
-              </p>
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="w-3 h-3 text-zinc-600" />
+                <p className="text-[9px] text-zinc-500 typewriter-label">
+                  {visibleDiscussions.length} DISCUSSION{visibleDiscussions.length !== 1 ? "S" : ""} · {discussions.filter(d => d.isOpen).length} OPEN · {totalMessages} MESSAGES
+                </p>
+              </div>
+              {isOnline && <span className="flex items-center gap-1 text-[8px] text-emerald-500 typewriter-label"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />LIVE</span>}
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {visibleDiscussions.map((discussion) => (
@@ -334,7 +422,7 @@ export default function AgentDiscussionsPage() {
                   {discussion.description && (
                     <p className="text-[10px] text-zinc-600 line-clamp-2 mb-2">{discussion.description}</p>
                   )}
-                  
+
                   {discussion.activeParticipants && discussion.activeParticipants.length > 0 && (
                     <div className="mb-2 flex items-center gap-1.5 flex-wrap">
                       <Zap className="w-2.5 h-2.5 text-emerald-400/70 shrink-0" />
@@ -361,7 +449,7 @@ export default function AgentDiscussionsPage() {
                       )}
                     </div>
                   )}
-                  
+
                   <div className="mt-auto flex items-center justify-between gap-2 pt-2 border-t border-[rgba(168,144,112,0.05)]">
                     <div className="flex items-center gap-2 text-[9px] text-zinc-700 min-w-0">
                       <span className="font-mono truncate">{discussion.createdBy?.badgeCode ?? "?"}</span>
@@ -380,6 +468,25 @@ export default function AgentDiscussionsPage() {
                 </button>
               ))}
             </div>
+            {/* Skeleton loaders for polling updates */}
+            <AnimatePresence mode="popLayout">
+              {loading && !visibleDiscussions.length && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3" key="skeleton">
+                  {[...Array(6)].map((_, i) => (
+                    <div key={i} className="bg-[#111113] border border-[rgba(168,144,112,0.06)] p-3 flex flex-col min-h-[150px] animate-pulse">
+                      <div className="h-4 bg-zinc-800/50 rounded w-3/4 mb-2" />
+                      <div className="h-3 bg-zinc-800/50 rounded w-1/2 mb-2" />
+                      <div className="h-3 bg-zinc-800/50 rounded w-full mb-2" />
+                      <div className="h-3 bg-zinc-800/50 rounded w-full mb-2" />
+                      <div className="mt-auto flex items-center gap-2 pt-2 border-t border-[rgba(168,144,112,0.05)]">
+                        <div className="h-3 bg-zinc-800/50 rounded w-24" />
+                        <div className="ml-auto w-6 h-6 bg-zinc-800/50 rounded" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </AnimatePresence>
           </>
         )}
       </motion.div>

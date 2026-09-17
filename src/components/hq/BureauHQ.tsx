@@ -152,20 +152,39 @@ const [activeTab, setActiveTab] = useState<TabKey>("dashboard");
   }, []);
 
   useEffect(() => {
-    fetchAgents();
-    fetchActiveCases();
-  }, [fetchAgents, fetchActiveCases]);
+    const timeout = setTimeout(() => {
+      const loadInitialData = async () => {
+        try {
+          await Promise.all([fetchAgents(), fetchActiveCases()]);
+        } catch (err) {
+          console.error("Failed to load initial data:", err);
+          addNotification("Failed to load data", "error");
+        }
+      };
+      loadInitialData();
+    }, 0);
+
+    return () => clearTimeout(timeout);
+  }, [fetchAgents, fetchActiveCases, addNotification]);
 
   useEffect(() => {
-    if (activeTab === "tasks") {
+    if (activeTab !== "tasks") return;
+
+    const timeout = setTimeout(() => {
       fetchTasks();
-    }
+    }, 0);
+
+    return () => clearTimeout(timeout);
   }, [activeTab, fetchTasks]);
 
   useEffect(() => {
-    if (activeTab === "discussions") {
+    if (activeTab !== "discussions") return;
+
+    const timeout = setTimeout(() => {
       fetchDiscussions();
-    }
+    }, 0);
+
+    return () => clearTimeout(timeout);
   }, [activeTab, fetchDiscussions]);
 
   const handleConclude = async (topicId: string, verdict: string) => {
@@ -1139,7 +1158,9 @@ function CreateAdminForm() {
 export function BureauHQWrapper({ stats, children }: BureauHQProps) {
   return (
     <ErrorBoundary>
-      <BureauHQ stats={stats} children={children} />
+      <BureauHQ stats={stats}>
+        {children}
+      </BureauHQ>
     </ErrorBoundary>
   );
 }

@@ -108,7 +108,7 @@ export function AgentHQ() {
   const [activeTab, setActiveTab] = useState<TabKey>("tasks");
 
   const addNotification = (message: string, type: "info" | "success" | "warning" | "error" = "info") => {
-    const id = Date.now().toString();
+    const id = Math.random().toString(36).substring(2, 10);
     setNotifications(prev => [...prev, { id, message, type, time: new Date() }]);
     setTimeout(() => {
       setNotifications(prev => prev.filter(n => n.id !== id));
@@ -135,32 +135,49 @@ export function AgentHQ() {
   }, [badge]);
 
   useEffect(() => {
-    if (!badge) {
-      setLoading(false);
-      return;
-    }
-
-    Promise.all([
-      getAgentProfile(badge.id),
-      getAgentTasks(badge.id),
-      getAgentDiscussions(),
-    ]).then(([profileData, taskData, discussionsData]) => {
-      if (profileData) {
-        const p = profileData as ProfileData;
-        setProfile(p);
-        setDisplayName(p.displayName || "");
-        setBio(p.bio || "");
+    const timeout = setTimeout(() => {
+      if (!badge) {
+        setLoading(false);
+        return;
       }
-      setTasks(taskData as Task[]);
-      setDiscussions(discussionsData as Discussion[]);
-      setLoading(false);
-    });
-  }, [badge]);
+
+      const loadInitialData = async () => {
+        try {
+          const [profileData, taskData, discussionsData] = await Promise.all([
+            getAgentProfile(badge.id),
+            getAgentTasks(badge.id),
+            getAgentDiscussions(),
+          ]);
+          if (profileData) {
+            const p = profileData as ProfileData;
+            setProfile(p);
+            setDisplayName(p.displayName || "");
+            setBio(p.bio || "");
+          }
+          setTasks(taskData as Task[]);
+          setDiscussions(discussionsData as Discussion[]);
+        } catch (err) {
+          console.error("Failed to load initial data:", err);
+          addNotification("Failed to load data", "error");
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      loadInitialData();
+    }, 0);
+
+    return () => clearTimeout(timeout);
+  }, [badge, addNotification]);
 
   useEffect(() => {
-    if (activeTab === "discussions") {
+    if (activeTab !== "discussions") return;
+
+    const timeout = setTimeout(() => {
       fetchDiscussions();
-    }
+    }, 0);
+
+    return () => clearTimeout(timeout);
   }, [activeTab, fetchDiscussions]);
 
   const handleSaveProfile = async () => {
