@@ -481,7 +481,7 @@ export async function createTopic(formData: FormData) {
     .select("slug")
     .like("slug", `${slug}%`);
   if (existingSlugs) {
-    const taken = new Set(existingSlugs.map((t: any) => t.slug));
+    const taken = new Set(existingSlugs.map((t: Pick<Topic, "slug">) => t.slug));
     let counter = 1;
     while (taken.has(slug)) {
       slug = `${generateSlug(title)}-${counter}`;
@@ -691,7 +691,7 @@ export async function getFlaggedComments() {
   if (error) throw new Error(error.message);
   
   // Normalize Topic -> topic for client compatibility
-  return (data || []).map((comment: any) => ({
+  return (data || []).map((comment: Comment & { Topic: { title: string; slug: string } | null }) => ({
     ...comment,
     topic: comment.Topic ? { title: comment.Topic.title, slug: comment.Topic.slug } : null,
   }));
@@ -713,7 +713,7 @@ export async function getAllComments() {
   if (error) throw new Error(error.message);
   
   // Normalize Topic -> topic for client compatibility
-  return (data || []).map((comment: any) => ({
+  return (data || []).map((comment: Comment & { Topic: { title: string; slug: string } | null }) => ({
     ...comment,
     topic: comment.Topic ? { title: comment.Topic.title, slug: comment.Topic.slug } : null,
   }));

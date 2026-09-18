@@ -15,7 +15,7 @@ interface Comment {
   content: string;
   isFlagged: boolean;
   createdAt: string | Date;
-  topic: { title: string; slug: string };
+  topic?: { title: string; slug: string } | null;
 }
 
 interface CommentsPanelProps {
@@ -106,7 +106,7 @@ export function CommentsPanel({ allComments, flaggedComments }: CommentsPanelPro
                   </div>
                   <p className="text-sm text-zinc-400 mb-2">{comment.content}</p>
                   <p className="text-xs text-amber-600/60">
-                    on <span className="hover:underline">{comment.topic.title}</span>
+                    on <span className="hover:underline">{comment.topic?.title || "Unknown Case"}</span>
                   </p>
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0">

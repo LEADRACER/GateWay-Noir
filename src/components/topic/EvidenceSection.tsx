@@ -126,7 +126,7 @@ export function EvidenceSection({ topicId, topicEvidence }: EvidenceSectionProps
                       <div className="text-[9px] text-zinc-600 typewriter-label font-mono break-all bg-[#0a0a0c] p-1.5 rounded">
                         {item.url}
                       </div>
-                      {item.commentContent && (
+{item.commentContent && (
                         <p className="text-[10px] text-zinc-500 mt-1 line-clamp-2 italic">
                           "{item.commentContent}..."
                         </p>
