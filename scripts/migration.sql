@@ -102,6 +102,7 @@ CREATE INDEX IF NOT EXISTS idx_discussion_participant_discussion
 -- 4b. ADD USER CONNECTIONS SYSTEM (AGTs/BRUs who know each other see names)
 -- ═══════════════════════════════════════════════════════════════════════════
 
+-- Step 1: Create table if not exists (new schema)
 CREATE TABLE IF NOT EXISTS "public"."UserConnection" (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
   "userId" TEXT NOT NULL REFERENCES "public"."User"(id) ON DELETE CASCADE,
@@ -115,7 +116,7 @@ CREATE TABLE IF NOT EXISTS "public"."UserConnection" (
 CREATE INDEX IF NOT EXISTS idx_user_connection_user ON "public"."UserConnection"("userId");
 CREATE INDEX IF NOT EXISTS idx_user_connection_connected ON "public"."UserConnection"("connectedUserId");
 
--- Add status and metadata columns if the table already exists
+-- Step 2: Add status column if missing (handles existing tables with old schema)
 DO $$
 DECLARE
   status_column_exists BOOLEAN;
@@ -138,23 +139,23 @@ BEGIN
   END IF;
 END $$;
 
+-- Step 3: Add metadata column if missing
 ALTER TABLE "public"."UserConnection"
   ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb;
 
--- Backfill only pre-existing bidirectional rows as mutual.
-UPDATE "public"."UserConnection" AS connection
+-- Step 4: Backfill existing bidirectional rows as mutual.
+-- Only affects rows with old 'pending' status that have a reverse row.
+UPDATE "public"."UserConnection"
 SET status = 'mutual'
-WHERE connection.status = 'pending'
+WHERE status = 'pending'
   AND EXISTS (
     SELECT 1
     FROM "public"."UserConnection" AS reverse_connection
-    WHERE reverse_connection."userId" = connection."connectedUserId"
-      AND reverse_connection."connectedUserId" = connection."userId"
+    WHERE reverse_connection."userId" = "UserConnection"."connectedUserId"
+      AND reverse_connection."connectedUserId" = "UserConnection"."userId"
   );
 
-CREATE INDEX IF NOT EXISTS idx_user_connection_status ON "public"."UserConnection"(status);
-
--- Update CHECK constraint on status column to new values
+-- Step 5: Update CHECK constraint on status column to new values
 DO $$
 BEGIN
   IF EXISTS (
@@ -170,12 +171,7 @@ BEGIN
     CHECK (status IN ('following', 'mutual', 'rejected'));
 END $$;
 
--- Add connectionPrivacy to User
-ALTER TABLE "public"."User"
-  ADD COLUMN IF NOT EXISTS "connectionPrivacy" TEXT NOT NULL DEFAULT 'open'
-    CHECK ("connectionPrivacy" IN ('open', 'mutual_only', 'closed'));
-
-CREATE INDEX IF NOT EXISTS idx_user_connection_privacy ON "public"."User"("connectionPrivacy");
+CREATE INDEX IF NOT EXISTS idx_user_connection_status ON "public"."UserConnection"(status);
 
 -- ═══════════════════════════════════════════════════════════════════════════
 -- 4c. ADD AUDIT LOG TABLE
