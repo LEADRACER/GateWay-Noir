@@ -4,14 +4,18 @@ import { revalidatePath } from "next/cache";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { generateSlug, normalizeEvidenceUrls } from "./utils";
 import { getCurrentUser } from "./get-current-user";
-import type { Topic, Vote, Comment, Category } from "@/lib/types/database";
+import type { Topic, Vote, Comment, Category, TopicWithCategory } from "@/lib/types/database";
+
+type JoinedComment = Omit<Comment, "userId"> & {
+  userId: { displayName: string } | null;
+};
 
 /**
  * Normalize Supabase PostgREST join key from table name `Category` → `category`.
  */
 function normalizeCategory<T>(obj: T): T {
   if (!obj) return obj;
-  const o = obj as Record<string, any>;
+  const o = obj as Record<string, unknown>;
   if (o.Category) {
     o.category = o.Category;
     delete o.Category;
@@ -47,7 +51,7 @@ export async function getTopics(categorySlug?: string, status?: string) {
   // Get counts separately since Supabase doesn't do _count like Prisma
   const topics = data || [];
   const enriched = await Promise.all(
-    topics.map(async (t: any) => {
+    topics.map(async (t: Topic & { Category: Category }) => {
       const { count: commentsCount } = await supabase
         .from('Comment')
         .select("*", { count: "exact", head: true })
@@ -76,7 +80,7 @@ export async function getUpcomingTopics() {
 
   const topics = data || [];
   const enriched = await Promise.all(
-    topics.map(async (t: any) => {
+    topics.map(async (t: TopicWithCategory) => {
       const { count } = await supabase
         .from('Vote')
         .select("*", { count: "exact", head: true })
@@ -106,7 +110,7 @@ export async function getActiveAndConcludedTopics(categorySlug?: string) {
 
   const topics = data || [];
   const enriched = await Promise.all(
-    topics.map(async (t: any) => {
+    topics.map(async (t: TopicWithCategory) => {
       const { count: commentsCount } = await supabase
         .from('Comment')
         .select("*", { count: "exact", head: true })
@@ -160,7 +164,7 @@ export async function getTopicBySlug(slug: string) {
 
   return normalizeCategory({
     ...topic,
-    comments: (comments || []).map((comment: any) => ({
+    comments: (comments || []).map((comment: JoinedComment) => ({
       ...comment,
       evidenceUrls: normalizeEvidenceUrls(comment.evidenceUrls),
       userDisplayName: comment.userId?.displayName || null,
@@ -189,7 +193,7 @@ export async function getTopicById(id: string) {
 
   return normalizeCategory({
     ...topic,
-    comments: (comments || []).map((comment: any) => ({
+    comments: (comments || []).map((comment: JoinedComment) => ({
       ...comment,
       evidenceUrls: normalizeEvidenceUrls(comment.evidenceUrls),
       userDisplayName: comment.userId?.displayName || null,
@@ -297,7 +301,7 @@ export async function getUserVotes(anonymousId: string) {
     .select("topicId")
     .eq("anonymousId", anonymousId);
 
-  return new Set((data || []).map((v: any) => v.topicId));
+  return new Set((data || []).map((v: Pick<Vote, "topicId">) => v.topicId));
 }
 
 // ─── Promote Upcoming → Active ───
@@ -430,7 +434,7 @@ export async function getComments(topicId: string) {
     .order("createdAt", { ascending: false });
 
   if (error) throw new Error(error.message);
-  return (data || []).map((comment: any) => ({
+  return (data || []).map((comment: Comment) => ({
     ...comment,
     evidenceUrls: normalizeEvidenceUrls(comment.evidenceUrls),
   }));
