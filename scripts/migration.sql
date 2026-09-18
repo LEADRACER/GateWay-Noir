@@ -122,11 +122,10 @@ DECLARE
   status_column_exists BOOLEAN;
 BEGIN
   SELECT EXISTS (
-    SELECT 1
-    FROM information_schema.columns
-    WHERE table_schema = 'public'
-      AND table_name = 'UserConnection'
-      AND column_name = 'status'
+    SELECT 1 FROM pg_attribute
+    WHERE attrelid = '"UserConnection"'::regclass
+      AND attname = 'status'
+      AND NOT attisdropped
   ) INTO status_column_exists;
 
   IF NOT status_column_exists THEN
@@ -159,9 +158,9 @@ WHERE status = 'pending'
 DO $$
 BEGIN
   IF EXISTS (
-    SELECT 1 FROM information_schema.check_constraints
-    WHERE constraint_name = 'UserConnection_status_check'
-      AND table_name = 'UserConnection'
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'UserConnection_status_check'
+      AND conrelid = '"UserConnection"'::regclass
   ) THEN
     ALTER TABLE "public"."UserConnection"
       DROP CONSTRAINT "UserConnection_status_check";
