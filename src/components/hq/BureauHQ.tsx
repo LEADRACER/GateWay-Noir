@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
   Scale, MessageSquare, CheckCircle2, Sparkles, AlertCircle,
@@ -303,41 +303,40 @@ const [activeTab, setActiveTab] = useState<TabKey>("dashboard");
     setUpdatingTaskId(null);
   };
 
-  const filteredAgents = agents.filter(agent => {
-    const matchesSearch = agent.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          agent.badgeCode.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesSearch;
-  });
-
-  const filteredUsers = agents.filter(agent => {
-    const matchesSearch = agent.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          agent.badgeCode.toLowerCase().includes(searchQuery.toLowerCase());
-    const role = getAgentRole(agent.badgeCode);
-    const matchesRole = roleFilter === "all" || role === roleFilter;
-    return matchesSearch && matchesRole;
-  });
-
-  const filteredTasks = tasks.filter(task => {
-    const matchesStatus = statusFilter === "all" || task.status === statusFilter;
-    const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          task.agent.displayName.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesStatus && matchesSearch;
-  });
-
-  const filteredDiscussions = discussions.filter(d => {
-    const matchesSearch = d.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          d.description?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === "all" || (statusFilter === "open" ? d.isOpen : !d.isOpen);
-    return matchesSearch && matchesStatus;
-  });
-
-  // Get agent role from badge code
   const getAgentRole = (badgeCode: string) => {
     if (badgeCode.startsWith("BRU-")) return "BUREAU";
     if (badgeCode.startsWith("AGT-")) return "AGENT";
     if (badgeCode.startsWith("DET-")) return "DETECTIVE";
     return "UNKNOWN";
   };
+
+  const filteredAgents = useMemo(() => agents.filter(agent => {
+    const matchesSearch = agent.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          agent.badgeCode.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesSearch;
+  }), [agents, searchQuery]);
+
+  const filteredUsers = useMemo(() => agents.filter(agent => {
+    const matchesSearch = agent.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          agent.badgeCode.toLowerCase().includes(searchQuery.toLowerCase());
+    const role = getAgentRole(agent.badgeCode);
+    const matchesRole = roleFilter === "all" || role === roleFilter;
+    return matchesSearch && matchesRole;
+  }), [agents, searchQuery, roleFilter]);
+
+  const filteredTasks = useMemo(() => tasks.filter(task => {
+    const matchesStatus = statusFilter === "all" || task.status === statusFilter;
+    const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          task.agent.displayName.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesStatus && matchesSearch;
+  }), [tasks, statusFilter, searchQuery]);
+
+  const filteredDiscussions = useMemo(() => discussions.filter(d => {
+    const matchesSearch = d.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          d.description?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter === "all" || (statusFilter === "open" ? d.isOpen : !d.isOpen);
+    return matchesSearch && matchesStatus;
+  }), [discussions, statusFilter, searchQuery]);
 
   const getRoleColor = (role: string) => {
     switch (role) {

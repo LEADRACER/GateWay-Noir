@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
   ClipboardList, Play, CheckCircle2, Clock, Loader2, FileX,
@@ -244,19 +244,19 @@ export function AgentHQ() {
     return p.slice(0, 3) + "****" + p.slice(-2);
   };
 
-  const filteredTasks = tasks.filter(task => {
+  const filteredTasks = useMemo(() => tasks.filter(task => {
     const matchesStatus = statusFilter === "all" || task.status === statusFilter;
     const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           task.description?.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesStatus && matchesSearch;
-  });
+  }), [tasks, statusFilter, searchQuery]);
 
-  const filteredDiscussions = discussions.filter(d => {
+  const filteredDiscussions = useMemo(() => discussions.filter(d => {
     const matchesSearch = d.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           d.description?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === "all" || (statusFilter === "open" ? d.isOpen : !d.isOpen);
     return matchesSearch && matchesStatus;
-  });
+  }), [discussions, statusFilter, searchQuery]);
 
   if (loading) {
     return (

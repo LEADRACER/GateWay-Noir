@@ -140,12 +140,15 @@ function ConnectionsPage() {
 
       const now = new Date();
       const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const agentsCount = connData.filter((connection: Connection) => connection.connectedUser.role === "AGENT").length;
+      const bureauCount = connData.filter((connection: Connection) => connection.connectedUser.role === "BUREAU").length;
+      const thisWeekCount = connData.filter((connection: Connection) => new Date(connection.createdAt) > weekAgo).length;
       setStats((prev) => ({
         ...prev,
         total: connData.length,
-        agents: connData.filter((connection: Connection) => connection.connectedUser.role === "AGENT").length,
-        bureau: connData.filter((connection: Connection) => connection.connectedUser.role === "BUREAU").length,
-        thisWeek: connData.filter((connection: Connection) => new Date(connection.createdAt) > weekAgo).length,
+        agents: agentsCount,
+        bureau: bureauCount,
+        thisWeek: thisWeekCount,
       }));
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
@@ -238,12 +241,14 @@ function ConnectionsPage() {
       const sentRequestIds = new Set(requestsRef.current.filter((request) => request.direction === "sent").map((request) => request.user.id));
       const receivedRequestIds = new Set(requestsRef.current.filter((request) => request.direction === "received").map((request) => request.user.id));
 
-      const results = (data.agents || [])
-        .filter((agent: UserSummary) =>
-          agent.badgeCode.toUpperCase().includes(searchQuery.trim().toUpperCase()) ||
-          agent.displayName.toLowerCase().includes(searchQuery.trim().toLowerCase()),
-        )
-        .map((agent: UserSummary): SearchResult => {
+      const agents = data.agents || [];
+      const query = searchQuery.trim().toLowerCase();
+      const queryUpper = searchQuery.trim().toUpperCase();
+      const filteredAgents = agents.filter((agent: UserSummary) =>
+        agent.badgeCode.toUpperCase().includes(queryUpper) ||
+        agent.displayName.toLowerCase().includes(query),
+      );
+      const results = filteredAgents.map((agent: UserSummary): SearchResult => {
           const isConnected = connectedIds.has(agent.id);
           const isSent = sentRequestIds.has(agent.id);
           const isReceived = receivedRequestIds.has(agent.id);
@@ -400,8 +405,8 @@ function ConnectionsPage() {
     return connections;
   }, [connections, activeTab]);
 
-  const receivedRequests = requests.filter((request) => request.direction === "received");
-  const sentRequests = requests.filter((request) => request.direction === "sent");
+  const receivedRequests = useMemo(() => requests.filter((request) => request.direction === "received"), [requests]);
+  const sentRequests = useMemo(() => requests.filter((request) => request.direction === "sent"), [requests]);
 
   if (badgeLoading || loading) {
     return (

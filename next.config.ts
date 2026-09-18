@@ -86,12 +86,11 @@ const securityHeaders = [
   },
   {
     key: "Strict-Transport-Security",
-    value: "max-age=31536000; includeSubDomains; preload",
+    value: "max-age=3156000; includeSubDomains; preload",
   },
 ];
 
-const nextConfig = {
-  eslint: { ignoreDuringBuilds: true },
+const nextConfig: NextConfig = {
   async headers() {
     return [
       {
@@ -100,7 +99,6 @@ const nextConfig = {
       },
     ];
   },
-  // output: "standalone" — Vercel serverless requires default output mode
 };
 
 export default nextConfig;
