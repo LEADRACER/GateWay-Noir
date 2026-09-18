@@ -65,6 +65,7 @@ export async function claimBadge(
   requiresProfile?: boolean;
   needsName?: boolean;
   needsPhone?: boolean;
+  needsPasscode?: boolean;
   error?: string;
   user?: BadgeUser;
 }> {

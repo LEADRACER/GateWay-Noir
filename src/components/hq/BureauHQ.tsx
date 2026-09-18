@@ -348,7 +348,7 @@ const [activeTab, setActiveTab] = useState<TabKey>("dashboard");
   };
 
   return (
-    <div className="space-y-4 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="space-y-4 w-full">
       {/* Notifications */}
       {notifications.length > 0 && (
         <div className="fixed top-4 right-4 z-50 space-y-2 max-w-xs w-full sm:max-w-sm">

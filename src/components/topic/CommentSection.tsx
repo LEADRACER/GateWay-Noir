@@ -10,22 +10,19 @@ import { getAnonymousId, getDisplayName } from "@/lib/anonymous";
 import { useBadge } from "@/components/badge/BadgeProvider";
 import { extractSuffix } from "@/lib/badge-cookie";
 
+import { Comment } from "@/lib/types/database";
+
 interface CommentSectionProps {
   topicId: string;
-  initialComments: any[];
+  initialComments: Comment[];
   isConcluded: boolean;
 }
 
 export function CommentSection({ topicId, initialComments, isConcluded }: CommentSectionProps) {
   const [comments, setComments] = useState(initialComments);
-  const [anonymousId, setAnonymousId] = useState<string | null>(null);
-  const [displayName, setDisplayName] = useState("");
+  const [anonymousId, setAnonymousId] = useState<string | null>(() => getAnonymousId());
+  const [displayName, setDisplayName] = useState(() => getDisplayName());
   const { badge, setShowBadgeModal } = useBadge();
-
-  useEffect(() => {
-    setAnonymousId(getAnonymousId());
-    setDisplayName(getDisplayName());
-  }, []);
 
   // Use badge code as display name when badge is claimed
   const effectiveDisplayName = badge ? badge.badgeCode : displayName;
@@ -90,7 +87,7 @@ export function CommentSection({ topicId, initialComments, isConcluded }: Commen
         </motion.div>
       ) : (
         <div className="divide-y divide-[rgba(168,144,112,0.06)]">
-          {comments.map((comment: any, i: number) => (
+          {comments.map((comment: Comment, i: number) => (
             <CommentItem key={comment.id} comment={comment} index={i} />
           ))}
         </div>

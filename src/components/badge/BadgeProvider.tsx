@@ -5,6 +5,17 @@ import { BadgeUser, checkBadgeStatus, claimBadge, setPassword, verifyPassword, g
 import { saveBadgeCodeToCookie, getBadgeCodeFromCookie } from "@/lib/badge-cookie";
 import { getBadgeProfileRequirements, isBadgeProfileComplete } from "@/lib/badge-profile";
 
+interface ClaimBadgeResult {
+  success: boolean;
+  alreadyClaimed?: boolean;
+  requiresProfile?: boolean;
+  needsName?: boolean;
+  needsPhone?: boolean;
+  error?: string;
+  user?: BadgeUser;
+  needsPasscode?: boolean;
+}
+
 interface BadgeContextValue {
   badge: BadgeUser | null;
   loading: boolean;
@@ -212,6 +223,7 @@ export function BadgeProvider({ children, initialUser }: { children: ReactNode; 
   }, [badge]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     refreshBadge();
   }, [refreshBadge]);
 
@@ -230,7 +242,7 @@ export function BadgeProvider({ children, initialUser }: { children: ReactNode; 
       }
       return { success: true };
     }
-    return { success: false, error: result.error, needsPasscode: (result as any).needsPasscode };
+    return { success: false, error: result.error, needsPasscode: result.needsPasscode };
   }, []);
 
   const handleSetPassword = useCallback(async (password: string) => {

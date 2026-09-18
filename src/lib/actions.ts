@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { generateSlug, normalizeEvidenceUrls } from "./utils";
 import { getCurrentUser } from "./get-current-user";
-import type { Topic, Vote, Comment, Category, TopicWithCategory } from "@/lib/types/database";
+import type { Topic, Vote, Comment, Category, TopicWithCategory, TopicWithFullComments } from "@/lib/types/database";
 
 type JoinedComment = Omit<Comment, "userId"> & {
   userId: { displayName: string } | null;
@@ -67,7 +67,7 @@ export async function getTopics(categorySlug?: string, status?: string) {
   return enriched;
 }
 
-export async function getUpcomingTopics() {
+export async function getUpcomingTopics(): Promise<TopicWithCategory[]> {
   const supabase = await createServerSupabaseClient();
 
   const { data, error } = await supabase
@@ -126,7 +126,7 @@ export async function getActiveAndConcludedTopics(categorySlug?: string) {
   return enriched;
 }
 
-export async function getConcludedTopics() {
+export async function getConcludedTopics(): Promise<TopicWithCategory[]> {
   const supabase = await createServerSupabaseClient();
 
   const { data, error } = await supabase
@@ -139,7 +139,7 @@ export async function getConcludedTopics() {
   return (data || []).map(normalizeCategory);
 }
 
-export async function getTopicBySlug(slug: string) {
+export async function getTopicBySlug(slug: string): Promise<TopicWithFullComments | null> {
   const supabase = await createServerSupabaseClient();
 
   const { data: topic, error } = await supabase
@@ -173,7 +173,7 @@ export async function getTopicBySlug(slug: string) {
   });
 }
 
-export async function getTopicById(id: string) {
+export async function getTopicById(id: string): Promise<TopicWithFullComments | null> {
   const supabase = await createServerSupabaseClient();
 
   const { data: topic, error } = await supabase

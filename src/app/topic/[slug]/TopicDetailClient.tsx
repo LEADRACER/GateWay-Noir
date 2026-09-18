@@ -10,9 +10,10 @@ import { CommentSection } from "@/components/topic/CommentSection";
 import { EvidenceSection } from "@/components/topic/EvidenceSection";
 import { PeopleSection } from "@/components/topic/PeopleSection";
 import { formatDate } from "@/lib/utils";
+import type { TopicWithFullComments } from "@/lib/types/database";
 
 interface TopicDetailClientProps {
-  topic: any;
+  topic: TopicWithFullComments;
 }
 
 export function TopicDetailClient({ topic }: TopicDetailClientProps) {

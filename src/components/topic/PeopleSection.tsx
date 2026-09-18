@@ -3,9 +3,10 @@
 import { motion } from "framer-motion";
 import { Users, Fingerprint, MessageSquare, User } from "lucide-react";
 import { formatDate } from "@/lib/utils";
+import type { Comment } from "@/lib/types/database";
 
 interface PeopleSectionProps {
-  comments: any[];
+  comments: Comment[];
 }
 
 export function PeopleSection({ comments }: PeopleSectionProps) {
@@ -23,7 +24,7 @@ export function PeopleSection({ comments }: PeopleSectionProps) {
     const key = comment.displayName || comment.anonymousId;
     const existing = commentersMap.get(key);
     const role = comment.displayName?.split("-")[0] || "DET";
-    const actualName = comment.userDisplayName || null;
+    const actualName = comment.displayName || null;
     
     if (!existing || new Date(comment.createdAt) > new Date(existing.lastCommentAt)) {
       commentersMap.set(key, {

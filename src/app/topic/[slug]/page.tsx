@@ -14,7 +14,7 @@ export async function generateMetadata({ params }: Props) {
   if (!topic) return { title: "Case Not Found — GateWay:Noir" };
   return {
     title: `${topic.title} — GateWay:Noir`,
-    description: topic.description.substring(0, 160),
+    description: topic.description?.substring(0, 160) || "",
   };
 }
 

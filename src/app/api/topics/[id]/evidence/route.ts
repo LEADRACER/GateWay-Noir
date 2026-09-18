@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { normalizeEvidenceUrls } from "@/lib/utils";
+import type { Comment } from "@/lib/types/database";
+
+type CommentEvidence = Pick<Comment, "id" | "displayName" | "content" | "createdAt" | "evidenceUrls">;
 
 export async function GET(
   req: NextRequest,
@@ -33,7 +36,7 @@ export async function GET(
     return NextResponse.json({ error: commentsError.message }, { status: 500 });
   }
 
-  const commentEvidence = (comments || []).flatMap((comment: any) =>
+  const commentEvidence = (comments || []).flatMap((comment: CommentEvidence) =>
     normalizeEvidenceUrls(comment.evidenceUrls).map((url: string) => ({
       url,
       source: "comment",

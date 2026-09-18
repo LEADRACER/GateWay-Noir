@@ -12,8 +12,8 @@ export async function POST(req: NextRequest) {
     // approveElevation handles its own auth check
     const result = await approveElevation(requestId, adminId);
     return NextResponse.json(result);
-  } catch (e: any) {
+  } catch (e) {
     console.error("Approve elevation error:", e);
-    return NextResponse.json({ error: e?.message || "Failed to approve" }, { status: 500 });
+    return NextResponse.json({ error: e instanceof Error ? e.message : "Failed to approve" }, { status: 500 });
   }
 }

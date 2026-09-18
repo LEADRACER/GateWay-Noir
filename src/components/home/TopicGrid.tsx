@@ -3,9 +3,10 @@
 import { motion } from "framer-motion";
 import { TopicCard } from "./TopicCard";
 import { FolderOpen } from "lucide-react";
+import type { TopicWithCategory } from "@/lib/types/database";
 
 interface TopicGridProps {
-  topics: any[];
+  topics: TopicWithCategory[];
 }
 
 export function TopicGrid({ topics }: TopicGridProps) {

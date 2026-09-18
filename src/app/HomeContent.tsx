@@ -15,8 +15,8 @@ import type { TopicWithCategory, Category } from "@/lib/types/database";
 interface HomeContentProps {
   topics: TopicWithCategory[];
   categories: Category[];
-  concludedTopics: Array<TopicWithCategory & { verdict: string }>;
-  upcomingTopics?: Array<Omit<TopicWithCategory, "verdict"> & { category: { name: string; color: string }; _count: { votes: number } }>;
+  concludedTopics: Array<TopicWithCategory & { verdict: string | null }>;
+  upcomingTopics?: Array<Omit<TopicWithCategory, "verdict"> & { category: { name: string; color: string }; _count?: { votes: number } }>;
 }
 
 type UpcomingTopicItem = NonNullable<HomeContentProps["upcomingTopics"]>[number];

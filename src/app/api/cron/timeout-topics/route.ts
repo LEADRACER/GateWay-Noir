@@ -14,7 +14,7 @@ export async function POST(request: Request) {
   // Simple auth — check for secret token in header or query param
   const authHeader = request.headers.get("authorization");
   const body = await request.json().catch(() => ({}));
-  const token = authHeader?.replace("Bearer ", "") || (body as any).token;
+  const token = authHeader?.replace("Bearer ", "") || (body as { token?: string }).token;
 
   if (process.env.CRON_SECRET && token !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

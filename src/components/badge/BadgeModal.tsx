@@ -29,10 +29,15 @@ export function BadgeModal() {
 
   useEffect(() => {
     if (showBadgeModal) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSuffix("");
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPassword("");
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setClaimError("");
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setClaimSuccess(false);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setNewBadgeCode(null);
     }
   }, [showBadgeModal]);
@@ -264,7 +269,7 @@ export function BadgeModal() {
               {/* Save prompt for new users */}
               {isNew && (
                 <p className="mt-2 text-[9px] text-[#d97706]/70 typewriter-label text-center">
-                  Save your badge! You'll need the code to log in on another device.
+                  Save your badge! You&apos;ll need the code to log in on another device.
                 </p>
               )}
 

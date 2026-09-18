@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import type { Vote } from "@/lib/types/database";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -17,6 +18,6 @@ export async function GET(request: NextRequest) {
     .eq("anonymousId", anonymousId);
 
   return NextResponse.json({
-    votes: (votes || []).map((v: any) => v.topicId),
+    votes: (votes || []).map((v: Pick<Vote, "topicId">) => v.topicId),
   });
 }

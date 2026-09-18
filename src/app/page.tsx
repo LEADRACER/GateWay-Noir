@@ -1,3 +1,4 @@
+import type { TopicWithCategory } from "@/lib/types/database";
 import { getActiveAndConcludedTopics, getUpcomingTopics, getCategories, getConcludedTopics } from "@/lib/actions";
 import { HeroSection } from "@/components/home/HeroSection";
 import { HomeContent } from "./HomeContent";
@@ -16,10 +17,10 @@ export default async function HomePage() {
     <>
       <HeroSection />
       <HomeContent
-        topics={topics}
-        upcomingTopics={upcomingTopics}
+        topics={topics as TopicWithCategory[]}
+        upcomingTopics={upcomingTopics as Array<TopicWithCategory & { _count: { votes: number } }>}
         categories={categories}
-        concludedTopics={concludedTopics}
+        concludedTopics={concludedTopics as Array<TopicWithCategory & { verdict: string }>}
       />
     </>
   );

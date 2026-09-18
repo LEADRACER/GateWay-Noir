@@ -3,6 +3,11 @@ import Link from "next/link";
 import { ArrowLeft, Archive, Inbox, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { formatDate } from "@/lib/utils";
+import type { TopicWithCategory } from "@/lib/types/database";
+
+type TopicWithCount = TopicWithCategory & {
+  _count: { votes: number };
+};
 
 export const dynamic = "force-dynamic";
 
@@ -46,7 +51,7 @@ export default async function AnnouncementsPage() {
         </div>
       ) : (
         <div className="space-y-2 mb-6">
-          {concludedTopics.map((topic: any) => (
+          {concludedTopics.map((topic) => (
             <Link
               key={topic.id}
               href={`/topic/${topic.slug}`}
@@ -100,7 +105,7 @@ export default async function AnnouncementsPage() {
             <span className="case-number text-zinc-700">AWAITING REVIEW</span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
-            {upcomingTopics.map((topic: any) => (
+            {upcomingTopics.map((topic) => (
               <div
                 key={topic.id}
                 className="case-file-card hover:border-[#d97706]/30 transition-all duration-200"
@@ -120,7 +125,7 @@ export default async function AnnouncementsPage() {
                       </Badge>
                       <span className="case-number text-zinc-700">
                         <span className="status-dot pending mr-1" />
-                        {topic._count.votes} TIPS
+                        {topic._count?.votes ?? 0} TIPS
                       </span>
                     </div>
                     <Clock className="w-3 h-3 text-zinc-700" />

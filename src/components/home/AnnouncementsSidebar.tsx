@@ -9,7 +9,7 @@ interface ConcludedTopic {
   id: string;
   title: string;
   slug: string;
-  verdict: string;
+  verdict: string | null;
   summary: string | null;
   category: { name: string; color: string };
 }
@@ -19,7 +19,7 @@ interface UpcomingTopic {
   title: string;
   slug: string;
   category: { name: string; color: string };
-  _count: { votes: number };
+  _count?: { votes: number };
 }
 
 interface AnnouncementsSidebarProps {
@@ -81,8 +81,8 @@ export function AnnouncementsSidebar({ concludedTopics, upcomingTopics }: Announ
                     >
                       {topic.category.name}
                     </Badge>
-                    <Badge variant="verdict" verdict={topic.verdict} className="text-[7px]">
-                      {topic.verdict}
+                    <Badge variant="verdict" verdict={topic.verdict || "UNSOLVED"} className="text-[7px]">
+                      {topic.verdict || "UNSOLVED"}
                     </Badge>
                   </div>
                   <p className="text-[9px] text-zinc-500 group-hover:text-zinc-300 transition-colors leading-snug line-clamp-1">
@@ -147,7 +147,7 @@ export function AnnouncementsSidebar({ concludedTopics, upcomingTopics }: Announ
                   </Badge>
                   <span className="case-number text-zinc-700">
                     <span className="status-dot pending mr-1" />
-                    {currentPending._count.votes} TIPS
+                    {currentPending._count?.votes ?? 0} TIPS
                   </span>
                 </div>
                 <p className="text-[9px] text-zinc-400 leading-snug line-clamp-2">

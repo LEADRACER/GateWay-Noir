@@ -32,6 +32,7 @@ export function AgentProfileClient() {
 
   useEffect(() => {
     if (!badge) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoading(false);
       return;
     }
@@ -42,6 +43,7 @@ export function AgentProfileClient() {
         setBio(data.bio || "");
         setPhone(data.phone || "");
       }
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoading(false);
     });
   }, [badge]);

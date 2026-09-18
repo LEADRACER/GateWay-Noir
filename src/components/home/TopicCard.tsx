@@ -14,8 +14,8 @@ interface TopicCardProps {
     slug: string;
     status: string;
     verdict: string | null;
-    endsAt: string;
-    _count?: { comments: number; votes: number };
+    endsAt: string | null;
+    _count?: { comments?: number; votes: number };
     category: { name: string; color: string };
   };
   index: number;
@@ -108,7 +108,7 @@ export function TopicCard({ topic, index, initialHasVoted }: TopicCardProps) {
               ) : (
                 <div className="flex items-center gap-1 text-zinc-700">
                   <Clock className="w-2.5 h-2.5" />
-                  <CountdownTimer endsAt={topic.endsAt} />
+                  {topic.endsAt && <CountdownTimer endsAt={topic.endsAt} />}
                 </div>
               )}
             </div>
