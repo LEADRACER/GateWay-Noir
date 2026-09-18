@@ -4,6 +4,8 @@ import { getCurrentUser } from "@/lib/get-current-user";
 export type AuditAction =
   | "connection_created"
   | "connection_removed"
+  | "connection_request_sent"
+  | "connection_request_rejected"
   | "connection_privacy_changed"
   | "elevation_requested"
   | "elevation_approved"

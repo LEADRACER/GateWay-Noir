@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/get-current-user";
+import { logAuditWithRequest } from "@/lib/audit";
 
 const CONNECTION_ROLES = new Set(["AGENT", "BUREAU"]);
 const CONNECTION_LIMITS = { AGENT: 100, BUREAU: 200 };
@@ -172,6 +173,22 @@ export async function POST(req: NextRequest) {
 
     requestId = data.id;
   }
+
+  void logAuditWithRequest(
+    {
+      action: "connection_request_sent",
+      resource: "UserConnection",
+      resourceId: requestId,
+      metadata: {
+        requesterId: user.id,
+        requesterBadgeCode: user.badgeCode,
+        targetUserId: targetUser.id,
+        targetBadgeCode: targetUser.badgeCode,
+        isResend: outgoing?.status === "rejected",
+      },
+    },
+    { ip: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || undefined, userAgent: req.headers.get("user-agent") || undefined },
+  );
 
   return NextResponse.json(
     {

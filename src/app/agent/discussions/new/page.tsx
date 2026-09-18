@@ -1,10 +1,10 @@
 "use client";
 
 import { useBadge } from "@/components/badge/BadgeProvider";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowLeft, Send, Loader2, Users, Lock, Shield, UserPlus, UserCheck } from "lucide-react";
+import { ArrowLeft, Send, Loader2, Users, Shield, UserPlus, UserCheck } from "lucide-react";
 import toast from "react-hot-toast";
 
 interface Agent {
@@ -12,6 +12,10 @@ interface Agent {
   badgeCode: string;
   displayName: string;
   role: string;
+}
+
+interface ConnectedUser {
+  id: string;
 }
 
 const visibilityOptions: {
@@ -61,12 +65,15 @@ export default function NewDiscussionPage() {
   const [selectedAgents, setSelectedAgents] = useState<string[]>([]);
   const [availableAgents, setAvailableAgents] = useState<Agent[]>([]);
   const [loadingAgents, setLoadingAgents] = useState(false);
+  const [connectedUserIds, setConnectedUserIds] = useState<Set<string>>(new Set());
+  const [loadingConnections, setLoadingConnections] = useState(false);
+
   const [submitting, setSubmitting] = useState(false);
   const [showAgentPicker, setShowAgentPicker] = useState(false);
   const [agentFilter, setAgentFilter] = useState("");
 
   // Load available agents for BRU and AGT
-  const loadAgents = async () => {
+  const loadAgents = useCallback(async () => {
     setLoadingAgents(true);
     try {
       const res = await fetch("/api/agent/users");
@@ -79,15 +86,37 @@ export default function NewDiscussionPage() {
     } finally {
       setLoadingAgents(false);
     }
-  };
+  }, []);
+
+  // Load the current user's accepted connections to show connection status
+  const loadConnectedUsers = useCallback(async () => {
+    setLoadingConnections(true);
+    try {
+      const res = await fetch("/api/agent/connections/connected-users");
+      if (res.ok) {
+        const data = (await res.json()) as { users?: ConnectedUser[] };
+        const connectedIds = new Set(
+          (data.users || []).map((u) => u.id),
+        );
+        setConnectedUserIds(connectedIds);
+      }
+    } catch {
+      // silent fail
+    } finally {
+      setLoadingConnections(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (badge?.role === "BUREAU" || badge?.role === "AGENT") {
       queueMicrotask(() => {
         void loadAgents();
+        if (badge?.role === "BUREAU") {
+          void loadConnectedUsers();
+        }
       });
     }
-  }, [badge]);
+  }, [badge, loadAgents, loadConnectedUsers]);
 
   if (badgeLoading) return null;
 
@@ -214,7 +243,7 @@ export default function NewDiscussionPage() {
                         <span className="text-xs font-medium">{opt.label}</span>
                       </div>
                       <div className="flex items-center gap-1 text-[9px] text-zinc-600 typewriter-label">
-                        {opt.roles.map((r, i) => (
+                        {opt.roles.map((r) => (
                           <span key={r} className={`px-1.5 py-0.5 rounded ${
                             r === "BRU" ? "bg-amber-500/20 text-amber-400" :
                             r === "AGT" ? "bg-blue-500/20 text-blue-400" :
@@ -264,57 +293,76 @@ export default function NewDiscussionPage() {
                     {showAgentPicker ? "HIDE AGENT PICKER" : "ADD AGENTS"}
                   </button>
 
-                  {showAgentPicker && (
-                    <div className="space-y-2 max-h-60 overflow-y-auto p-3 bg-[#0a0a0c] border border-[rgba(168,144,112,0.1)] rounded">
-                      {loadingAgents ? (
-                        <div className="text-center py-4 text-zinc-600 text-sm">Loading agents...</div>
-                      ) : availableAgents.length === 0 ? (
-                        <div className="text-center py-4 text-zinc-600 text-sm">No agents available</div>
-                      ) : (
-                        <>
-                          <input
-                            type="text"
-                            placeholder="Filter agents..."
-                            className="w-full bg-[#0a0a0c] border border-[rgba(168,144,112,0.1)] px-2 py-1 text-xs text-zinc-200 placeholder:text-zinc-700 focus:outline-none focus:border-[rgba(168,144,112,0.25)] rounded"
-                            onChange={(e) => setAgentFilter(e.target.value)}
-                          />
-                          {availableAgents
-                            .filter(
-                              (agent) =>
-                                !selectedAgents.includes(agent.id) &&
-                                (agent.badgeCode.toLowerCase().includes(agentFilter.toLowerCase()) ||
-                                  agent.displayName.toLowerCase().includes(agentFilter.toLowerCase()))
-                            )
-                            .map((agent) => (
-                              <button
-                                key={agent.id}
-                                type="button"
-                                onClick={() => toggleAgent(agent.id)}
-                                className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-xs transition-colors ${
-                                  selectedAgents.includes(agent.id)
-                                    ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                                    : "text-zinc-400 hover:bg-zinc-900"
-                                }`}
-                              >
-                                <div className="flex items-center gap-2">
-                                  <UserCheck className={`w-3 h-3 ${selectedAgents.includes(agent.id) ? "text-amber-400" : "text-zinc-600"}`} />
-                                  <span>{agent.badgeCode}</span>
-                                  <span className="text-zinc-600">—</span>
-                                  <span>{agent.displayName}</span>
-                                  <span className={`px-1 py-0.5 text-[8px] rounded ${
-                                    agent.role === "BUREAU"
-                                      ? "bg-amber-500/20 text-amber-400"
-                                      : "bg-blue-500/20 text-blue-400"
-                                  }`}>
-                                    {agent.role === "BUREAU" ? "BRU" : "AGT"}
-                                  </span>
-                                </div>
-                              </button>
-                            ))}
-                        </>
-                      )}
-                    </div>
-                  )}
+                   {showAgentPicker && (
+                     <div className="space-y-2 max-h-60 overflow-y-auto p-3 bg-[#0a0a0c] border border-[rgba(168,144,112,0.1)] rounded">
+                       {loadingAgents ? (
+                         <div className="text-center py-4 text-zinc-600 text-sm">Loading agents...</div>
+                       ) : availableAgents.length === 0 ? (
+                         <div className="text-center py-4 text-zinc-600 text-sm">No agents available</div>
+                       ) : (
+                         <>
+                           <input
+                             type="text"
+                             placeholder="Filter agents..."
+                             className="w-full bg-[#0a0a0c] border border-[rgba(168,144,112,0.1)] px-2 py-1 text-xs text-zinc-200 placeholder:text-zinc-700 focus:outline-none focus:border-[rgba(168,144,112,0.25)] rounded"
+                             onChange={(e) => setAgentFilter(e.target.value)}
+                           />
+                           {availableAgents
+                             .filter(
+                               (agent) =>
+                                 !selectedAgents.includes(agent.id) &&
+                                 (agent.badgeCode.toLowerCase().includes(agentFilter.toLowerCase()) ||
+                                   agent.displayName.toLowerCase().includes(agentFilter.toLowerCase()))
+                             )
+                             .sort((a, b) => {
+                               // Connected users first, then by badge code
+                               const aConn = connectedUserIds.has(a.id) ? 0 : 1;
+                               const bConn = connectedUserIds.has(b.id) ? 0 : 1;
+                               if (aConn !== bConn) return aConn - bConn;
+                               return a.badgeCode.localeCompare(b.badgeCode);
+                             })
+                             .map((agent) => {
+                               const isConnected = connectedUserIds.has(agent.id);
+                               const isSelected = selectedAgents.includes(agent.id);
+                               return (
+                                 <button
+                                   key={agent.id}
+                                   type="button"
+                                   onClick={() => toggleAgent(agent.id)}
+                                   className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-xs transition-colors ${
+                                     isSelected
+                                       ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                                       : "text-zinc-400 hover:bg-zinc-900"
+                                   }`}
+                                 >
+                                   <div className="flex items-center gap-2">
+                                     <UserCheck className={`w-3 h-3 ${isSelected ? "text-amber-400" : "text-zinc-600"}`} />
+                                     <span>{agent.badgeCode}</span>
+                                     <span className="text-zinc-600">—</span>
+                                     <span>{agent.displayName}</span>
+                                     <span className={`px-1 py-0.5 text-[8px] rounded ${
+                                       agent.role === "BUREAU"
+                                         ? "bg-amber-500/20 text-amber-400"
+                                         : "bg-blue-500/20 text-blue-400"
+                                     }`}>
+                                       {agent.role === "BUREAU" ? "BRU" : "AGT"}
+                                     </span>
+                                   </div>
+                                   {isConnected && (
+                                     <span className="text-[8px] text-emerald-400 typewriter-label bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded">
+                                       CONNECTED
+                                     </span>
+                                   )}
+                                 </button>
+                               );
+                             })}
+                           {loadingConnections && (
+                             <div className="text-[8px] text-zinc-600 typewriter-label">Loading connection status…</div>
+                           )}
+                         </>
+                       )}
+                     </div>
+                   )}
                 </div>
               )}
             </div>

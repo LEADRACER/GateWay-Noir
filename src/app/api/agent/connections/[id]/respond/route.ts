@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/get-current-user";
+import { logAuditWithRequest } from "@/lib/audit";
 
-const DISCUSSION_ROLES = new Set(["AGENT", "BUREAU"]);
+const CONNECTION_ROLES = new Set(["AGENT", "BUREAU"]);
 const CONNECTION_LIMITS = { AGENT: 100, BUREAU: 200 };
 
 export async function POST(
@@ -11,7 +12,7 @@ export async function POST(
 ) {
   const { id } = await params;
   const user = await getCurrentUser();
-  if (!user || !DISCUSSION_ROLES.has(user.role)) {
+  if (!user || !CONNECTION_ROLES.has(user.role)) {
     return NextResponse.json({ error: "Not authorized" }, { status: 403 });
   }
 
@@ -55,6 +56,16 @@ export async function POST(
     if (error) {
       return NextResponse.json({ error: "Failed to reject request" }, { status: 500 });
     }
+
+    void logAuditWithRequest(
+      {
+        action: "connection_request_rejected",
+        resource: "UserConnection",
+        resourceId: id,
+        metadata: { requesterId: request.userId, responderId: user.id },
+      },
+      { ip: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || undefined, userAgent: req.headers.get("user-agent") || undefined },
+    );
 
     return NextResponse.json({ success: true, action: "rejected" });
   }
@@ -121,6 +132,16 @@ export async function POST(
     .eq("connectedUserId", request.userId)
     .eq("status", "accepted")
     .maybeSingle();
+
+  void logAuditWithRequest(
+    {
+      action: "connection_created",
+      resource: "UserConnection",
+      resourceId: newConnection?.id ?? id,
+      metadata: { requesterId: request.userId, responderId: user.id },
+    },
+    { ip: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || undefined, userAgent: req.headers.get("user-agent") || undefined },
+  );
 
   return NextResponse.json({ success: true, action: "accepted", connectionId: newConnection?.id });
 }

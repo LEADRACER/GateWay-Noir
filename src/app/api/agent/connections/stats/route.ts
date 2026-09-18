@@ -2,11 +2,11 @@ import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/get-current-user";
 
-const DISCUSSION_ROLES = new Set(["DETECTIVE", "AGENT", "BUREAU"]);
+const CONNECTION_ROLES = new Set(["AGENT", "BUREAU"]);
 
 export async function GET() {
   const user = await getCurrentUser();
-  if (!user || !DISCUSSION_ROLES.has(user.role)) {
+  if (!user || !CONNECTION_ROLES.has(user.role)) {
     return NextResponse.json({ error: "Not authorized" }, { status: 403 });
   }
 

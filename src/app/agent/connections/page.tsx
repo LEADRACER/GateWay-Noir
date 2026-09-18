@@ -21,10 +21,20 @@ import {
   UserPlus,
   Network,
   Hourglass,
-  Check,
-  X,
-} from "lucide-react";
-import toast from "react-hot-toast";
+   Check,
+   X,
+   Wifi,
+   WifiOff,
+ } from "lucide-react";
+ import toast from "react-hot-toast";
+ 
+ function formatClock(value: string) {
+   return new Intl.DateTimeFormat("en-US", {
+     hour: "2-digit",
+     minute: "2-digit",
+     second: "2-digit",
+   }).format(new Date(value));
+ }
 
 interface UserSummary {
   id: string;
@@ -119,24 +129,35 @@ function ConnectionsPage() {
   });
   const [activeTab, setActiveTab] = useState<TabType>("all");
   const [requestView, setRequestView] = useState<RequestView>("received");
+  const [isOnline, setIsOnline] = useState(true);
+  const [lastSynced, setLastSynced] = useState<string | null>(null);
+
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isDocumentHiddenRef = useRef(false);
 
   // Refs to avoid dependency loop in searchUsers
   const connectionsRef = useRef(connections);
   const requestsRef = useRef(requests);
   const badgeIdRef = useRef(badge?.id);
 
-  // Keep refs in sync
-  connectionsRef.current = connections;
-  requestsRef.current = requests;
-  badgeIdRef.current = badge?.id;
+  // Keep refs in sync (after render, avoids React 19 refs-during-render lint error)
+  useEffect(() => {
+    connectionsRef.current = connections;
+    requestsRef.current = requests;
+    badgeIdRef.current = badge?.id;
+  }, [connections, requests, badge?.id]);
 
-  const refreshConnections = useCallback(async (signal?: AbortSignal) => {
+   const refreshConnections = useCallback(async (signal?: AbortSignal) => {
     try {
       const res = await fetch("/api/agent/connections", { signal });
-      if (!res.ok) return;
+      if (!res.ok) {
+        if (!signal) setIsOnline(false);
+        return;
+      }
       const data = await res.json();
       const connData = data.connections || [];
       setConnections(connData);
+      setIsOnline(true);
 
       const now = new Date();
       const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -152,6 +173,7 @@ function ConnectionsPage() {
       }));
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
+      if (!signal) setIsOnline(false);
       // Silent fail keeps the page usable when the API is unavailable.
     } finally {
       setLoading(false);
@@ -216,19 +238,44 @@ function ConnectionsPage() {
     const controller = new AbortController();
     const { signal } = controller;
 
-    const timeout = setTimeout(() => {
-      void Promise.all([
-        refreshConnections(signal),
-        refreshRequests(signal),
-        refreshStats(signal),
-      ]);
-    }, 0);
+     const timeout = setTimeout(() => {
+       void Promise.all([
+         refreshConnections(signal),
+         refreshRequests(signal),
+         refreshStats(signal),
+       ]);
+     }, 0);
 
     return () => {
       clearTimeout(timeout);
       controller.abort();
     };
   }, [badgeLoading, refreshConnections, refreshRequests, refreshStats]);
+
+  // Real-time polling for live updates
+  useEffect(() => {
+    if (!badge) return;
+
+    pollIntervalRef.current = setInterval(() => {
+      if (!document.hidden && !isDocumentHiddenRef.current) {
+        void refreshConnections(undefined);
+        void refreshRequests(undefined);
+        void refreshStats(undefined);
+        setLastSynced(new Date().toISOString());
+        setIsOnline(true);
+      }
+    }, 8000); // Poll every 8 seconds
+
+    const handleVisibilityChange = () => {
+      isDocumentHiddenRef.current = document.hidden;
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [badge, refreshConnections, refreshRequests, refreshStats]);
 
   const searchUsers = useCallback(async () => {
     if (!searchQuery.trim() || searching) return;
@@ -449,6 +496,11 @@ function ConnectionsPage() {
           <div>
             <h1 className="text-sm font-semibold text-zinc-200 typewriter-label">CONNECTIONS</h1>
             <p className="text-[10px] text-zinc-600">Send requests and build your trusted network</p>
+          </div>
+          <div className="flex items-center gap-1.5 text-[8px] text-zinc-500 typewriter-label">
+            {isOnline ? <Wifi className="h-3 w-3 text-emerald-500/80" /> : <WifiOff className="h-3 w-3 text-red-400/80" />}
+            {isOnline ? "LIVE SYNC" : "RECONNECTING"}
+            {lastSynced && <span className="hidden sm:inline">· {formatClock(lastSynced)}</span>}
           </div>
         </div>
         <p className="text-[10px] text-zinc-600 mb-6">
