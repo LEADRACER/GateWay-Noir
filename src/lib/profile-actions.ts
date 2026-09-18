@@ -21,7 +21,7 @@ export async function updateAgentProfile(userId: string, data: { displayName?: s
   if (!user) return { error: "User not found" };
   if (user.role === "DETECTIVE") return { error: "Only AGENT+ users have profiles" };
 
-  const updateData: any = {};
+  const updateData: Record<string, unknown> = {};
   if (data.displayName !== undefined) updateData.displayName = data.displayName.trim();
   if (data.bio !== undefined) updateData.bio = data.bio.trim();
   if (data.phone !== undefined) {

@@ -10,11 +10,11 @@ import { getCurrentUser } from "@/lib/get-current-user";
  */
 function normalizeUserJoin<T>(obj: T): T {
   if (!obj) return obj;
-  const o = obj as Record<string, any>;
+  const o = obj as Record<string, unknown>;
   // Handle both null (orphaned record) and actual joined data
   if ('User' in o) {
-    o.user = o.User;
-    delete o.User;
+    (o as Record<string, unknown>).user = (o as Record<string, unknown>).User;
+    delete (o as Record<string, unknown>).User;
   }
   return obj;
 }
@@ -168,7 +168,7 @@ export async function approveElevation(requestId: string, adminId: string) {
   if (!request) return { error: "Request not found" };
   if (request.status !== "PENDING") return { error: "Request already processed" };
 
-  const user = request.User as any;
+  const user = request.User as { badgeCode: string; displayName: string; createdAt: string };
   const newBadgeCode = await generateBadgeCode("AGENT", user.badgeCode);
 
   // Update user role and badge code

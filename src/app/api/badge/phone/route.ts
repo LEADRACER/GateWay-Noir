@@ -21,7 +21,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 403 });
     }
     const ip = clientIp(request);
-    if (!checkRateLimit(`phone:ip:${ip}`, 15, 60_000)) {
+    const rateLimitResult = await checkRateLimit(`phone:ip:${ip}`, 15, 60_000);
+    if (!rateLimitResult.allowed) {
       return NextResponse.json(
         { success: false, error: "Too many attempts — try again later" },
         { status: 429 }

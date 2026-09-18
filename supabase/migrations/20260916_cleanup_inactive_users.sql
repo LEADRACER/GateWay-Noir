@@ -48,8 +48,8 @@ BEGIN
   SELECT ARRAY_AGG(id) INTO inactive_user_ids
   FROM public."User"
   WHERE role IN ('DETECTIVE', 'AGENT')
-    AND (last_seen_at IS NULL OR last_seen_at < cutoff_date)
-    AND created_at < cutoff_date;
+    AND ("lastSeenAt" IS NULL OR "lastSeenAt" < cutoff_date)
+    AND "createdAt" < cutoff_date;
 
   IF inactive_user_ids IS NULL OR array_length(inactive_user_ids, 1) = 0 THEN
     RETURN jsonb_build_object(
@@ -62,22 +62,22 @@ BEGIN
   -- Collect user info before deletion
   SELECT jsonb_agg(jsonb_build_object(
     'id', id,
-    'badgeCode', badge_code,
-    'displayName', display_name,
+    'badgeCode', "badgeCode",
+    'displayName', "displayName",
     'role', role,
-    'lastSeenAt', last_seen_at
+    'lastSeenAt', "lastSeenAt"
   )) INTO deleted_users
   FROM public."User"
   WHERE id = ANY(inactive_user_ids);
 
   -- Delete related data (foreign key constraints)
-  DELETE FROM public."Vote" WHERE user_id = ANY(inactive_user_ids);
-  DELETE FROM public."Comment" WHERE user_id = ANY(inactive_user_ids);
-  DELETE FROM public."AgentTaskEvidence" WHERE agent_id = ANY(inactive_user_ids);
-  DELETE FROM public."AgentDiscussionMessage" WHERE user_id = ANY(inactive_user_ids);
-  DELETE FROM public."DiscussionParticipant" WHERE user_id = ANY(inactive_user_ids);
-  DELETE FROM public."ElevationRequest" WHERE user_id = ANY(inactive_user_ids);
-  DELETE FROM public."AgentTask" WHERE agent_id = ANY(inactive_user_ids) OR admin_id = ANY(inactive_user_ids);
+  DELETE FROM public."Vote" WHERE "userId" = ANY(inactive_user_ids);
+  DELETE FROM public."Comment" WHERE "userId" = ANY(inactive_user_ids);
+  DELETE FROM public."AgentTaskEvidence" WHERE "agentId" = ANY(inactive_user_ids);
+  DELETE FROM public."AgentDiscussionMessage" WHERE "userId" = ANY(inactive_user_ids);
+  DELETE FROM public."DiscussionParticipant" WHERE "userId" = ANY(inactive_user_ids);
+  DELETE FROM public."ElevationRequest" WHERE "userId" = ANY(inactive_user_ids);
+  DELETE FROM public."AgentTask" WHERE "agentId" = ANY(inactive_user_ids) OR "adminId" = ANY(inactive_user_ids);
 
   -- Delete users
   DELETE FROM public."User" WHERE id = ANY(inactive_user_ids);

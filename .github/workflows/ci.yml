@@ -28,9 +28,13 @@ jobs:
 
       - name: Run ESLint
         run: npm run lint
+        env:
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
 
       - name: Run TypeScript type check
         run: npm run typecheck
+        env:
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
 
   build:
     runs-on: ubuntu-latest
@@ -54,6 +58,7 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
 
   deploy-preview:
     runs-on: ubuntu-latest

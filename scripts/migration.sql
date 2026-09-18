@@ -73,7 +73,7 @@ ALTER TABLE "public"."AgentDiscussion"
 
 ALTER TABLE "public"."AgentDiscussion"
   ADD COLUMN IF NOT EXISTS "visibility" TEXT NOT NULL DEFAULT 'bru_agt_det'
-    CHECK (visibility IN ('bru_only', 'bru_agt', 'bru_agt_det', 'all'));
+    CHECK (visibility IN ('bru_only', 'bru_agt', 'bru_agt_det')),
 
 ALTER TABLE "public"."AgentDiscussion"
   ADD COLUMN IF NOT EXISTS "spectatorVisibility" TEXT NOT NULL DEFAULT 'participants_only'

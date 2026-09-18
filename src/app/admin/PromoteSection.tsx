@@ -16,13 +16,11 @@ interface AgentUser {
 
 interface PromoteSectionProps {
   agents: AgentUser[];
-  adminId: string;
   adminBadgeCode: string;
 }
 
 export function PromoteSection({
   agents,
-  adminId,
   adminBadgeCode,
 }: PromoteSectionProps) {
   const [promoting, setPromoting] = useState<string | null>(null);

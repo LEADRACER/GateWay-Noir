@@ -1,4 +1,4 @@
-import { getAllComments, getFlaggedComments, deleteComment, toggleFlagComment } from "@/lib/actions";
+import { getAllComments, getFlaggedComments } from "@/lib/actions";
 import { CommentsPanel } from "./CommentsPanel";
 import { FileText } from "lucide-react";
 import { getCurrentUser } from "@/lib/get-current-user";

@@ -8,7 +8,7 @@
     "build": "./node_modules/.bin/next build",
     "start": "./node_modules/.bin/next start",
     "lint": "./node_modules/.bin/eslint .",
-    "seed": "./node_modules/.bin/tsx prisma/seed.ts",
+    "typecheck": "./node_modules/.bin/tsc --noEmit",
     "setup-bureau": "./node_modules/.bin/tsx scripts/setup-bureau.ts"
   },
   "dependencies": {
@@ -20,15 +20,13 @@
     "clsx": "^2.1.1",
     "dotenv": "^17.4.2",
     "framer-motion": "^12.41.0",
-    "link-preview-js": "^3.2.0",
     "lucide-react": "^1.21.0",
     "next": "16.2.9",
     "qrcode": "^1.5.4",
     "qrcode-terminal": "^0.12.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "react-hot-toast": "^2.5.2",
-    "sharp": "^0.35.2"
+    "react-hot-toast": "^2.5.2"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

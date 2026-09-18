@@ -44,13 +44,15 @@ export async function POST(request: NextRequest) {
     const pwd = password.trim();
     const cleaned = badgeCode.toUpperCase().replace(/[^A-Z0-9-]/g, "");
     const ip = clientIp(request);
-    if (!checkRateLimit(`claim:ip:${ip}`, 20, 60_000)) {
+    const rateLimitResult1 = await checkRateLimit(`claim:ip:${ip}`, 20, 60_000);
+    if (!rateLimitResult1.allowed) {
       return NextResponse.json(
         { success: false, error: "Too many attempts — try again later" },
         { status: 429 },
       );
     }
-    if (!checkRateLimit(`claim:code:${cleaned}`, 5, 60_000)) {
+    const rateLimitResult2 = await checkRateLimit(`claim:code:${cleaned}`, 5, 60_000);
+    if (!rateLimitResult2.allowed) {
       return NextResponse.json(
         { success: false, error: "Too many attempts for this badge — try again later" },
         { status: 429 },

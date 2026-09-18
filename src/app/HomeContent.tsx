@@ -10,13 +10,16 @@ import { useBadge } from "@/components/badge/BadgeProvider";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import toast from "react-hot-toast";
+import type { TopicWithCategory, Category } from "@/lib/types/database";
 
 interface HomeContentProps {
-  topics: any[];
-  categories: any[];
-  concludedTopics: any[];
-  upcomingTopics?: any[];
+  topics: TopicWithCategory[];
+  categories: Category[];
+  concludedTopics: Array<TopicWithCategory & { verdict: string }>;
+  upcomingTopics?: Array<Omit<TopicWithCategory, "verdict"> & { category: { name: string; color: string }; _count: { votes: number } }>;
 }
+
+type UpcomingTopicItem = NonNullable<HomeContentProps["upcomingTopics"]>[number];
 
 export function HomeContent({
   topics: initialTopics,
@@ -54,20 +57,20 @@ export function HomeContent({
   const filteredTopics = useMemo(() => {
     let result = initialTopics;
     if (activeCategory) {
-      result = result.filter((t: any) => t.category.slug === activeCategory);
+      result = result.filter((t: TopicWithCategory) => t.category.slug === activeCategory);
     }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(
-        (t: any) =>
+        (t: TopicWithCategory) =>
           t.title.toLowerCase().includes(q) ||
-          t.description.toLowerCase().includes(q)
+          (t.description?.toLowerCase() || "").includes(q)
       );
     }
     return result;
   }, [initialTopics, activeCategory, searchQuery]);
 
-  const activeTopics = filteredTopics.filter((t: any) => t.status === "ACTIVE");
+  const activeTopics = filteredTopics.filter((t: TopicWithCategory) => t.status === "ACTIVE");
 
   const handleVote = useCallback(async (topicId: string) => {
     if (votingRef.current.has(topicId)) return;
@@ -82,11 +85,12 @@ export function HomeContent({
       const data = await res.json();
       if (data.success) {
         setUpcomingTopics((prev) =>
-          prev.map((t) =>
-            t.id === topicId
-              ? { ...t, _count: { votes: data.votes ?? t._count.votes + (data.voted ? 1 : -1) } }
-              : t
-          )
+          prev.map((t) => {
+            const currentCount = (t as { _count?: { votes: number } })._count?.votes ?? 0;
+            return t.id === topicId
+              ? { ...t, _count: { votes: (data.votes ?? currentCount) + (data.voted ? 1 : -1) } }
+              : t;
+          })
         );
         setUserVotes((prev) => {
           const next = new Set(prev);
@@ -102,7 +106,7 @@ export function HomeContent({
     }
   }, []);
 
-  const handleApprove = async (topic: any) => {
+  const handleApprove = async (topic: UpcomingTopicItem) => {
     setApprovingId(topic.id);
     try {
       const res = await fetch("/api/admin/approve", {
@@ -123,7 +127,7 @@ export function HomeContent({
     setApprovingId(null);
   };
 
-  const handleDiscard = async (topic: any) => {
+  const handleDiscard = async (topic: UpcomingTopicItem) => {
     if (!confirm(`Discard "${topic.title}"? This cannot be undone.`)) return;
     setDiscardingId(topic.id);
     try {
@@ -246,7 +250,7 @@ export function HomeContent({
               {/* Pending Grid */}
               <div className="p-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {upcomingTopics.map((topic: any) => {
+                  {upcomingTopics.map((topic) => {
                     const hasVoted = userVotes.has(topic.id);
                     return (
 <div
@@ -267,7 +271,7 @@ export function HomeContent({
                             {topic.category.name.toUpperCase()}
                           </span>
                           <span className="case-number text-zinc-700">
-                            {topic._count.votes} TIPS
+                            {(topic as { _count: { votes: number } })._count.votes} TIPS
                           </span>
                         </div>
                         <div className="p-3 relative">

@@ -25,13 +25,15 @@ export async function POST(request: NextRequest) {
 
     // Rate limit login attempts (brute-force protection)
     const ip = clientIp(request);
-    if (!checkRateLimit(`login:ip:${ip}`, 30, 60_000)) {
+    const rateLimitResult1 = await checkRateLimit(`login:ip:${ip}`, 30, 60_000);
+    if (!rateLimitResult1.allowed) {
       return NextResponse.json(
         { success: false, error: "Too many attempts — try again later" },
         { status: 429 }
       );
     }
-    if (!checkRateLimit(`login:code:${badgeCode.toUpperCase()}`, 5, 60_000)) {
+    const rateLimitResult2 = await checkRateLimit(`login:code:${badgeCode.toUpperCase()}`, 5, 60_000);
+    if (!rateLimitResult2.allowed) {
       return NextResponse.json(
         { success: false, error: "Too many attempts for this badge — try again later" },
         { status: 429 }

@@ -17,7 +17,7 @@ echo ""
 # Remove stale creds so we get a fresh pairing code
 rm -rf whatsapp-auth
 
-timeout 35 node scripts/pair-now.mjs || true
+timeout 35 node scripts/qr-pair.mjs || true
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

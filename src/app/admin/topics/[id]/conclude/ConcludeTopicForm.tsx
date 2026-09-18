@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Scale, Shield, ShieldAlert, ShieldCheck } from "lucide-react";
+import { Shield, ShieldAlert, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Textarea";
 import { Select } from "@/components/ui/Select";
@@ -32,7 +32,7 @@ export function ConcludeTopicForm({ topic }: { topic: Topic }) {
         toast.error(result.error);
       } else {
         toast.success("Verdict delivered!");
-        router.push(`/topic/${(result as any).slug || ""}`);
+        router.push(`/topic/${(result as { slug?: string })?.slug || ""}`);
         router.refresh();
       }
     } catch {

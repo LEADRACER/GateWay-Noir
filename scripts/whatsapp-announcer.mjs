@@ -115,6 +115,11 @@ function fmtGroupFallback(targetName, detail) {
 }
 
 // ─── WhatsApp Client ───
+// NOTE: This inline WhatsApp client duplicates logic from src/lib/whatsapp/client.ts
+// and src/lib/whatsapp/notifications.ts. This is intentional — the announcer runs as a
+// standalone cron script that needs to be self-contained (no Next.js bundler dependency).
+// To refactor: import from src/lib/whatsapp/ and extract the client + formatting helpers
+// into shared modules usable by both the Next.js app and standalone scripts.
 let sock = null;
 let ready = false;
 let intentionalClose = false;

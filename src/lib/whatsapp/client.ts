@@ -54,6 +54,7 @@ export async function initializeClient(): Promise<WASocket> {
 
   ensureAuthDir();
 
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
 
   sock = makeWASocket({
@@ -165,8 +166,8 @@ export async function sendText(to: string, text: string): Promise<boolean> {
     ]);
     log("SENT", `DM to ${jid}: ${text.substring(0, 50)}...`);
     return true;
-  } catch (err: any) {
-    log("DM_FAIL", `to ${to}: ${err.message}`);
+  } catch (err: unknown) {
+    log("DM_FAIL", `to ${to}: ${(err as Error).message}`);
     return false;
   }
 }
@@ -189,8 +190,8 @@ export async function sendGroupText(text: string, groupJid?: string): Promise<bo
     ]);
     log("SENT", `Group ${jid}: ${text.substring(0, 50)}...`);
     return true;
-  } catch (err: any) {
-    log("GROUP_FAIL", `${jid}: ${err.message}`);
+  } catch (err: unknown) {
+    log("GROUP_FAIL", `${jid}: ${(err as Error).message}`);
     return false;
   }
 }

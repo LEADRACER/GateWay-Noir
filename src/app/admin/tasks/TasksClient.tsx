@@ -48,7 +48,7 @@ interface TasksClientProps {
     adminId: string,
     title: string,
     description?: string
-  ) => Promise<any>;
+  ) => Promise<{ success: boolean; task?: Task | undefined; error?: string | undefined } | { error: string }>;
   isAgentView?: boolean;
 }
 
@@ -100,13 +100,14 @@ export function TasksClient({ tasks: initialTasks, agents, createTask, isAgentVi
     setSubmitting(true);
     try {
       const result = await createTask(selectedAgentId, title, description);
-      if (result?.success) {
+      if (result && "success" in result && result.success && result.task) {
         toast.success("Task assigned");
         setTitle("");
         setDescription("");
         setSelectedAgentId("");
         // Optimistically add to list
-        setTasks((prev) => [result.task, ...prev]);
+        const task = result.task;
+        setTasks((prev) => [task, ...prev]);
       } else {
         toast.error(result?.error || "Failed to create task");
       }

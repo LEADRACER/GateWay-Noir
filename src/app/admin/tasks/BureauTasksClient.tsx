@@ -373,13 +373,6 @@ export function BureauTasksClient({ initialTasks, agents }: { initialTasks: Task
   const totalPages = Math.ceil(filteredTasks.length / tasksPerView);
   const currentPageTasks = filteredTasks.slice(carouselIndex * tasksPerView, (carouselIndex + 1) * tasksPerView);
 
-  // Reset carousel index when tasksPerView changes
-  useEffect(() => {
-    if (carouselIndex >= totalPages && totalPages > 0) {
-      setCarouselIndex(totalPages - 1);
-    }
-  }, [tasksPerView, totalPages, carouselIndex]);
-
   const goToPage = (page: number) => {
     setCarouselIndex(Math.max(0, Math.min(page, totalPages - 1)));
   };
@@ -514,7 +507,7 @@ export function BureauTasksClient({ initialTasks, agents }: { initialTasks: Task
                 transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
                 className="flex gap-3"
               >
-                {currentPageTasks.map((task, idx) => (
+                {currentPageTasks.map((task) => (
                   <TaskCard
                     key={task.id}
                     task={task}

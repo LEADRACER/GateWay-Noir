@@ -28,7 +28,8 @@ export async function POST(request: NextRequest) {
       );
     }
     const ip = clientIp(request);
-    if (!checkRateLimit(`name:ip:${ip}`, 15, 60_000)) {
+    const rateLimitResult = await checkRateLimit(`name:ip:${ip}`, 15, 60_000);
+    if (!rateLimitResult.allowed) {
       return NextResponse.json(
         { success: false, error: "Too many attempts — try again later" },
         { status: 429 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Fingerprint, CheckCircle2, XCircle, LayoutDashboard, ShieldCheck, ShieldX } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
@@ -31,7 +31,6 @@ interface ElevationsPanelProps {
   pendingElevations: ElevationRequest[];
   approvedElevations: ElevationRequest[];
   rejectedElevations: ElevationRequest[];
-  adminId?: string;
   adminBadgeCode: string;
   defaultTab?: "dashboard" | "elevations";
 }
@@ -40,11 +39,12 @@ export function ElevationsPanel({
   pendingElevations: initialPending,
   approvedElevations: initialApproved,
   rejectedElevations: initialRejected,
-  adminId,
   adminBadgeCode,
   defaultTab = "dashboard",
 }: ElevationsPanelProps) {
-  const [activeTab, setActiveTab] = useState<"dashboard" | "elevations">(defaultTab);
+  const [activeTab, setActiveTab] = useState<"dashboard" | "elevations">(() =>
+    typeof window !== "undefined" && window.location.hash === "#elevations" ? "elevations" : defaultTab
+  );
   const [pending, setPending] = useState(initialPending);
   const [approved, setApproved] = useState(initialApproved);
   const [rejected, setRejected] = useState(initialRejected);
@@ -53,13 +53,6 @@ export function ElevationsPanel({
     type: "approve" | "reject";
     requestId: string;
   } | null>(null);
-
-  // Auto-activate elevations tab if navigated via #elevations hash
-  useEffect(() => {
-    if (typeof window !== "undefined" && window.location.hash === "#elevations") {
-      setActiveTab("elevations");
-    }
-  }, []);
 
   const handleApprove = async (requestId: string) => {
     setPasswordAction({ type: "approve", requestId });

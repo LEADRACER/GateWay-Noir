@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LayoutDashboard, PlusCircle, Scale, MessageSquare, ChevronRight, Fingerprint, ClipboardList, BarChart2, User, Settings } from "lucide-react";
+import { LayoutDashboard, PlusCircle, Scale, MessageSquare, ChevronRight, ClipboardList } from "lucide-react";
 import { getCurrentUser } from "@/lib/get-current-user";
 
 const bureauNavItems = [

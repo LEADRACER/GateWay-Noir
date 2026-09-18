@@ -109,13 +109,12 @@ export function BureauContent({ stats, upcomingTopics, pendingElevations, approv
           pendingElevations={pendingElevations}
           approvedElevations={approvedElevations}
           rejectedElevations={rejectedElevations}
-          adminId={adminId}
           adminBadgeCode={adminBadgeCode}
           defaultTab="elevations"
         />
 
         {/* AGT → BRU promotion */}
-        <PromoteSection agents={agents} adminId={adminId || ""} adminBadgeCode={adminBadgeCode} />
+        <PromoteSection agents={agents} adminBadgeCode={adminBadgeCode} />
 
         {/* Pending cases */}
         {upcomingTopics.length > 0 && (

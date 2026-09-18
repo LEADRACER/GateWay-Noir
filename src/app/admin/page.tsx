@@ -3,7 +3,6 @@ import { getPendingElevations, getApprovedElevations, getRejectedElevations } fr
 import { getAllAgents } from "@/lib/admin-actions";
 import { getCurrentUser } from "@/lib/get-current-user";
 import { safeToISOString } from "@/lib/session-cookie";
-import { ElevationsPanel } from "./ElevationsPanel";
 import { BureauContent } from "./BureauContent";
 import { DetHQWrapper } from "@/components/hq/DetHQ";
 import { AgentHQWrapper } from "@/components/hq/AgentHQ";
@@ -41,33 +40,33 @@ export default async function AdminPage() {
     getAllAgents(),
   ]);
 
-  const serializedPending = pendingElevations.map((e: any) => ({
+  const serializedPending = pendingElevations.map((e) => ({
     ...e,
     createdAt: safeToISOString(e.createdAt),
     updatedAt: safeToISOString(e.updatedAt),
     user: { ...e.user, createdAt: safeToISOString(e.user?.createdAt) },
   }));
 
-  const serializedApproved = approvedElevations.map((e: any) => ({
+  const serializedApproved = approvedElevations.map((e) => ({
     ...e,
     createdAt: safeToISOString(e.createdAt),
     updatedAt: safeToISOString(e.updatedAt),
     user: { ...e.user, createdAt: safeToISOString(e.user?.createdAt) },
   }));
 
-  const serializedRejected = rejectedElevations.map((e: any) => ({
+  const serializedRejected = rejectedElevations.map((e) => ({
     ...e,
     createdAt: safeToISOString(e.createdAt),
     updatedAt: safeToISOString(e.updatedAt),
     user: { ...e.user, createdAt: safeToISOString(e.user?.createdAt) },
   }));
 
-  const serializedUpcoming = upcomingTopics.map((t: any) => ({
+  const serializedUpcoming = upcomingTopics.map((t) => ({
     ...t,
     createdAt: safeToISOString(t.createdAt),
   }));
 
-  const serializedAgents = agents.map((a: any) => ({
+  const serializedAgents = agents.map((a) => ({
     ...a,
     createdAt: safeToISOString(a.createdAt),
   }));
