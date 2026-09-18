@@ -12,40 +12,41 @@ export async function GET() {
 
   const supabase = await createServerSupabaseClient();
 
-  const [{ count: totalConnections }, { count: pendingSent }, { count: pendingReceived }] = await Promise.all([
+  const [{ count: mutualCount }, { count: outgoingCount }, { count: incomingCount }] = await Promise.all([
     supabase
       .from("UserConnection")
       .select("*", { count: "exact", head: true })
       .eq("userId", user.id)
-      .eq("status", "accepted"),
+      .eq("status", "mutual"),
     supabase
       .from("UserConnection")
       .select("*", { count: "exact", head: true })
       .eq("userId", user.id)
-      .eq("status", "pending"),
+      .eq("status", "following"),
     supabase
       .from("UserConnection")
       .select("*", { count: "exact", head: true })
       .eq("connectedUserId", user.id)
-      .eq("status", "pending"),
+      .eq("status", "following"),
   ]);
 
   const { data: connections } = await supabase
     .from("UserConnection")
     .select("connectedUserId")
     .eq("userId", user.id)
-    .eq("status", "accepted");
+    .eq("status", "mutual");
 
   const connectedIds = (connections || []).map((connection) => connection.connectedUserId);
-  let mutualConnections = 0;
+  let totalMutual = mutualCount ?? 0;
+
   if (connectedIds.length) {
     const { count } = await supabase
       .from("UserConnection")
       .select("*", { count: "exact", head: true })
       .in("userId", connectedIds)
       .eq("connectedUserId", user.id)
-      .eq("status", "accepted");
-    mutualConnections = count || 0;
+      .eq("status", "mutual");
+    totalMutual = count ?? 0;
   }
 
   const { data: users } = await supabase
@@ -59,10 +60,10 @@ export async function GET() {
   }, {});
 
   return NextResponse.json({
-    totalConnections: totalConnections || 0,
-    pendingSent: pendingSent || 0,
-    pendingReceived: pendingReceived || 0,
-    mutualConnections,
+    totalConnections: totalMutual,
+    pendingSent: outgoingCount ?? 0,
+    pendingReceived: incomingCount ?? 0,
+    mutualConnections: mutualCount ?? 0,
     roleBreakdown,
   });
 }

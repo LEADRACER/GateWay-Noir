@@ -57,7 +57,7 @@ export interface UserConnection {
   userId: string;
   connectedUserId: string;
   createdAt: string;
-  status: "pending" | "accepted" | "rejected";
+  status: "following" | "mutual" | "rejected";
   metadata: Record<string, unknown>;
 }
 
@@ -169,6 +169,13 @@ export interface TopicWithCategory extends Topic {
   category: Category;
   votes?: { count: number }[];
   comments?: { count: number }[];
+  _count?: { votes: number };
+}
+
+export interface TopicWithFullComments extends Topic {
+  category: Category;
+  comments: (Comment & { userDisplayName?: string | null })[];
+  _count?: { votes: number; comments: number };
 }
 
 export interface UserWithStats extends User {

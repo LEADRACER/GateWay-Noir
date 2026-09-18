@@ -32,7 +32,7 @@ async function getUserConnections(
     .from("UserConnection")
     .select("connectedUserId")
     .eq("userId", userId)
-    .eq("status", "accepted");
+    .eq("status", "mutual");
   return new Set((data || []).map((c) => c.connectedUserId));
 }
 

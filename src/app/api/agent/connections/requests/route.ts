@@ -12,46 +12,66 @@ export async function GET() {
 
   const supabase = await createServerSupabaseClient();
 
-  // Get sent requests (pending)
-  const { data: sentRequests, error: sentError } = await supabase
+  const { data: sentFollows, error: sentError } = await supabase
     .from("UserConnection")
     .select(`
       id,
       connectedUserId,
       createdAt,
       status,
-      metadata,
-      connectedUser:User!UserConnection_connectedUserId_fkey(badgeCode, displayName, role)
+      connectedUser:User!UserConnection_connectedUserId_fkey(id, badgeCode, displayName, role)
     `)
     .eq("userId", user.id)
-    .eq("status", "pending")
+    .eq("status", "following")
     .order("createdAt", { ascending: false });
 
   if (sentError) {
-    return NextResponse.json({ error: "Failed to load sent requests" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to load sent follows" }, { status: 500 });
   }
 
-  // Get received requests (pending)
-  const { data: receivedRequests, error: receivedError } = await supabase
+  const { data: receivedFollows, error: receivedError } = await supabase
     .from("UserConnection")
     .select(`
       id,
       userId,
+      connectedUserId,
       createdAt,
       status,
-      metadata,
-      user:User!UserConnection_userId_fkey(badgeCode, displayName, role)
+      user:User!UserConnection_userId_fkey(id, badgeCode, displayName, role)
     `)
     .eq("connectedUserId", user.id)
-    .eq("status", "pending")
+    .eq("status", "following")
     .order("createdAt", { ascending: false });
 
   if (receivedError) {
-    return NextResponse.json({ error: "Failed to load received requests" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to load received follows" }, { status: 500 });
   }
 
+  const sent = (sentFollows || []).map((row) => {
+    const connectedUser = Array.isArray(row.connectedUser) ? row.connectedUser[0] : row.connectedUser;
+    return {
+      id: row.id,
+      connectedUserId: row.connectedUserId,
+      createdAt: row.createdAt,
+      status: row.status,
+      connectedUser: connectedUser ?? { id: row.connectedUserId, badgeCode: "?", displayName: "Unknown", role: "AGENT" as const },
+    };
+  });
+
+  const received = (receivedFollows || []).map((row) => {
+    const userField = Array.isArray(row.user) ? row.user[0] : row.user;
+    return {
+      id: row.id,
+      userId: row.userId,
+      connectedUserId: row.connectedUserId,
+      createdAt: row.createdAt,
+      status: row.status,
+      connectedUser: userField ?? { id: row.userId, badgeCode: "?", displayName: "Unknown", role: "AGENT" as const },
+    };
+  });
+
   return NextResponse.json({
-    sent: sentRequests || [],
-    received: receivedRequests || [],
+    sent,
+    received,
   });
 }

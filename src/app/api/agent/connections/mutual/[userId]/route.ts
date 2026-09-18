@@ -25,12 +25,12 @@ export async function GET(
       .from("UserConnection")
       .select("connectedUserId")
       .eq("userId", user.id)
-      .eq("status", "accepted"),
+      .eq("status", "mutual"),
     supabase
       .from("UserConnection")
       .select("connectedUserId")
       .eq("userId", userId)
-      .eq("status", "accepted"),
+      .eq("status", "mutual"),
   ]);
 
   const myIds = new Set((myConnections || []).map(c => c.connectedUserId));

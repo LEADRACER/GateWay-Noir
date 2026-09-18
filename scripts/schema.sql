@@ -172,15 +172,15 @@ CREATE TABLE IF NOT EXISTS "public"."AgentDiscussionMessage" (
 
 -- ============================================================================
 -- UserConnection
--- Directed connection requests; accepted connections are stored in both directions.
+-- Directed connection follows; mutual connections exist in both directions.
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS "public"."UserConnection" (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
   "userId" TEXT NOT NULL REFERENCES "public"."User"(id) ON DELETE CASCADE,
   "connectedUserId" TEXT NOT NULL REFERENCES "public"."User"(id) ON DELETE CASCADE,
   "createdAt" TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now(),
-  status TEXT NOT NULL DEFAULT 'accepted'
-    CHECK (status IN ('pending', 'accepted', 'rejected')),
+  status TEXT NOT NULL DEFAULT 'following'
+    CHECK (status IN ('following', 'mutual', 'rejected')),
   metadata JSONB DEFAULT '{}'::jsonb,
   UNIQUE("userId", "connectedUserId")
 );

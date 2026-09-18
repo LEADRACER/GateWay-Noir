@@ -13,25 +13,83 @@ export async function GET() {
   }
 
   const supabase = await createServerSupabaseClient();
-  const { data: connections, error } = await supabase
+
+  const { data: myOutgoing, error: outError } = await supabase
     .from("UserConnection")
     .select(`
       id,
       connectedUserId,
       createdAt,
       status,
-      metadata,
-      connectedUser:User!UserConnection_connectedUserId_fkey(badgeCode, displayName, role)
+      connectedUser:User!UserConnection_connectedUserId_fkey(id, badgeCode, displayName, role)
     `)
     .eq("userId", user.id)
-    .eq("status", "accepted")
+    .in("status", ["following", "mutual"])
     .order("createdAt", { ascending: false });
 
-  if (error) {
+  if (outError) {
     return NextResponse.json({ error: "Failed to load connections" }, { status: 500 });
   }
 
-  return NextResponse.json({ connections: connections || [] });
+  const { data: myIncoming, error: inError } = await supabase
+    .from("UserConnection")
+    .select(`
+      id,
+      userId,
+      connectedUserId,
+      createdAt,
+      status,
+      user:User!UserConnection_userId_fkey(id, badgeCode, displayName, role)
+    `)
+    .eq("connectedUserId", user.id)
+    .in("status", ["following", "mutual"])
+    .order("createdAt", { ascending: false });
+
+  if (inError) {
+    return NextResponse.json({ error: "Failed to load connections" }, { status: 500 });
+  }
+
+  const outgoing = ((myOutgoing || []) as any[]).map((row) => {
+    const connectedUser = Array.isArray(row.connectedUser) ? row.connectedUser[0] : row.connectedUser;
+    return {
+      id: row.id,
+      userId: row.userId,
+      connectedUserId: row.connectedUserId,
+      status: row.status,
+      connectedUser: connectedUser ?? { id: row.connectedUserId, badgeCode: "?", displayName: "Unknown", role: "AGENT" as const },
+      createdAt: row.createdAt,
+    };
+  });
+
+  const incoming = (myIncoming || []).map((row: { id: string; userId: string; connectedUserId: string; createdAt: string; status: string; user: { id: string; badgeCode: string; displayName: string; role: string } | { id: string; badgeCode: string; displayName: string; role: string }[] | null }) => {
+    const userField = Array.isArray(row.user) ? row.user[0] : row.user;
+    return {
+      id: row.id,
+      userId: row.userId,
+      connectedUserId: row.connectedUserId,
+      status: row.status,
+      connectedUser: userField ?? { id: row.userId, badgeCode: "?", displayName: "Unknown", role: "AGENT" as const },
+      createdAt: row.createdAt,
+    };
+  });
+
+  const mutual: typeof outgoing = [];
+  const outgoingIds = new Set(outgoing.map((o) => o.connectedUserId));
+  for (const inc of incoming) {
+    if (outgoingIds.has(inc.userId)) {
+      mutual.push(inc);
+    }
+  }
+
+  const mutualUserIds = new Set(mutual.map((m) => m.userId));
+  const filteredOutgoing = outgoing.filter((o) => !mutualUserIds.has(o.connectedUserId));
+  const filteredIncoming = incoming.filter((i) => !mutualUserIds.has(i.userId));
+
+  return NextResponse.json({
+    outgoing: filteredOutgoing,
+    incoming: filteredIncoming,
+    mutual,
+  });
 }
 
 export async function POST(req: NextRequest) {
@@ -92,7 +150,7 @@ export async function POST(req: NextRequest) {
       .select("id")
       .eq("userId", targetUser.id)
       .eq("connectedUserId", user.id)
-      .eq("status", "accepted")
+      .eq("status", "mutual")
       .maybeSingle();
 
     if (!mutual) {
@@ -105,7 +163,7 @@ export async function POST(req: NextRequest) {
     .from("UserConnection")
     .select("*", { count: "exact", head: true })
     .eq("userId", user.id)
-    .eq("status", "accepted");
+    .eq("status", "mutual");
 
   if (count && count >= limit) {
     return NextResponse.json({ error: `Connection limit reached (${limit})` }, { status: 400 });
@@ -126,65 +184,92 @@ export async function POST(req: NextRequest) {
       .maybeSingle(),
   ]);
 
-  if (outgoing?.status === "pending") {
-    return NextResponse.json({ error: "Request already sent" }, { status: 409 });
+  if (outgoing?.status === "following" || outgoing?.status === "mutual") {
+    if (outgoing.status === "mutual") {
+      return NextResponse.json({ error: "Already connected" }, { status: 409 });
+    }
+    return NextResponse.json({ error: "Follow already sent" }, { status: 409 });
   }
 
-  if (outgoing?.status === "accepted" || incoming?.status === "accepted") {
+  if (incoming?.status === "mutual") {
     return NextResponse.json({ error: "Already connected" }, { status: 409 });
-  }
-
-  if (incoming?.status === "pending") {
-    return NextResponse.json({ error: "A request from this user is waiting for your response" }, { status: 409 });
   }
 
   const metadata = typeof requestBody.metadata === "object" && requestBody.metadata !== null && !Array.isArray(requestBody.metadata)
     ? requestBody.metadata as Record<string, unknown>
     : {};
 
-  const requestRow = {
+  const followRow = {
     userId: user.id,
     connectedUserId: targetUser.id,
-    status: "pending" as const,
+    status: "following" as const,
     metadata,
   };
 
-  let requestId = outgoing?.id;
+  let requestId: string;
 
-  if (outgoing?.status === "rejected") {
-    const { error } = await supabase
+  if (incoming?.status === "following") {
+    const { error: updateError } = await supabase
       .from("UserConnection")
-      .update(requestRow)
+      .update({ status: "mutual" })
+      .eq("id", incoming.id);
+
+    if (updateError) {
+      return NextResponse.json({ error: "Failed to create connection" }, { status: 500 });
+    }
+
+    const { error: updateOutError } = await supabase
+      .from("UserConnection")
+      .update({ status: "mutual" })
+      .eq("userId", user.id)
+      .eq("connectedUserId", targetUser.id);
+
+    if (updateOutError) {
+      return NextResponse.json({ error: "Failed to create connection" }, { status: 500 });
+    }
+
+    const { data: existing } = await supabase
+      .from("UserConnection")
+      .select("id")
+      .eq("userId", user.id)
+      .eq("connectedUserId", targetUser.id)
+      .eq("status", "mutual")
+      .maybeSingle();
+
+    requestId = existing?.id ?? incoming.id;
+  } else if (outgoing?.status === "rejected") {
+    const { error: updateError } = await supabase
+      .from("UserConnection")
+      .update(followRow)
       .eq("id", outgoing.id);
 
-    if (error) {
-      return NextResponse.json({ error: "Failed to resend connection request" }, { status: 500 });
+    if (updateError) {
+      return NextResponse.json({ error: "Failed to follow" }, { status: 500 });
     }
+    requestId = outgoing.id;
   } else {
     const { data, error } = await supabase
       .from("UserConnection")
-      .insert(requestRow)
+      .insert(followRow)
       .select("id")
       .single();
 
     if (error || !data) {
-      return NextResponse.json({ error: "Failed to send connection request" }, { status: 500 });
+      return NextResponse.json({ error: "Failed to follow" }, { status: 500 });
     }
-
     requestId = data.id;
   }
 
   void logAuditWithRequest(
     {
-      action: "connection_request_sent",
+      action: "connection_followed",
       resource: "UserConnection",
       resourceId: requestId,
       metadata: {
-        requesterId: user.id,
-        requesterBadgeCode: user.badgeCode,
+        followerId: user.id,
+        followerBadgeCode: user.badgeCode,
         targetUserId: targetUser.id,
         targetBadgeCode: targetUser.badgeCode,
-        isResend: outgoing?.status === "rejected",
       },
     },
     { ip: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || undefined, userAgent: req.headers.get("user-agent") || undefined },
@@ -192,13 +277,17 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json(
     {
-      request: {
+      connection: {
         id: requestId,
+        userId: user.id,
         connectedUserId: targetUser.id,
-        badgeCode: targetUser.badgeCode,
-        displayName: targetUser.displayName,
-        role: targetUser.role,
-        status: "pending",
+        status: "following",
+        connectedUser: {
+          id: targetUser.id,
+          badgeCode: targetUser.badgeCode,
+          displayName: targetUser.displayName,
+          role: targetUser.role,
+        },
       },
     },
     { status: 201 },

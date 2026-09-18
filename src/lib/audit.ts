@@ -6,6 +6,8 @@ export type AuditAction =
   | "connection_removed"
   | "connection_request_sent"
   | "connection_request_rejected"
+  | "connection_followed"
+  | "connection_unfollowed"
   | "connection_privacy_changed"
   | "elevation_requested"
   | "elevation_approved"

@@ -107,7 +107,7 @@ CREATE TABLE IF NOT EXISTS "public"."UserConnection" (
   "userId" TEXT NOT NULL REFERENCES "public"."User"(id) ON DELETE CASCADE,
   "connectedUserId" TEXT NOT NULL REFERENCES "public"."User"(id) ON DELETE CASCADE,
   "createdAt" TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now(),
-  status TEXT NOT NULL DEFAULT 'accepted' CHECK (status IN ('pending', 'accepted', 'rejected')),
+  status TEXT NOT NULL DEFAULT 'following' CHECK (status IN ('following', 'mutual', 'rejected')),
   metadata JSONB DEFAULT '{}'::jsonb,
   UNIQUE("userId", "connectedUserId")
 );
@@ -130,20 +130,20 @@ BEGIN
 
   IF NOT status_column_exists THEN
     ALTER TABLE "public"."UserConnection"
-      ADD COLUMN status TEXT NOT NULL DEFAULT 'accepted'
-      CHECK (status IN ('pending', 'accepted', 'rejected'));
+      ADD COLUMN status TEXT NOT NULL DEFAULT 'following'
+      CHECK (status IN ('following', 'mutual', 'rejected'));
   ELSE
     ALTER TABLE "public"."UserConnection"
-      ALTER COLUMN status SET DEFAULT 'accepted';
+      ALTER COLUMN status SET DEFAULT 'following';
   END IF;
 END $$;
 
 ALTER TABLE "public"."UserConnection"
   ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb;
 
--- Backfill only pre-existing bidirectional rows as accepted.
+-- Backfill only pre-existing bidirectional rows as mutual.
 UPDATE "public"."UserConnection" AS connection
-SET status = 'accepted'
+SET status = 'mutual'
 WHERE connection.status = 'pending'
   AND EXISTS (
     SELECT 1
@@ -153,6 +153,22 @@ WHERE connection.status = 'pending'
   );
 
 CREATE INDEX IF NOT EXISTS idx_user_connection_status ON "public"."UserConnection"(status);
+
+-- Update CHECK constraint on status column to new values
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.check_constraints
+    WHERE constraint_name = 'UserConnection_status_check'
+      AND table_name = 'UserConnection'
+  ) THEN
+    ALTER TABLE "public"."UserConnection"
+      DROP CONSTRAINT "UserConnection_status_check";
+  END IF;
+  ALTER TABLE "public"."UserConnection"
+    ADD CONSTRAINT "UserConnection_status_check"
+    CHECK (status IN ('following', 'mutual', 'rejected'));
+END $$;
 
 -- Add connectionPrivacy to User
 ALTER TABLE "public"."User"

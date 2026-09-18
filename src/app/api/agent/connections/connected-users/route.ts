@@ -27,7 +27,7 @@ export async function GET() {
       )
     `)
     .eq("userId", user.id)
-    .eq("status", "accepted")
+    .eq("status", "mutual")
     .order("createdAt", { ascending: false });
 
   if (error) {
