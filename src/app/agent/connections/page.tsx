@@ -13,6 +13,8 @@ import {
   UserMinus,
   AlertCircle,
   UserPlus,
+  RefreshCw,
+  Clock,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -218,6 +220,21 @@ function ConnectionsPage() {
     return [...filteredConnections.outgoing, ...filteredConnections.incoming, ...filteredConnections.mutual];
   }, [filteredConnections]);
 
+  const connectionStats = useMemo(() => {
+    const mutual = filteredConnections.mutual;
+    const roleBreakdown = mutual.reduce<Record<string, number>>((acc, conn) => {
+      const role = conn.connectedUser.role;
+      acc[role] = (acc[role] || 0) + 1;
+      return acc;
+    }, {});
+    return {
+      totalMutual: mutual.length,
+      pendingSent: filteredConnections.outgoing.length,
+      pendingReceived: filteredConnections.incoming.length,
+      roleBreakdown,
+    };
+  }, [filteredConnections]);
+
   if (badgeLoading || loading) {
     return (
       <div className="max-w-2xl mx-auto py-16 flex items-center justify-center">
@@ -257,11 +274,19 @@ function ConnectionsPage() {
     const leftColor = state === "mutual" && leftRole ? roleColor(leftRole) : state === "outgoing" && leftRole ? roleColor(leftRole) : "bg-zinc-600";
     const rightColor = state === "mutual" && rightRole ? roleColor(rightRole) : state === "incoming" && rightRole ? roleColor(rightRole) : "bg-zinc-600";
 
+    const leftActive = state === "mutual" || state === "outgoing";
+    const rightActive = state === "mutual" || state === "incoming";
+    const leftScore = leftActive ? 1 : 0;
+    const rightScore = rightActive ? 1 : 0;
+
     return (
       <div className="flex items-center gap-1.5">
         <div className={`w-3 h-3 rounded-full ${leftColor} flex-shrink-0`} />
         <div className="w-6 h-px bg-zinc-600 flex-shrink-0" />
         <div className={`w-3 h-3 rounded-full ${rightColor} flex-shrink-0`} />
+        <span className="text-[8px] font-mono text-zinc-500 typewriter-label px-1.5 py-[1px] bg-zinc-500/5 rounded">
+          {leftScore}-{rightScore}
+        </span>
       </div>
     );
   };
@@ -269,13 +294,23 @@ function ConnectionsPage() {
   return (
     <div className="max-w-2xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-        <button
-          onClick={() => router.push("/agent/discussions")}
-          className="inline-flex items-center gap-1 text-[10px] text-zinc-600 hover:text-zinc-400 mb-6 typewriter-label transition-colors min-h-[36px]"
-        >
-          <ArrowLeft className="w-3 h-3" />
-          DISCUSSIONS
-        </button>
+        <div className="flex items-center justify-between mb-6">
+          <button
+            onClick={() => router.push("/agent/discussions")}
+            className="inline-flex items-center gap-1 text-[10px] text-zinc-600 hover:text-zinc-400 typewriter-label transition-colors min-h-[36px]"
+          >
+            <ArrowLeft className="w-3 h-3" />
+            DISCUSSIONS
+          </button>
+          <button
+            onClick={() => refreshConnections()}
+            disabled={loading}
+            className="p-2 text-zinc-500 hover:text-zinc-300 transition-colors rounded hover:bg-[#111113] min-h-[36px] min-w-[36px] flex items-center justify-center"
+            title="Refresh connections"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+          </button>
+        </div>
 
         <div className="flex items-center gap-2 mb-6">
           <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
@@ -302,6 +337,32 @@ function ConnectionsPage() {
             <span className="mx-1">·</span>
             <span className="text-blue-400">◉</span>
             <span>AGT</span>
+          </div>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.12 }}
+          className="mb-6"
+        >
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            <div className="bg-[#111113] border border-[rgba(168,144,112,0.08)] p-3 text-center">
+              <p className="text-emerald-400 text-lg font-bold">{connectionStats.totalMutual}</p>
+              <p className="text-[8px] text-zinc-600 typewriter-label">CONNECTED</p>
+            </div>
+            <div className="bg-[#111113] border border-[rgba(168,144,112,0.08)] p-3 text-center">
+              <p className="text-zinc-400 text-lg font-bold">{connectionStats.pendingSent}</p>
+              <p className="text-[8px] text-zinc-600 typewriter-label">PENDING SENT</p>
+            </div>
+            <div className="bg-[#111113] border border-[rgba(168,144,112,0.08)] p-3 text-center">
+              <p className="text-rose-400 text-lg font-bold">{connectionStats.pendingReceived}</p>
+              <p className="text-[8px] text-zinc-600 typewriter-label">PENDING RECV</p>
+            </div>
+            <div className="bg-[#111113] border border-[rgba(168,144,112,0.08)] p-3 text-center">
+              <p className="text-amber-400 text-lg font-bold">{connectionStats.roleBreakdown.BUREAU || 0}</p>
+              <p className="text-[8px] text-zinc-600 typewriter-label">BUREAU</p>
+            </div>
           </div>
         </motion.div>
 
@@ -379,6 +440,19 @@ function ConnectionsPage() {
               </div>
             </motion.div>
           )}
+          {showSearchResults && searchResults.length === 0 && searchQuery.trim() && (
+            <motion.div
+              key="search-empty"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="bg-[#111113] border border-[rgba(168,144,112,0.08)] rounded-lg mb-6 p-8 text-center"
+            >
+              <Search className="w-8 h-8 text-zinc-700 mx-auto mb-2" />
+              <p className="text-zinc-600 text-xs typewriter-label mb-1">NO AGENTS FOUND</p>
+              <p className="text-zinc-700 text-[10px] mt-1">Try a different badge code or display name</p>
+            </motion.div>
+          )}
         </AnimatePresence>
 
         <AnimatePresence mode="wait">
@@ -445,6 +519,20 @@ function ConnectionsPage() {
                   </div>
                   <span className="ml-auto px-2 py-1 text-[9px] font-medium bg-emerald-500/20 text-emerald-400 rounded typewriter-label">{filteredConnections.mutual.length}</span>
                 </div>
+                {Object.keys(connectionStats.roleBreakdown).length > 0 && (
+                  <div className="flex items-center gap-2 mb-3 px-2 text-[8px] text-zinc-500 typewriter-label">
+                    <span>Roles:</span>
+                    {Object.entries(connectionStats.roleBreakdown).map(([role, count]) => (
+                      <span key={role} className={`px-1.5 py-0.5 rounded border ${
+                        role === "BUREAU" ? "bg-amber-500/10 text-amber-400 border-amber-500/20" :
+                        role === "AGENT" ? "bg-blue-500/10 text-blue-400 border-blue-500/20" :
+                        "bg-zinc-500/10 text-zinc-400 border-zinc-500/20"
+                      }`}>
+                        {role} {count}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 <div className="divide-y divide-[rgba(168,144,112,0.06)] rounded-lg border border-[rgba(168,144,112,0.08)] bg-[#111113] overflow-hidden">
                   {filteredConnections.mutual.map((conn) => (
                     <ConnectionRow
@@ -520,6 +608,12 @@ function ConnectionRow({
               <span className="text-[8px] text-rose-400 typewriter-label">FOLLOWED YOU</span>
             )}
           </div>
+          {state === "mutual" && showNames && (
+            <div className="flex items-center gap-1 mt-1 text-[8px] text-zinc-600">
+              <Clock className="w-2.5 h-2.5" />
+              <span className="typewriter-label">Connected {formatDate(conn.createdAt)}</span>
+            </div>
+          )}
         </div>
       </div>
       <div className="flex items-center gap-2">
