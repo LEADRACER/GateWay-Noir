@@ -1,15 +1,17 @@
 "use client";
 
-import { getDataURL, downloadBadgeSVG } from "@/lib/badge-image";
+import { useState, useEffect } from "react";
+import { getDataURL, downloadBadgeSVG, generateBadgeQR } from "@/lib/badge-image";
 import type { BadgeUser } from "@/lib/badge-client";
 
 interface BadgeCardProps {
   badge: BadgeUser;
   showDownload?: boolean;
+  showQR?: boolean;
   className?: string;
 }
 
-export function BadgeCard({ badge, showDownload = false, className = "" }: BadgeCardProps) {
+export function BadgeCard({ badge, showDownload = false, showQR = false, className = "" }: BadgeCardProps) {
   const dataUrl = getDataURL({
     badgeCode: badge.badgeCode,
     displayName: badge.displayName,
@@ -20,6 +22,13 @@ export function BadgeCard({ badge, showDownload = false, className = "" }: Badge
       comments: badge.commentCount ?? 0,
     },
   });
+
+  const [qrSvg, setQrSvg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!showQR) return;
+    generateBadgeQR(badge.badgeCode).then(setQrSvg).catch(() => {});
+  }, [showQR, badge.badgeCode]);
 
   const handleDownload = () => {
     downloadBadgeSVG({
@@ -36,11 +45,19 @@ export function BadgeCard({ badge, showDownload = false, className = "" }: Badge
 
   return (
     <div className={`inline-block ${className}`}>
-      <img
-        src={dataUrl}
-        alt={`${badge.badgeCode} — ${badge.displayName}`}
-        className="w-full max-w-[320px] h-auto block"
-      />
+      <div className="flex gap-3 items-start">
+        <img
+          src={dataUrl}
+          alt={`${badge.badgeCode} — ${badge.displayName}`}
+          className="w-auto h-[280px] block"
+        />
+        {showQR && qrSvg && (
+          <div className="flex flex-col items-center gap-1">
+            <div dangerouslySetInnerHTML={{ __html: qrSvg }} className="w-[100px] h-[100px]" />
+            <span className="text-[8px] text-zinc-500 typewriter-label">SCAN VERIFY</span>
+          </div>
+        )}
+      </div>
       {showDownload && (
         <button
           onClick={handleDownload}
