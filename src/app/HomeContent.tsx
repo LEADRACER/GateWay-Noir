@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
-import { Search, FolderOpen, Inbox, ChevronUp, FileText, Check, Trash2, X, Command } from "lucide-react";
+import { FolderOpen, Inbox, ChevronUp, FileText, Check, Trash2 } from "lucide-react";
 import { CategoryFilter } from "@/components/home/CategoryFilter";
 import { TopicGrid } from "@/components/home/TopicGrid";
 import { AnnouncementsSidebar } from "@/components/home/AnnouncementsSidebar";
@@ -31,7 +31,6 @@ export function HomeContent({
   const { badge } = useBadge();
   const isBureau = badge?.role === "BUREAU";
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
   const [upcomingTopics, setUpcomingTopics] = useState(initialUpcoming);
   const [userVotes, setUserVotes] = useState<Set<string>>(new Set());
   const votingRef = useRef<Set<string>>(new Set());
@@ -59,16 +58,8 @@ export function HomeContent({
     if (activeCategory) {
       result = result.filter((t: TopicWithCategory) => t.category.slug === activeCategory);
     }
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(
-        (t: TopicWithCategory) =>
-          t.title.toLowerCase().includes(q) ||
-          (t.description?.toLowerCase() || "").includes(q)
-      );
-    }
     return result;
-  }, [initialTopics, activeCategory, searchQuery]);
+  }, [initialTopics, activeCategory]);
 
   const activeTopics = filteredTopics.filter((t: TopicWithCategory) => t.status === "ACTIVE");
 
@@ -166,44 +157,13 @@ export function HomeContent({
               </div>
             </div>
 
-            {/* Search + Filter Bar */}
+            {/* Category Filter */}
             <div className="px-4 py-2 border-b border-[rgba(168,144,112,0.06)] bg-[#0a0a0c]">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                <div className="relative flex-1 group">
-                  <div className="absolute inset-0 bg-gradient-to-r from-[#d97706]/0 via-[#d97706]/5 to-[#d97706]/0 opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 pointer-events-none rounded-[6px]" />
-                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-600 group-focus-within:text-[#d97706] transition-colors duration-200" />
-                  <input
-                    type="text"
-                    placeholder="Search case files..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    onKeyDown={(e) => {
-                      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-                        e.preventDefault();
-                        e.currentTarget.focus();
-                      }
-                    }}
-                    className="w-full pl-7 pr-10 py-1.5 bg-[#08080a] border border-[rgba(168,144,112,0.08)] text-zinc-400 text-[10px] placeholder-zinc-700 focus:outline-none focus:border-[rgba(217,119,6,0.35)] focus:ring-1 focus:ring-[rgba(217,119,6,0.25)] focus:bg-[#0a0a0c] transition-all duration-200 font-mono"
-                  />
-                  {searchQuery && (
-                    <button
-                      onClick={() => setSearchQuery("")}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800/50 rounded transition-all duration-150"
-                      aria-label="Clear search"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  )}
-                  <kbd className="absolute right-8 top-1/2 -translate-y-1/2 hidden sm:block px-1.5 py-0.5 text-[7px] font-mono text-zinc-700 bg-zinc-900/50 border border-zinc-800 rounded">
-                    <Command className="w-2.5 h-2.5 inline-block align-middle mr-0.5" />K
-                  </kbd>
-                </div>
-                <CategoryFilter
-                  categories={categories}
-                  selected={activeCategory}
-                  onSelect={setActiveCategory}
-                />
-              </div>
+              <CategoryFilter
+                categories={categories}
+                selected={activeCategory}
+                onSelect={setActiveCategory}
+              />
             </div>
 
             {/* ── ACTIVE INVESTIGATIONS ── */}
