@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Users, Fingerprint, MessageSquare, User } from "lucide-react";
+import { Users, Fingerprint, MessageSquare, User, Shield, Search } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import type { Comment } from "@/lib/types/database";
 
@@ -66,11 +66,24 @@ export function PeopleSection({ comments }: PeopleSectionProps) {
         </div>
 
         <div className="space-y-2 max-h-[calc(100vh-300px)] overflow-y-auto">
-          {people.map((person, i) => {
+{people.map((person, i) => {
             const isBRU = person.role === "BRU";
             const isAGT = person.role === "AGT";
+            const isDET = person.role === "DET";
             const hasBadge = person.displayName.includes("-");
             
+            // Determine icon and colors based on role
+            const getAvatarConfig = () => {
+              if (!hasBadge) return { bg: "bg-zinc-700", iconColor: "text-zinc-500", Icon: MessageSquare };
+              if (isBRU) return { bg: "bg-amber-500/15", iconColor: "text-amber-300", Icon: Fingerprint };
+              if (isAGT) return { bg: "bg-amber-600/15", iconColor: "text-amber-500", Icon: Shield };
+              if (isDET) return { bg: "bg-zinc-500/15", iconColor: "text-zinc-400", Icon: Search };
+              return { bg: "bg-zinc-500/15", iconColor: "text-zinc-400", Icon: User };
+            };
+            
+            const avatarConfig = getAvatarConfig();
+            const textColor = hasBadge ? (isBRU ? "text-amber-300" : isAGT ? "text-amber-500" : "text-zinc-400") : "text-zinc-500";
+             
             return (
               <motion.div
                 key={person.anonymousId}
@@ -80,27 +93,11 @@ export function PeopleSection({ comments }: PeopleSectionProps) {
                 className="p-3 bg-[#111113] border border-[rgba(168,144,112,0.04)] hover:border-[rgba(168,144,112,0.1)] transition-colors"
               >
                 <div className="flex items-center gap-2 mb-1">
-                  <div className={`w-6 h-6 flex items-center justify-center text-[7px] font-bold flex-shrink-0 ${
-                    hasBadge 
-                      ? isBRU 
-                        ? "bg-amber-500/15 text-amber-300" 
-                        : isAGT 
-                          ? "bg-amber-600/15 text-amber-500" 
-                          : "bg-zinc-500/15 text-zinc-400"
-                      : "bg-zinc-700 text-zinc-500"
-                  }`}>
-                    {hasBadge ? (
-                      <Fingerprint className={`w-3 h-3 ${
-                        isBRU ? "text-amber-300" : isAGT ? "text-amber-500" : "text-zinc-400"
-                      }`} />
-                    ) : (
-                      <MessageSquare className="w-3 h-3" />
-                    )}
+                  <div className={`w-6 h-6 flex items-center justify-center flex-shrink-0 ${avatarConfig.bg}`}>
+                    <avatarConfig.Icon className={`w-3 h-3 ${avatarConfig.iconColor}`} />
                   </div>
                   <div className="flex flex-col">
-                    <span className={`text-[10px] font-mono font-bold ${
-                      hasBadge ? (isBRU ? "text-amber-300" : isAGT ? "text-amber-500" : "text-zinc-400") : "text-zinc-500"
-                    }`}>
+                    <span className={`text-[10px] font-mono font-bold ${textColor}`}>
                       {person.displayName}
                     </span>
                     {person.actualName && person.actualName !== person.displayName && (

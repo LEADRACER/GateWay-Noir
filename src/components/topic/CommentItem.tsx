@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { formatDate, normalizeEvidenceUrls } from "@/lib/utils";
-import { Fingerprint, User } from "lucide-react";
+import { Fingerprint, User, Shield, Search } from "lucide-react";
 
 interface CommentItemProps {
   comment: {
@@ -29,11 +29,11 @@ export function CommentItem({ comment, index }: CommentItemProps) {
   // Role colors based on prefix
   const roleConfig = hasBadge
     ? badgePrefix === "BRU"
-      ? { label: "BUREAU", color: "text-amber-300", border: "border-amber-500/30", bg: "bg-amber-500/10" }
+      ? { label: "BUREAU", color: "text-amber-300", border: "border-amber-500/30", bg: "bg-amber-500/10", Icon: Fingerprint }
       : badgePrefix === "AGT"
-        ? { label: "FIELD AGENT", color: "text-amber-500", border: "border-amber-600/25", bg: "bg-amber-600/8" }
-        : { label: "DETECTIVE", color: "text-zinc-400", border: "border-zinc-500/20", bg: "bg-zinc-500/5" }
-    : { label: "WITNESS", color: "text-zinc-500", border: "border-zinc-600/15", bg: "bg-zinc-600/5" };
+        ? { label: "FIELD AGENT", color: "text-amber-500", border: "border-amber-600/25", bg: "bg-amber-600/8", Icon: Shield }
+        : { label: "DETECTIVE", color: "text-zinc-400", border: "border-zinc-500/20", bg: "bg-zinc-500/5", Icon: Search }
+    : { label: "WITNESS", color: "text-zinc-500", border: "border-zinc-600/15", bg: "bg-zinc-600/5", Icon: User };
 
   return (
     <motion.div
@@ -47,11 +47,7 @@ export function CommentItem({ comment, index }: CommentItemProps) {
         className={`w-7 h-7 flex items-center justify-center text-[9px] font-bold flex-shrink-0 mt-0.5 ${hasBadge ? roleConfig.bg : ""}`}
         style={{ backgroundColor: !hasBadge ? `hsl(${hue}, 30%, 15%)` : undefined }}
       >
-        {hasBadge ? (
-          <Fingerprint className={`w-3.5 h-3.5 ${roleConfig.color}`} />
-        ) : (
-          <User className="w-3 h-3 text-zinc-500" />
-        )}
+        <roleConfig.Icon className={`w-3.5 h-3.5 ${roleConfig.color}`} />
       </div>
 
       {/* Content */}
