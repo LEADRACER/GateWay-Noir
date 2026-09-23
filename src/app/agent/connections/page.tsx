@@ -15,6 +15,9 @@ import {
   UserPlus,
   RefreshCw,
   Clock,
+  Fingerprint,
+  User,
+  Shield,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { formatDate } from "@/lib/utils";
@@ -259,38 +262,8 @@ function ConnectionsPage() {
     );
   }
 
-  const roleColor = (role: string) => (role === "BUREAU" ? "bg-amber-400" : "bg-blue-400");
   const roleText = (role: string) => (role === "BUREAU" ? "text-amber-400" : "text-blue-400");
   const roleBgLight = (role: string) => (role === "BUREAU" ? "bg-amber-500/20" : "bg-blue-500/20");
-
-  const ConnectionVisual = ({
-    leftRole,
-    rightRole,
-    state,
-  }: {
-    leftRole?: string;
-    rightRole?: string;
-    state?: ConnectionState;
-  }) => {
-    const leftColor = state === "mutual" && leftRole ? roleColor(leftRole) : state === "outgoing" && leftRole ? roleColor(leftRole) : "bg-zinc-600";
-    const rightColor = state === "mutual" && rightRole ? roleColor(rightRole) : state === "incoming" && rightRole ? roleColor(rightRole) : "bg-zinc-600";
-
-    const leftActive = state === "mutual" || state === "outgoing";
-    const rightActive = state === "mutual" || state === "incoming";
-    const leftScore = leftActive ? 1 : 0;
-    const rightScore = rightActive ? 1 : 0;
-
-    return (
-      <div className="flex items-center gap-1.5">
-        <div className={`w-3 h-3 rounded-full ${leftColor} flex-shrink-0`} />
-        <div className="w-6 h-px bg-zinc-600 flex-shrink-0" />
-        <div className={`w-3 h-3 rounded-full ${rightColor} flex-shrink-0`} />
-        <span className="text-[8px] font-mono text-zinc-500 typewriter-label px-1.5 py-[1px] bg-zinc-500/5 rounded">
-          {leftScore}-{rightScore}
-        </span>
-      </div>
-    );
-  };
 
   return (
     <div className="max-w-2xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
@@ -400,10 +373,25 @@ function ConnectionsPage() {
                 {searchResults.map((user) => {
                   const state = connectionState[user.id];
                   const isMutual = state === "mutual";
+                  // Avatar config matching CommentItem style
+                  const isBureau = user.role === "BUREAU";
+                  const isAgent = user.role === "AGENT";
+                  const hasBadge = isBureau || isAgent;
+                  const avatarConfig = hasBadge
+                    ? isBureau
+                      ? { bg: "bg-amber-500/15", iconColor: "text-amber-300", Icon: Fingerprint }
+                      : { bg: "bg-amber-600/15", iconColor: "text-amber-500", Icon: Shield }
+                    : { bg: "bg-zinc-500/15", iconColor: "text-zinc-400", Icon: User };
                   return (
                     <motion.div key={user.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="flex items-center justify-between px-4 py-3 hover:bg-[#0a0a0c] transition-colors">
                       <div className="flex items-center gap-3">
-                        <ConnectionVisual leftRole={badge?.role || "AGENT"} rightRole={user.role} state={state} />
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${avatarConfig.bg}`}>
+                          {hasBadge ? (
+                            <avatarConfig.Icon className={`w-3.5 h-3.5 ${avatarConfig.iconColor}`} />
+                          ) : (
+                            <avatarConfig.Icon className={`w-3 h-3 ${avatarConfig.iconColor}`} />
+                          )}
+                        </div>
                         <div>
                           <p className="text-sm text-zinc-300 font-mono">{user.badgeCode}</p>
                           <div className="flex items-center gap-1.5 mt-0.5">
@@ -577,9 +565,18 @@ function ConnectionRow({
   onUnfollow?: (connectionId: string) => void;
   onFollowBack?: (connectionId: string) => void;
 }) {
-  const roleBg = (role: string) => (role === "BUREAU" ? "bg-amber-500/10" : "bg-blue-500/10");
   const roleText = (role: string) => (role === "BUREAU" ? "text-amber-400" : "text-blue-400");
   const roleBgLight = (role: string) => (role === "BUREAU" ? "bg-amber-500/20" : "bg-blue-500/20");
+
+  // Avatar config matching CommentItem style
+  const isBureau = conn.connectedUser.role === "BUREAU";
+  const isAgent = conn.connectedUser.role === "AGENT";
+  const hasBadge = isBureau || isAgent;
+  const avatarConfig = hasBadge
+    ? isBureau
+      ? { bg: "bg-amber-500/15", iconColor: "text-amber-300", Icon: Fingerprint }
+      : { bg: "bg-amber-600/15", iconColor: "text-amber-500", Icon: Shield }
+    : { bg: "bg-zinc-500/15", iconColor: "text-zinc-400", Icon: User };
 
   return (
     <motion.div
@@ -588,8 +585,12 @@ function ConnectionRow({
       className="flex items-center justify-between px-4 py-3 hover:bg-[#0a0a0c] transition-colors"
     >
       <div className="flex items-center gap-3">
-        <div className={`w-9 h-9 rounded-full flex items-center justify-center ${roleBg(conn.connectedUser.role)}`}>
-          <span className={`text-xs font-mono ${roleText(conn.connectedUser.role)}`}>{conn.connectedUser.badgeCode}</span>
+        <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${avatarConfig.bg}`}>
+          {hasBadge ? (
+            <avatarConfig.Icon className={`w-4 h-4 ${avatarConfig.iconColor}`} />
+          ) : (
+            <avatarConfig.Icon className={`w-3.5 h-3.5 ${avatarConfig.iconColor}`} />
+          )}
         </div>
         <div>
           {showNames ? (
