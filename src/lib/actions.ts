@@ -588,6 +588,104 @@ export async function concludeTopic(formData: FormData) {
   return { success: true };
 }
 
+export async function reopenTopic(formData: FormData) {
+  const caller = await getCurrentUser();
+  if (!caller || caller.role !== "BUREAU") return { error: "Unauthorized" };
+  const id = formData.get("id") as string;
+  const durationDays = parseInt(formData.get("durationDays") as string) || 30;
+
+  if (!id) return { error: "Missing topic ID" };
+  if (durationDays < 1 || durationDays > 365) return { error: "Duration must be 1-365 days" };
+
+  const supabase = await createServerSupabaseClient();
+
+  const { data: topic } = await supabase
+    .from('Topic')
+    .select("id, status, slug")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (!topic) return { error: "Topic not found" };
+  if (topic.status !== "CONCLUDED") return { error: "Only concluded topics can be reopened" };
+
+  const endsAt = new Date();
+  endsAt.setDate(endsAt.getDate() + durationDays);
+
+  const { data: updatedTopic, error: updateError } = await supabase
+    .from('Topic')
+    .update({
+      status: "ACTIVE",
+      verdict: null,
+      summary: null,
+      endsAt: endsAt.toISOString(),
+      durationDays,
+    })
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (updateError) return { error: updateError.message };
+
+  revalidatePath("/");
+  revalidatePath(`/topic/${updatedTopic.slug}`);
+  revalidatePath("/admin");
+  revalidatePath("/admin/tasks");
+  revalidatePath("/admin/comments");
+  return { success: true };
+}
+
+export async function extendTopic(formData: FormData) {
+  const caller = await getCurrentUser();
+  if (!caller || caller.role !== "BUREAU") return { error: "Unauthorized" };
+  const id = formData.get("id") as string;
+  const daysChange = parseInt(formData.get("daysChange") as string);
+
+  if (!id) return { error: "Missing topic ID" };
+  if (isNaN(daysChange)) return { error: "Invalid days value" };
+  if (daysChange === 0) return { error: "Days change cannot be zero" };
+  if (daysChange < -365 || daysChange > 365) return { error: "Change must be between -365 and 365 days" };
+
+  const supabase = await createServerSupabaseClient();
+
+  const { data: topic } = await supabase
+    .from('Topic')
+    .select("id, status, slug, endsAt, durationDays")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (!topic) return { error: "Topic not found" };
+  if (topic.status !== "ACTIVE") return { error: "Only active topics can be extended" };
+  if (!topic.endsAt) return { error: "Topic has no end date" };
+
+  const currentEndsAt = new Date(topic.endsAt);
+  const newEndsAt = new Date(currentEndsAt);
+  newEndsAt.setDate(newEndsAt.getDate() + daysChange);
+
+  if (newEndsAt <= new Date()) return { error: "New end date must be in the future" };
+
+  const newDurationDays = topic.durationDays + daysChange;
+  if (newDurationDays < 1) return { error: "Total duration must be at least 1 day" };
+
+  const { data: updatedTopic, error: updateError } = await supabase
+    .from('Topic')
+    .update({
+      endsAt: newEndsAt.toISOString(),
+      durationDays: newDurationDays,
+    })
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (updateError) return { error: updateError.message };
+
+  revalidatePath("/");
+  revalidatePath(`/topic/${updatedTopic.slug}`);
+  revalidatePath("/admin");
+  revalidatePath("/admin/tasks");
+  revalidatePath("/admin/comments");
+  return { success: true };
+}
+
 export async function deleteComment(formData: FormData) {
   const caller = await getCurrentUser();
   if (!caller || caller.role !== "BUREAU") return { error: "Unauthorized" };

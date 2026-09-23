@@ -7,11 +7,11 @@ import {
   Users, UserPlus, UserMinus, Loader2, ShieldCheck, ListChecks, User, Trash2, Gavel, FileText,
   ClipboardList, BarChart2, Settings, Search, Filter, MoreHorizontal, Bell, Shield,
   ArrowUpRight, RefreshCw, Eye, Edit, Trash, Clock,
-  Activity, Target, Award, Crown, Star, Zap, ShieldAlert
+  Activity, Target, Award, Crown, Star, Zap, ShieldAlert, RotateCcw
 } from "lucide-react";
 import { useBadge } from "@/components/badge/BadgeProvider";
 import { promoteToBureau, demoteAgent, createBureauUser, getAllUsers } from "@/lib/admin-actions";
-import { getActiveAndConcludedTopics, concludeTopic } from "@/lib/actions";
+import { getActiveAndConcludedTopics, concludeTopic, reopenTopic, extendTopic } from "@/lib/actions";
 import { getAllTasks, updateTaskStatus } from "@/lib/task-actions";
 import { getAgentDiscussions } from "@/lib/discussion-actions";
 import { getAudienceLabel, type DiscussionAudience, type SpectatorVisibility } from "@/lib/discussion-access";
@@ -88,6 +88,10 @@ const [activeTab, setActiveTab] = useState<TabKey>("dashboard");
   const [promotingId, setPromotingId] = useState<string | null>(null);
   const [demotingId, setDemotingId] = useState<string | null>(null);
   const [concludingId, setConcludingId] = useState<string | null>(null);
+  const [reopeningId, setReopeningId] = useState<string | null>(null);
+  const [reopenDuration, setReopenDuration] = useState<string>("30");
+  const [extendingId, setExtendingId] = useState<string | null>(null);
+  const [extendDays, setExtendDays] = useState<string>("");
   const [activeCases, setActiveCases] = useState<Topic[]>([]);
   const [tasks, setTasks] = useState<AgentTask[]>([]);
   const [discussions, setDiscussions] = useState<Discussion[]>([]);
@@ -208,6 +212,53 @@ const [activeTab, setActiveTab] = useState<TabKey>("dashboard");
       addNotification("Failed to conclude case", "error");
     }
     setConcludingId(null);
+  };
+
+  const handleReopen = async (topicId: string) => {
+    setReopeningId(topicId);
+    try {
+      const formData = new FormData();
+      formData.set("id", topicId);
+      formData.set("durationDays", reopenDuration);
+      const result = await reopenTopic(formData);
+      if (result.error) {
+        toast.error(result.error);
+        addNotification(result.error, "error");
+      } else {
+        toast.success("Case reopened!");
+        addNotification(`Case reopened with ${reopenDuration} days duration`, "success");
+        setReopenDuration("30");
+        fetchActiveCases();
+      }
+    } catch {
+      toast.error("Failed to reopen case");
+      addNotification("Failed to reopen case", "error");
+    }
+    setReopeningId(null);
+  };
+
+  const handleExtend = async (topicId: string) => {
+    setExtendingId(topicId);
+    try {
+      const formData = new FormData();
+      formData.set("id", topicId);
+      formData.set("daysChange", extendDays);
+      const result = await extendTopic(formData);
+      if (result.error) {
+        toast.error(result.error);
+        addNotification(result.error, "error");
+      } else {
+        const action = parseInt(extendDays) > 0 ? "extended" : "reduced";
+        toast.success(`Case ${action}!`);
+        addNotification(`Case ${action} by ${Math.abs(parseInt(extendDays))} days`, "success");
+        setExtendDays("");
+        fetchActiveCases();
+      }
+    } catch {
+      toast.error("Failed to extend case");
+      addNotification("Failed to extend case", "error");
+    }
+    setExtendingId(null);
   };
 
   const handlePromoteToBureau = async (agentId: string) => {
@@ -681,10 +732,86 @@ const [activeTab, setActiveTab] = useState<TabKey>("dashboard");
                               {concludingId === topic.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <AlertCircle className="w-3 h-3" />}
                               INCONCLUSIVE
                             </button>
+                            <div className="flex items-center gap-1 border-l border-zinc-700/30 pl-2 ml-1">
+                              {extendingId === topic.id ? (
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    type="number"
+                                    value={extendDays}
+                                    onChange={(e) => setExtendDays(e.target.value)}
+                                    placeholder="+/- days"
+                                    min="-365"
+                                    max="365"
+                                    className="w-20 bg-[#0a0a0c] border border-[rgba(168,144,112,0.15)] px-1.5 py-1 text-[10px] text-zinc-300 rounded outline-none focus:border-blue-500/30 placeholder:text-zinc-700"
+                                    autoFocus
+                                  />
+                                  <button
+                                    onClick={() => handleExtend(topic.id)}
+                                    className="inline-flex items-center gap-1 px-2 py-1.5 text-[10px] font-medium bg-blue-500/15 border border-blue-500/30 text-blue-400 typewriter-label hover:bg-blue-500/25 transition-colors"
+                                  >
+                                    <CheckCircle2 className="w-3 h-3" />
+                                  </button>
+                                  <button
+                                    onClick={() => { setExtendingId(null); setExtendDays(""); }}
+                                    className="inline-flex items-center gap-1 px-2 py-1.5 text-[10px] font-medium bg-zinc-500/10 border border-zinc-500/25 text-zinc-400 typewriter-label hover:bg-zinc-500/20 transition-colors"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => { setExtendingId(topic.id); setExtendDays(""); }}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-medium bg-blue-500/10 border border-blue-500/25 text-blue-400 typewriter-label hover:bg-blue-500/20 transition-colors"
+                                  title="Extend/Reduce case time"
+                                >
+                                  <Clock className="w-3 h-3" />
+                                  EXTEND
+                                </button>
+                              )}
+                            </div>
                           </>
                         )}
                         {topic.status === "CONCLUDED" && !topic.announced && (
-                          <span className="text-[9px] text-amber-400 typewriter-label">PENDING ANNOUNCEMENT</span>
+                          <>
+                            <span className="text-[9px] text-amber-400 typewriter-label">PENDING ANNOUNCEMENT</span>
+                            <div className="flex items-center gap-1 border-l border-zinc-700/30 pl-2 ml-1">
+                              {reopeningId === topic.id ? (
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    type="number"
+                                    value={reopenDuration}
+                                    onChange={(e) => setReopenDuration(e.target.value)}
+                                    placeholder="Days"
+                                    min="1"
+                                    max="365"
+                                    className="w-16 bg-[#0a0a0c] border border-[rgba(168,144,112,0.15)] px-1.5 py-1 text-[10px] text-zinc-300 rounded outline-none focus:border-green-500/30 placeholder:text-zinc-700"
+                                    autoFocus
+                                  />
+                                  <button
+                                    onClick={() => handleReopen(topic.id)}
+                                    className="inline-flex items-center gap-1 px-2 py-1.5 text-[10px] font-medium bg-green-500/15 border border-green-500/30 text-green-400 typewriter-label hover:bg-green-500/25 transition-colors"
+                                  >
+                                    <CheckCircle2 className="w-3 h-3" />
+                                  </button>
+                                  <button
+                                    onClick={() => { setReopeningId(null); setReopenDuration("30"); }}
+                                    className="inline-flex items-center gap-1 px-2 py-1.5 text-[10px] font-medium bg-zinc-500/10 border border-zinc-500/25 text-zinc-400 typewriter-label hover:bg-zinc-500/20 transition-colors"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => { setReopeningId(topic.id); }}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-medium bg-green-500/10 border border-green-500/25 text-green-400 typewriter-label hover:bg-green-500/20 transition-colors"
+                                  title="Reopen case"
+                                >
+                                  <RotateCcw className="w-3 h-3" />
+                                  REOPEN
+                                </button>
+                              )}
+                            </div>
+                          </>
                         )}
                       </div>
                     </div>
