@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { useBadge } from "@/components/badge/BadgeProvider";
 import { promoteToBureau, demoteAgent, createBureauUser, getAllUsers } from "@/lib/admin-actions";
-import { getActiveAndConcludedTopics, concludeTopic, reopenTopic, extendTopic } from "@/lib/actions";
+  import { getActiveAndConcludedTopics, getUpcomingTopics, concludeTopic, reopenTopic, extendTopic } from "@/lib/actions";
 import { getAllTasks, updateTaskStatus } from "@/lib/task-actions";
 import { getAgentDiscussions } from "@/lib/discussion-actions";
 import { getAudienceLabel, type DiscussionAudience, type SpectatorVisibility } from "@/lib/discussion-access";
@@ -76,12 +76,13 @@ interface BureauHQProps {
     totalComments: number;
     flaggedComments: number;
   };
+  upcomingTopics?: Topic[];
   children?: React.ReactNode;
 }
 
 type TabKey = "dashboard" | "users" | "cases" | "tasks" | "discussions" | "analytics" | "settings";
 
-export function BureauHQ({ stats, children }: BureauHQProps) {
+export function BureauHQ({ stats, upcomingTopics, children }: BureauHQProps) {
   const { badge } = useBadge();
   const [agents, setAgents] = useState<AgentUser[]>([]);
 const [activeTab, setActiveTab] = useState<TabKey>("dashboard");
@@ -92,7 +93,11 @@ const [activeTab, setActiveTab] = useState<TabKey>("dashboard");
   const [reopenDuration, setReopenDuration] = useState<string>("30");
   const [extendingId, setExtendingId] = useState<string | null>(null);
   const [extendDays, setExtendDays] = useState<string>("");
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [discardingId, setDiscardingId] = useState<string | null>(null);
+  const [approveDuration, setApproveDuration] = useState<string>("7");
   const [activeCases, setActiveCases] = useState<Topic[]>([]);
+  const [upcomingCases, setUpcomingCases] = useState<Topic[]>(upcomingTopics || []);
   const [tasks, setTasks] = useState<AgentTask[]>([]);
   const [discussions, setDiscussions] = useState<Discussion[]>([]);
   const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null);
@@ -101,6 +106,7 @@ const [activeTab, setActiveTab] = useState<TabKey>("dashboard");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [caseFilter, setCaseFilter] = useState<string>("all");
   const [notifications, setNotifications] = useState<{id: string; message: string; type: "info" | "success" | "warning" | "error"; time: Date}[]>([]);
 
   // Fetch functions - defined before useEffects
@@ -120,6 +126,15 @@ const [activeTab, setActiveTab] = useState<TabKey>("dashboard");
       setActiveCases(filtered);
     } catch {
       console.error("Failed to fetch active cases");
+    }
+  }, []);
+
+  const fetchUpcomingCases = useCallback(async () => {
+    try {
+      const data = await getUpcomingTopics();
+      setUpcomingCases(data as Topic[]);
+    } catch {
+      console.error("Failed to fetch upcoming cases");
     }
   }, []);
 
@@ -159,7 +174,7 @@ const [activeTab, setActiveTab] = useState<TabKey>("dashboard");
     const timeout = setTimeout(() => {
       const loadInitialData = async () => {
         try {
-          await Promise.all([fetchAgents(), fetchActiveCases()]);
+          await Promise.all([fetchAgents(), fetchActiveCases(), fetchUpcomingCases()]);
         } catch (err) {
           console.error("Failed to load initial data:", err);
           addNotification("Failed to load data", "error");
@@ -169,7 +184,7 @@ const [activeTab, setActiveTab] = useState<TabKey>("dashboard");
     }, 0);
 
     return () => clearTimeout(timeout);
-  }, [fetchAgents, fetchActiveCases, addNotification]);
+  }, [fetchAgents, fetchActiveCases, fetchUpcomingCases, addNotification]);
 
   useEffect(() => {
     if (activeTab !== "tasks") return;
@@ -259,6 +274,57 @@ const [activeTab, setActiveTab] = useState<TabKey>("dashboard");
       addNotification("Failed to extend case", "error");
     }
     setExtendingId(null);
+  };
+
+  const handleApproveCase = async (topicId: string, durationDays: string) => {
+    setApprovingId(topicId);
+    try {
+      const res = await fetch("/api/admin/approve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: topicId, durationDays }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        toast.error(data.error || "Failed to approve case");
+        addNotification(data.error || "Failed to approve case", "error");
+      } else {
+        toast.success("Case approved & activated!");
+        addNotification(`Upcoming case activated with ${durationDays} day duration`, "success");
+        fetchUpcomingCases();
+        fetchActiveCases();
+      }
+    } catch {
+      toast.error("Network error");
+      addNotification("Network error approving case", "error");
+    }
+    setApprovingId(null);
+  };
+
+  const handleDiscardCase = async (topicId: string) => {
+    if (!confirm("Discard this case? This cannot be undone.")) return;
+    setDiscardingId(topicId);
+    try {
+      const formData = new FormData();
+      formData.append("id", topicId);
+      const res = await fetch("/api/admin/discard", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        toast.error(data.error || "Failed to discard case");
+        addNotification(data.error || "Failed to discard case", "error");
+      } else {
+        toast.success("Case discarded");
+        addNotification("Upcoming case discarded", "warning");
+        fetchUpcomingCases();
+      }
+    } catch {
+      toast.error("Network error");
+      addNotification("Network error discarding case", "error");
+    }
+    setDiscardingId(null);
   };
 
   const handlePromoteToBureau = async (agentId: string) => {
@@ -464,6 +530,11 @@ const [activeTab, setActiveTab] = useState<TabKey>("dashboard");
           {activeCases.length > 0 && (
             <span className="inline-flex items-center justify-center w-4 h-4 bg-amber-500/20 text-amber-400 text-[8px] font-bold">
               {activeCases.length}
+            </span>
+          )}
+          {upcomingCases.length > 0 && (
+            <span className="inline-flex items-center justify-center w-4 h-4 bg-amber-500/10 text-amber-500 text-[8px] font-bold">
+              {upcomingCases.length}
             </span>
           )}
         </button>
@@ -811,6 +882,91 @@ const [activeTab, setActiveTab] = useState<TabKey>("dashboard");
                                 </button>
                               )}
                             </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Upcoming Cases */}
+          <div className="bg-[#111113] border border-[rgba(168,144,112,0.08)] rounded">
+            <div className="h-0.5 evidence-tape" />
+            <div className="p-4">
+              <div className="flex items-center gap-2 mb-4">
+                <Clock className="w-4 h-4 text-amber-400 opacity-50" />
+                <h2 className="text-xs font-semibold text-zinc-300 typewriter-label">UPCOMING CASES</h2>
+              </div>
+
+              {upcomingCases.length === 0 ? (
+                <div className="text-center py-8">
+                  <Clock className="w-6 h-6 text-zinc-700 mx-auto mb-2 opacity-50" />
+                  <p className="text-zinc-600 text-[10px] typewriter-label">NO UPCOMING CASES</p>
+                  <p className="text-zinc-700 text-[10px] mt-0.5">All upcoming cases have been activated or discarded</p>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  {upcomingCases.map((topic) => (
+                    <div
+                      key={topic.id}
+                      className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-[#0a0a0c] border border-[rgba(168,144,112,0.06)] rounded"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-xs font-mono font-bold text-amber-400">{topic.status}</span>
+                          <span className="text-xs text-zinc-300 truncate">{topic.title}</span>
+                        </div>
+                        <div className="text-[9px] text-zinc-500">
+                          Created {new Date(topic.createdAt).toLocaleDateString()}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        {approvingId === topic.id ? (
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="number"
+                              value={approveDuration}
+                              onChange={(e) => setApproveDuration(e.target.value)}
+                              placeholder="Days"
+                              min="1"
+                              max="365"
+                              className="w-16 bg-[#0a0a0c] border border-[rgba(168,144,112,0.15)] px-1.5 py-1 text-[10px] text-zinc-300 rounded outline-none focus:border-green-500/30 placeholder:text-zinc-700"
+                              autoFocus
+                            />
+                            <button
+                              onClick={() => handleApproveCase(topic.id, approveDuration)}
+                              className="inline-flex items-center gap-1 px-2 py-1.5 text-[10px] font-medium bg-green-500/15 border border-green-500/30 text-green-400 typewriter-label hover:bg-green-500/25 transition-colors"
+                            >
+                              <CheckCircle2 className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => { setApprovingId(null); setApproveDuration("7"); }}
+                              className="inline-flex items-center gap-1 px-2 py-1.5 text-[10px] font-medium bg-zinc-500/10 border border-zinc-500/25 text-zinc-400 typewriter-label hover:bg-zinc-500/20 transition-colors"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => { setApprovingId(topic.id); setApproveDuration("7"); }}
+                              disabled={discardingId === topic.id}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-medium bg-green-500/10 border border-green-500/25 text-green-400 typewriter-label hover:bg-green-500/20 disabled:opacity-40 transition-colors"
+                            >
+                              {approvingId === topic.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
+                              APPROVE
+                            </button>
+                            <button
+                              onClick={() => handleDiscardCase(topic.id)}
+                              disabled={approvingId === topic.id}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-medium bg-red-500/10 border border-red-500/25 text-red-400 typewriter-label hover:bg-red-500/20 disabled:opacity-40 transition-colors"
+                            >
+                              {discardingId === topic.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                              DISCARD
+                            </button>
                           </>
                         )}
                       </div>
